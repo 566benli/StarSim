@@ -1,0 +1,442 @@
+/**
+ * CreationPanel - The pre-game setup screen
+ * Allows users to choose star/planet types and customize parameters
+ * Beautiful, friendly, card-based interface
+ */
+import React, { useState, useEffect } from 'react';
+import { STAR_PRESETS, STAR_CATEGORIES } from '@data/starTypes';
+import { PLANET_PRESETS, PLANET_CATEGORIES } from '@data/planetTypes';
+import { useStore } from '../store';
+import ParameterSlider from './ParameterSlider';
+import './CreationPanel.css';
+
+const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, onSaveSimulation }) => {
+  const {
+    creationStep, setCreationStep,
+    creationTarget, setCreationTarget,
+    creationParams, updateCreationParam,
+    createdBodies, addCreatedBody, removeCreatedBody,
+    resetCreation,
+  } = useStore();
+
+  const [activeTab, setActiveTab] = useState('stars');
+  const [customName, setCustomName] = useState('');
+  const [saveSlots, setSaveSlots] = useState({});
+
+  // Helper functions
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // Simulation time is in years (not seconds)
+  const formatSimTime = (years) => {
+    if (years >= 1e9) return `${(years / 1e9).toFixed(1)} Byr`;
+    if (years >= 1e6) return `${(years / 1e6).toFixed(1)} Myr`;
+    if (years >= 1e3) return `${(years / 1e3).toFixed(1)} kyr`;
+    if (years >= 1) return `${years.toFixed(1)} yr`;
+    return `${years.toFixed(2)} yr`;
+  };
+
+  // Load save slots on component mount (works for both Electron and web via getSaveSlots)
+  useEffect(() => {
+    const loadSaveSlots = async () => {
+      try {
+        const getSlots = window.electronAPI?.getSaveSlots ?? (async () => {
+          const { getSaveSlots } = await import('@services/saveService');
+          return getSaveSlots();
+        });
+        const slots = await getSlots();
+        setSaveSlots(slots || {});
+      } catch (error) {
+        console.error('Failed to load save slots:', error);
+      }
+    };
+    loadSaveSlots();
+  }, []);
+
+  const allPresets = activeTab === 'stars' ? STAR_PRESETS : PLANET_PRESETS;
+  const categories = activeTab === 'stars' ? STAR_CATEGORIES : PLANET_CATEGORIES;
+
+  /**
+   * Select a preset to customize
+   */
+  const selectPreset = (presetId) => {
+    const preset = allPresets[presetId];
+    setCreationTarget({ ...preset, presetId, bodyType: activeTab === 'stars' ? 'star' : 'planet' });
+    setCreationStep('customize');
+    setCustomName(preset.name);
+  };
+
+  /**
+   * Add the customized body to the creation queue
+   */
+  const addToSystem = () => {
+    addCreatedBody({
+      ...creationTarget,
+      name: customName || creationTarget.name,
+      params: { ...creationParams },
+    });
+    resetCreation();
+  };
+
+  /**
+   * Load a simulation from a specific slot
+   */
+  const loadFromSlot = async (slotId) => {
+    const loader = onLoadFromSlot || onLoadSimulation;
+    if (!loader) return;
+
+    try {
+      const result = await loader(slotId);
+      if (result) {
+        const getSlots = window.electronAPI?.getSaveSlots ?? (async () => {
+          const { getSaveSlots } = await import('@services/saveService');
+          return getSaveSlots();
+        });
+        const slots = await getSlots();
+        setSaveSlots(slots || {});
+      }
+    } catch (error) {
+      console.error('Failed to load from slot:', error);
+    }
+  };
+
+  /**
+   * Randomize all parameters
+   */
+  const randomize = () => {
+    if (!creationTarget) return;
+    const preset = creationTarget;
+    const params = {};
+
+    // Randomize each tunable parameter
+    if (preset.mass) {
+      params.mass = preset.mass.min + Math.random() * (preset.mass.max - preset.mass.min);
+    }
+    if (preset.radius && !preset.radius.computed) {
+      params.radius = preset.radius.min + Math.random() * (preset.radius.max - preset.radius.min);
+    }
+    if (preset.temperature) {
+      params.temperature = preset.temperature.min + Math.random() * (preset.temperature.max - preset.temperature.min);
+    }
+    if (preset.orbitalDistance) {
+      params.orbitalDistance = preset.orbitalDistance.min + Math.random() * (preset.orbitalDistance.max - preset.orbitalDistance.min);
+    }
+
+    Object.entries(params).forEach(([key, value]) => {
+      updateCreationParam(key, value);
+    });
+  };
+
+  /**
+   * Start the simulation with all created bodies
+   */
+  const startSim = () => {
+    if (createdBodies.length === 0) return;
+    onStartSimulation(createdBodies);
+  };
+
+  // === Render: Type Selection ===
+  if (creationStep === 'choose_type') {
+    return (
+      <div className="creation-panel">
+        <div className="creation-header">
+          <h1 className="creation-title">
+            <span className="title-star">✦</span> StarSim
+          </h1>
+          <p className="creation-subtitle">Build Your Universe</p>
+        </div>
+
+        {/* Saved Universes Section */}
+        <div className="saved-universes-section">
+          <h3 className="section-title">🌌 Saved Universes</h3>
+          <div className="saved-slots-grid">
+            {Array.from({ length: 10 }, (_, i) => i + 1).map(slotId => {
+              const slot = saveSlots[slotId] || { exists: false };
+              return (
+                <div key={slotId} className={`saved-slot-card ${slot.exists ? 'occupied' : 'empty'}`}>
+                  <div className="slot-header">
+                    <span className="slot-number">Slot {slotId}</span>
+                    {slot.exists && (
+                      <button
+                        className="slot-load-btn"
+                        onClick={() => loadFromSlot(slotId)}
+                        title="Load this universe"
+                      >
+                        🚀 Load
+                      </button>
+                    )}
+                  </div>
+                  {slot.exists ? (
+                    <div className="slot-info">
+                      <div className="slot-detail">
+                        <span className="label">Bodies:</span>
+                        <span className="value">{slot.bodyCount || 0}</span>
+                      </div>
+                      <div className="slot-detail">
+                        <span className="label">Time:</span>
+                        <span className="value">{formatSimTime(slot.simTime || 0)}</span>
+                      </div>
+                      <div className="slot-detail">
+                        <span className="label">Saved:</span>
+                        <span className="value">{formatDate(slot.savedAt)}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="slot-empty">
+                      <span>No Universe Saved</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Save/Load Section */}
+        <div className="save-load-section">
+          <button
+            className="save-load-btn save-btn"
+            onClick={() => onSaveSimulation?.()}
+            title="Save Current Setup"
+            style={{ background: 'linear-gradient(135deg, rgba(68, 255, 136, 0.3), rgba(68, 136, 255, 0.3))', borderColor: 'var(--accent-green)' }}
+          >
+            💾 Save Universe
+          </button>
+          <button
+            className="save-load-btn load-btn"
+            onClick={onLoadSimulation}
+            title="Load Saved Simulation"
+          >
+            📁 Load Saved Universe
+          </button>
+          <div className="section-spacer"></div>
+        </div>
+
+        {/* Tab Switcher */}
+        <div className="tab-switcher">
+          <button
+            className={`tab-btn ${activeTab === 'stars' ? 'active' : ''}`}
+            onClick={() => setActiveTab('stars')}
+          >
+            ⭐ Stars & Remnants
+          </button>
+          <button
+            className={`tab-btn ${activeTab === 'planets' ? 'active' : ''}`}
+            onClick={() => setActiveTab('planets')}
+          >
+            🌍 Planets
+          </button>
+        </div>
+
+        {/* Category Sections */}
+        {categories.map((cat) => (
+          <div key={cat.id} className="category-section">
+            <h3 className="category-title" style={{ color: cat.color }}>
+              {cat.label}
+            </h3>
+            <p className="category-desc">{cat.description}</p>
+            <div className="preset-grid">
+              {Object.values(allPresets)
+                .filter(p => p.category === cat.id)
+                .map(preset => (
+                  <div
+                    key={preset.id}
+                    className="preset-card"
+                    onClick={() => selectPreset(preset.id)}
+                  >
+                    <div className="preset-icon">{preset.icon}</div>
+                    <div className="preset-name">{preset.name}</div>
+                    <div className="preset-desc">{preset.description}</div>
+                    <div className="preset-fact">{preset.funFact}</div>
+                  </div>
+                ))
+              }
+            </div>
+          </div>
+        ))}
+
+        {/* Created Bodies Queue */}
+        {createdBodies.length > 0 && (
+          <div className="creation-queue">
+            <h3>Your System ({createdBodies.length} bodies)</h3>
+            <div className="queue-list">
+              {createdBodies.map((body, i) => (
+                <div key={i} className="queue-item">
+                  <span className="queue-icon">{body.icon}</span>
+                  <span className="queue-name">{body.name}</span>
+                  <button className="queue-remove" onClick={() => removeCreatedBody(i)}>✕</button>
+                </div>
+              ))}
+            </div>
+            <button className="start-btn" onClick={startSim}>
+              🚀 Launch Simulation
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // === Render: Customization ===
+  if (creationStep === 'customize' && creationTarget) {
+    const preset = creationTarget;
+    return (
+      <div className="creation-panel customize-panel">
+        <button className="back-btn" onClick={resetCreation}>← Back</button>
+
+        <div className="customize-header">
+          <div className="customize-icon">{preset.icon}</div>
+          <div>
+            <input
+              className="name-input"
+              value={customName}
+              onChange={(e) => setCustomName(e.target.value)}
+              placeholder="Name your creation..."
+            />
+            <p className="customize-desc">{preset.description}</p>
+          </div>
+        </div>
+
+        <div className="customize-fact">{preset.funFact}</div>
+
+        <div className="parameter-section">
+          <h3>Tune Parameters</h3>
+          <button className="randomize-btn" onClick={randomize}>🎲 Randomize</button>
+
+          {/* Mass */}
+          {preset.mass && (
+            <ParameterSlider
+              label="Mass"
+              unit={preset.mass.unit}
+              min={preset.mass.min}
+              max={preset.mass.max}
+              value={creationParams.mass ?? preset.mass.default}
+              onChange={(v) => updateCreationParam('mass', v)}
+              description="How massive this body is"
+              logarithmic={preset.mass.max / preset.mass.min > 100}
+            />
+          )}
+
+          {/* Radius */}
+          {preset.radius && !preset.radius.computed && (
+            <ParameterSlider
+              label="Radius"
+              unit={preset.radius.unit}
+              min={preset.radius.min}
+              max={preset.radius.max}
+              value={creationParams.radius ?? preset.radius.default}
+              onChange={(v) => updateCreationParam('radius', v)}
+              description="Physical size"
+              logarithmic={preset.radius.max / preset.radius.min > 100}
+            />
+          )}
+
+          {/* Temperature */}
+          {preset.temperature && preset.temperature.max > 0 && (
+            <ParameterSlider
+              label="Temperature"
+              unit={preset.temperature.unit}
+              min={preset.temperature.min}
+              max={preset.temperature.max}
+              value={creationParams.temperature ?? preset.temperature.default}
+              onChange={(v) => updateCreationParam('temperature', v)}
+              description="Surface temperature"
+            />
+          )}
+
+          {/* Luminosity */}
+          {preset.luminosity && preset.luminosity.max > 0 && (
+            <ParameterSlider
+              label="Luminosity"
+              unit={preset.luminosity.unit}
+              min={preset.luminosity.min}
+              max={preset.luminosity.max}
+              value={creationParams.luminosity ?? preset.luminosity.default}
+              onChange={(v) => updateCreationParam('luminosity', v)}
+              description="Brightness relative to the Sun"
+              logarithmic
+            />
+          )}
+
+          {/* Orbital Distance (planets) */}
+          {preset.orbitalDistance && preset.orbitalDistance.max > 0 && (
+            <ParameterSlider
+              label="Orbital Distance"
+              unit={preset.orbitalDistance.unit}
+              min={preset.orbitalDistance.min}
+              max={preset.orbitalDistance.max}
+              value={creationParams.orbitalDistance ?? preset.orbitalDistance.default}
+              onChange={(v) => updateCreationParam('orbitalDistance', v)}
+              description="Distance from parent star"
+              logarithmic={preset.orbitalDistance.max / preset.orbitalDistance.min > 20}
+            />
+          )}
+
+          {/* Eccentricity */}
+          {preset.eccentricity !== undefined && typeof preset.eccentricity === 'object' && (
+            <ParameterSlider
+              label="Eccentricity"
+              unit=""
+              min={preset.eccentricity.min}
+              max={preset.eccentricity.max}
+              value={creationParams.eccentricity ?? preset.eccentricity.default}
+              onChange={(v) => updateCreationParam('eccentricity', v)}
+              description="How elliptical the orbit is (0 = circular)"
+            />
+          )}
+
+          {/* Atmosphere (planets) */}
+          {preset.atmosphere && (
+            <ParameterSlider
+              label="Atmosphere"
+              unit={preset.atmosphere.unit}
+              min={preset.atmosphere.min}
+              max={preset.atmosphere.max}
+              value={creationParams.atmosphere ?? preset.atmosphere.default}
+              onChange={(v) => updateCreationParam('atmosphere', v)}
+              description="Atmospheric pressure"
+              logarithmic={preset.atmosphere.max / preset.atmosphere.min > 100}
+            />
+          )}
+
+          {/* Spin (black holes) */}
+          {preset.spin && (
+            <ParameterSlider
+              label="Spin"
+              unit={preset.spin.unit}
+              min={preset.spin.min}
+              max={preset.spin.max}
+              value={creationParams.spin ?? preset.spin.default}
+              onChange={(v) => updateCreationParam('spin', v)}
+              description="Rotation parameter (0 = not spinning)"
+            />
+          )}
+
+          {/* Accretion Rate (black holes) */}
+          {preset.accretionRate && (
+            <ParameterSlider
+              label="Accretion Rate"
+              unit={preset.accretionRate.unit}
+              min={preset.accretionRate.min}
+              max={preset.accretionRate.max}
+              value={creationParams.accretionRate ?? preset.accretionRate.default}
+              onChange={(v) => updateCreationParam('accretionRate', v)}
+              description="How fast it's consuming matter"
+            />
+          )}
+        </div>
+
+        <button className="add-to-system-btn" onClick={addToSystem}>
+          ✨ Add to System
+        </button>
+      </div>
+    );
+  }
+
+  return null;
+};
+
+export default CreationPanel;

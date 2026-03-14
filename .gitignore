@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-electron/
+
+# Packaged exe / archives
+StarSim.exe
+*.rar
+
+# Environment & secrets
+.env
+.env.*
+
+# Logs
+*.log
+StarSim-Logs/
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Test artifacts
+test-screenshots/
+
+# Cursor internal (agent transcripts, terminal state)
+.cursor/projects/
+
+# Debug / temp
+debug.log
+page-source.html
+problem feedback/

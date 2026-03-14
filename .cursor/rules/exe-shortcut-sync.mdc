@@ -1,0 +1,38 @@
+---
+description: Exe, desktop shortcut, and webpage must always be built and updated together
+alwaysApply: true
+---
+
+# StarSim: Version & Three-Way Coordination Rule
+
+## Core rule
+
+**Exe, webpage (dist/), and desktop shortcut must ALWAYS be the same version.** Single canonical location: `dist-electron/StarSim.exe`. Web serves from `dist/`. Shortcut points to canonical exe only.
+
+## Single source of truth
+
+| Output | Location | Notes |
+|--------|----------|-------|
+| **Webpage** | `dist/` | Served by `npm run serve:web`; same bundle as exe |
+| **Exe** | `dist-electron/StarSim.exe` | Canonical. Copied from win-unpacked; never use win-unpacked for shortcut |
+| **Desktop shortcut** | `Desktop/StarSim.lnk` | MUST point to `dist-electron\StarSim.exe` only |
+| **BUILD_ID.txt** | `dist/` and `dist-electron/` | Same timestamp = same version |
+
+## Triggers (run full build)
+
+- **Version bump** or **code changes**
+- Run `npm run build:all` at the end of any session that modifies the app
+
+## Sync pipeline
+
+`npm run build:all` → npm install → clean → **web build** → **BUILD_ID** written → **electron-builder** (no rebuild) → copy to dist-electron → **shortcut** (canonical only)
+
+## Verification
+
+`npm run check-sync` — verifies BUILD_ID match, shortcut targets canonical exe (not win-unpacked).
+
+## When sync fails
+
+1. Close StarSim.exe, run `npm run build:all` with full permissions
+2. If shortcut points to win-unpacked: run `npm run shortcut`
+3. Never deliver without a complete coordinated build

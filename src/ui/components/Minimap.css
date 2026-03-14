@@ -1,0 +1,44 @@
+/* Minimap - Galaxy overview, draggable */
+.minimap-container {
+  position: fixed;
+  width: 128px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(68, 136, 255, 0.4);
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+  z-index: 1100;
+  background: rgba(5, 5, 25, 0.95);
+  -webkit-app-region: no-drag;
+}
+
+.minimap-container:hover {
+  border-color: rgba(0, 204, 255, 0.6);
+  box-shadow: 0 0 15px rgba(68, 136, 255, 0.3);
+}
+
+.minimap-drag-handle {
+  height: 20px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  font-size: 10px;
+  color: rgba(136, 136, 187, 0.9);
+  letter-spacing: 1px;
+  cursor: grab;
+  user-select: none;
+  background: rgba(15, 15, 35, 0.95);
+  border-bottom: 1px solid rgba(68, 136, 255, 0.2);
+  touch-action: none;
+  -webkit-app-region: no-drag;
+}
+
+.minimap-drag-handle:active {
+  cursor: grabbing;
+}
+
+.minimap-canvas {
+  display: block;
+  width: 128px;
+  height: 128px;
+  cursor: crosshair;
+}

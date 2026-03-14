@@ -1,0 +1,133 @@
+{
+  "name": "starsim",
+  "version": "0.1.0",
+  "description": "StarSim - An interactive stellar evolution and cosmic exploration simulator",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "webpack serve --mode development",
+    "build": "webpack --mode production",
+    "build:web": "webpack --mode production --env web",
+    "build:all": "powershell -ExecutionPolicy Bypass -File build/build-all.ps1",
+    "check-sync": "powershell -ExecutionPolicy Bypass -File build/check-sync.ps1",
+    "setup": "powershell -ExecutionPolicy Bypass -File build/setup-dependencies.ps1",
+    "diagnose": "powershell -ExecutionPolicy Bypass -File build/diagnose.ps1",
+    "test-launch": "powershell -ExecutionPolicy Bypass -File build/test-launch.ps1",
+    "ensure-exe": "powershell -ExecutionPolicy Bypass -File build/ensure-exe-placement.ps1",
+    "shortcut": "powershell -ExecutionPolicy Bypass -File build/create-desktop-shortcut.ps1",
+    "serve:web": "npx serve dist -l 8080 --cors",
+    "server": "cd server && node server.js",
+    "server:install": "cd server && npm install",
+    "electron": "electron .",
+    "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:9000 && electron .\"",
+    "package": "powershell -ExecutionPolicy Bypass -File build/build-all.ps1 && electron-builder --win",
+    "package:dir": "npm run build && electron-builder --win --dir",
+    "lint": "eslint src/"
+  },
+  "keywords": [
+    "simulation",
+    "stellar",
+    "astronomy",
+    "space",
+    "game"
+  ],
+  "author": "StarSim Team",
+  "license": "MIT",
+  "dependencies": {
+    "@react-three/drei": "^10.0.0",
+    "@react-three/fiber": "^9.0.0",
+    "@react-three/postprocessing": "^3.0.0",
+    "framer-motion": "^12.0.0",
+    "leva": "^0.10.0",
+    "openai": "^4.80.0",
+    "postprocessing": "^6.36.0",
+    "puppeteer": "^24.38.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "three": "^0.170.0",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@babel/preset-env": "^7.26.0",
+    "@babel/preset-react": "^7.26.0",
+    "babel-loader": "^9.2.0",
+    "concurrently": "^9.1.0",
+    "copy-webpack-plugin": "^12.0.0",
+    "css-loader": "^7.1.0",
+    "electron": "^34.0.0",
+    "electron-builder": "^25.0.0",
+    "html-webpack-plugin": "^5.6.0",
+    "png-to-ico": "^3.0.1",
+    "serve": "^14.2.5",
+    "ssh2": "^1.17.0",
+    "ssh2-sftp-client": "^12.0.1",
+    "style-loader": "^4.0.0",
+    "wait-on": "^8.0.0",
+    "webpack": "^5.97.0",
+    "webpack-cli": "^6.0.0",
+    "webpack-dev-server": "^5.2.0"
+  },
+  "build": {
+    "appId": "com.starsim.app",
+    "productName": "StarSim",
+    "forceCodeSigning": false,
+    "asar": true,
+    "asarUnpack": [
+      "dist/**"
+    ],
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "assets",
+        "to": "assets",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico",
+      "artifactName": "StarSim-${version}-Setup.${ext}",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "StarSim"
+    },
+    "portable": {
+      "artifactName": "StarSim-${version}-Portable.${ext}"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/icon.png"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "assets/icon.png"
+    }
+  }
+}

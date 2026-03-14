@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StarSim — My Dashboard</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#060612;--bg2:#0d0d24;--bg3:#14142e;--card:#181838;--border:#2a2a5a;--text:#e0e0f0;--dim:#8888aa;--accent:#00ccff;--accent2:#4a9eff;--green:#44ff88;--orange:#ffaa44;--red:#ff4466;--purple:#aa66ff;--radius:12px}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+button{font-family:inherit;cursor:pointer}input{font-family:inherit}
+
+.starfield{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.starfield span{position:absolute;border-radius:50%;background:white;animation:twinkle 3s infinite alternate}
+@keyframes twinkle{0%{opacity:.2}100%{opacity:.9}}
+
+.container{position:relative;z-index:1;max-width:800px;margin:0 auto;padding:32px 20px}
+header{text-align:center;padding:48px 0 24px}
+header h1{font-size:2.2em;font-weight:700;background:linear-gradient(135deg,var(--accent),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px}
+header p{color:var(--dim);font-size:1.05em}
+
+.auth-bar{display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);margin-bottom:28px}
+.user-badge{display:flex;align-items:center;gap:8px;color:var(--green);font-weight:500}
+.user-badge .avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--accent2),var(--purple));display:flex;align-items:center;justify-content:center;font-size:14px;color:white;font-weight:700}
+.btn{padding:8px 20px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:14px;transition:all .15s}
+.btn:hover{border-color:var(--accent);box-shadow:0 0 12px rgba(0,204,255,.2)}
+.btn-primary{background:linear-gradient(135deg,var(--accent2),var(--accent));color:white;border:none;font-weight:600}
+.btn-primary:hover{box-shadow:0 0 18px rgba(0,204,255,.4)}
+.btn-danger{border-color:var(--red);color:var(--red)}
+.btn-danger:hover{background:rgba(255,68,102,.1)}
+.btn-sm{padding:5px 14px;font-size:13px}
+
+/* Welcome card for non-logged-in users */
+.welcome-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:48px 32px;text-align:center;margin-bottom:32px}
+.welcome-card h2{font-size:1.6em;margin-bottom:12px;color:var(--accent)}
+.welcome-card p{color:var(--dim);margin-bottom:24px;line-height:1.7}
+.welcome-card .btn-group{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+
+/* Stats row */
+.my-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:32px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center}
+.stat-card .num{font-size:2em;font-weight:700;color:var(--accent)}
+.stat-card .label{color:var(--dim);font-size:.85em;margin-top:4px}
+
+.section{margin-bottom:36px}
+.section h2{font-size:1.3em;margin-bottom:14px;color:var(--accent);display:flex;align-items:center;gap:8px}
+
+.save-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+.save-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;position:relative;transition:border-color .15s}
+.save-card:hover{border-color:var(--accent2)}
+.save-card h3{font-size:1em;margin-bottom:8px}
+.save-card .meta{font-size:.85em;color:var(--dim);line-height:1.6}
+.save-card .meta b{color:var(--accent)}
+.save-card .delete-btn{position:absolute;top:10px;right:10px;background:none;border:none;color:var(--dim);font-size:16px;cursor:pointer}
+.save-card .delete-btn:hover{color:var(--red)}
+
+.empty-msg{color:var(--dim);text-align:center;padding:32px 0;font-style:italic}
+
+.account-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:32px}
+.account-card .row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)}
+.account-card .row:last-child{border-bottom:none}
+.account-card .row .label{color:var(--dim);font-size:.9em}
+.account-card .row .value{font-weight:500}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:32px;width:100%;max-width:420px}
+.modal h2{text-align:center;margin-bottom:20px;color:var(--accent)}
+.modal .field{margin-bottom:14px}
+.modal label{display:block;font-size:.85em;color:var(--dim);margin-bottom:4px}
+.modal input{width:100%;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:15px}
+.modal input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 8px rgba(0,204,255,.2)}
+.modal .actions{display:flex;gap:10px;margin-top:20px}
+.modal .actions .btn{flex:1;text-align:center}
+.modal .error{color:var(--red);font-size:.9em;margin-top:8px;text-align:center}
+.modal .success{color:var(--green);font-size:.9em;margin-top:8px;text-align:center}
+.modal .switch{text-align:center;margin-top:14px;font-size:.9em;color:var(--dim)}
+.modal .switch a{cursor:pointer}
+
+.hidden{display:none!important}
+footer{text-align:center;color:var(--dim);font-size:.85em;padding:40px 0 24px;border-top:1px solid var(--border);margin-top:40px}
+</style>
+</head>
+<body>
+
+<div class="starfield" id="starfield"></div>
+
+<div class="container">
+  <header>
+    <h1>StarSim</h1>
+    <p>Your personal space — saves, stats, and account management.</p>
+  </header>
+
+  <div class="auth-bar" id="authBar">
+    <div id="loggedOutBtns">
+      <button class="btn btn-sm" onclick="showModal('login')">Log In</button>
+      <button class="btn btn-primary btn-sm" onclick="showModal('register')">Create Account</button>
+    </div>
+    <div id="loggedInInfo" class="hidden">
+      <span class="user-badge">
+        <span class="avatar" id="userAvatar">?</span>
+        <span id="userName">—</span>
+      </span>
+      <button class="btn btn-sm btn-danger" onclick="logout()">Log Out</button>
+    </div>
+  </div>
+
+  <!-- Welcome (shown when not logged in) -->
+  <div id="welcomeSection">
+    <div class="welcome-card">
+      <h2>Welcome, Explorer</h2>
+      <p>Log in or create an account to sync your StarSim universes across devices.<br>
+      Your saves, statistics, and progress — all in one place.</p>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="showModal('login')">Log In</button>
+        <button class="btn" onclick="showModal('register')">Create Account</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dashboard (shown when logged in) -->
+  <div id="dashboardSection" class="hidden">
+    <!-- Account info -->
+    <div class="section">
+      <h2>👤 Account</h2>
+      <div class="account-card">
+        <div class="row"><span class="label">Username</span><span class="value" id="acctUsername">—</span></div>
+        <div class="row"><span class="label">Email</span><span class="value" id="acctEmail">—</span></div>
+        <div class="row"><span class="label">Member since</span><span class="value" id="acctJoined">—</span></div>
+        <div class="row"><span class="label">Last login</span><span class="value" id="acctLastLogin">—</span></div>
+      </div>
+    </div>
+
+    <!-- Personal stats -->
+    <div class="my-stats">
+      <div class="stat-card"><div class="num" id="myUniverses">0</div><div class="label">Universes</div></div>
+      <div class="stat-card"><div class="num" id="myBodies">0</div><div class="label">Bodies Created</div></div>
+      <div class="stat-card"><div class="num" id="mySimTime">0</div><div class="label">Sim Time</div></div>
+    </div>
+
+    <!-- My saves -->
+    <div class="section">
+      <h2>🌌 My Universes</h2>
+      <div class="save-grid" id="mySavesGrid"></div>
+      <p id="noSavesMsg" class="empty-msg hidden">No cloud saves yet. Save a simulation from StarSim to see it here!</p>
+    </div>
+  </div>
+
+  <footer>StarSim &mdash; Explore, simulate, discover.</footer>
+</div>
+
+<!-- Auth Modal -->
+<div class="modal-overlay hidden" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<script>
+const API = window.location.origin + '/api';
+let token = localStorage.getItem('starsim-token');
+let currentUser = null;
+
+// Starfield
+(function() {
+  const sf = document.getElementById('starfield');
+  for (let i = 0; i < 100; i++) {
+    const s = document.createElement('span');
+    s.style.width = s.style.height = Math.random() * 2.5 + 0.5 + 'px';
+    s.style.left = Math.random() * 100 + '%';
+    s.style.top = Math.random() * 100 + '%';
+    s.style.animationDelay = Math.random() * 3 + 's';
+    s.style.animationDuration = 2 + Math.random() * 3 + 's';
+    sf.appendChild(s);
+  }
+})();
+
+// API helper
+async function apiCall(endpoint, opts = {}) {
+  const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  const res = await fetch(API + endpoint, { ...opts, headers, body: opts.body ? JSON.stringify(opts.body) : undefined });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+// Auth UI
+function showModal(mode) {
+  const m = document.getElementById('modalOverlay');
+  const c = document.getElementById('modalContent');
+  m.classList.remove('hidden');
+
+  if (mode === 'login') {
+    c.innerHTML = `
+      <h2>Log In</h2>
+      <div class="field"><label>Username or Email</label><input id="loginUser" autocomplete="username"></div>
+      <div class="field"><label>Password</label><input id="loginPass" type="password" autocomplete="current-password"></div>
+      <div class="error hidden" id="loginError"></div>
+      <div class="actions"><button class="btn btn-primary" onclick="doLogin()">Log In</button></div>
+      <div class="switch">No account? <a onclick="showModal('register')">Create one</a></div>
+      <div class="switch"><a onclick="showModal('forgot')">Forgot password?</a></div>`;
+    setTimeout(() => document.getElementById('loginUser')?.focus(), 100);
+  } else if (mode === 'register') {
+    c.innerHTML = `
+      <h2>Create Account</h2>
+      <div class="field"><label>Username</label><input id="regUser" autocomplete="username"></div>
+      <div class="field"><label>Email (optional, for password recovery)</label><input id="regEmail" type="email" autocomplete="email"></div>
+      <div class="field"><label>Password</label><input id="regPass" type="password" autocomplete="new-password"></div>
+      <div class="error hidden" id="regError"></div>
+      <div class="actions"><button class="btn btn-primary" onclick="doRegister()">Create Account</button></div>
+      <div class="switch">Already have an account? <a onclick="showModal('login')">Log in</a></div>`;
+    setTimeout(() => document.getElementById('regUser')?.focus(), 100);
+  } else if (mode === 'forgot') {
+    c.innerHTML = `
+      <h2>Reset Password</h2>
+      <p style="color:var(--dim);margin-bottom:14px;text-align:center">Enter your email and we'll send a reset link.</p>
+      <div class="field"><label>Email</label><input id="forgotEmail" type="email"></div>
+      <div class="error hidden" id="forgotError"></div>
+      <div class="actions"><button class="btn btn-primary" onclick="doForgot()">Send Reset Link</button></div>
+      <div class="switch"><a onclick="showModal('login')">Back to login</a></div>`;
+  }
+}
+function closeModal() { document.getElementById('modalOverlay').classList.add('hidden'); }
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  if (el) { el.textContent = msg; el.classList.remove('hidden'); }
+}
+
+async function doLogin() {
+  try {
+    const data = await apiCall('/auth/login', {
+      method: 'POST',
+      body: { username: document.getElementById('loginUser').value, password: document.getElementById('loginPass').value }
+    });
+    token = data.token; localStorage.setItem('starsim-token', token);
+    currentUser = data.user; closeModal(); updateUI();
+  } catch (e) { showError('loginError', e.message); }
+}
+
+async function doRegister() {
+  try {
+    const data = await apiCall('/auth/register', {
+      method: 'POST',
+      body: { username: document.getElementById('regUser').value, email: document.getElementById('regEmail').value || undefined, password: document.getElementById('regPass').value }
+    });
+    token = data.token; localStorage.setItem('starsim-token', token);
+    currentUser = data.user; closeModal(); updateUI();
+  } catch (e) { showError('regError', e.message); }
+}
+
+async function doForgot() {
+  try {
+    await apiCall('/auth/forgot', { method: 'POST', body: { email: document.getElementById('forgotEmail').value } });
+    const el = document.getElementById('forgotError');
+    el.textContent = 'If that email exists, a reset link was sent.';
+    el.style.color = 'var(--green)'; el.classList.remove('hidden');
+  } catch (e) { showError('forgotError', e.message); }
+}
+
+function logout() {
+  token = null; currentUser = null;
+  localStorage.removeItem('starsim-token');
+  updateUI();
+}
+
+function updateUI() {
+  const loggedIn = !!currentUser;
+  document.getElementById('loggedOutBtns').classList.toggle('hidden', loggedIn);
+  document.getElementById('loggedInInfo').classList.toggle('hidden', !loggedIn);
+  document.getElementById('welcomeSection').classList.toggle('hidden', loggedIn);
+  document.getElementById('dashboardSection').classList.toggle('hidden', !loggedIn);
+  if (loggedIn) {
+    document.getElementById('userName').textContent = currentUser.username;
+    document.getElementById('userAvatar').textContent = currentUser.username[0].toUpperCase();
+    document.getElementById('acctUsername').textContent = currentUser.username;
+    document.getElementById('acctEmail').textContent = currentUser.email || '(not set)';
+    document.getElementById('acctJoined').textContent = formatDate(currentUser.created_at);
+    document.getElementById('acctLastLogin').textContent = formatDate(currentUser.last_login);
+    loadMyData();
+  }
+}
+
+async function loadMyData() {
+  if (!token) return;
+  try {
+    const data = await apiCall('/terminal/my-stats');
+    document.getElementById('myUniverses').textContent = data.saveCount;
+    document.getElementById('myBodies').textContent = data.totalBodies.toLocaleString();
+    document.getElementById('mySimTime').textContent = formatSimTime(data.totalSimTime);
+
+    const grid = document.getElementById('mySavesGrid');
+    const noMsg = document.getElementById('noSavesMsg');
+    if (data.saves.length === 0) {
+      grid.innerHTML = ''; noMsg.classList.remove('hidden'); return;
+    }
+    noMsg.classList.add('hidden');
+    grid.innerHTML = data.saves.map(s => `
+      <div class="save-card">
+        <button class="delete-btn" title="Delete" onclick="deleteSave(${s.id})">&times;</button>
+        <h3>${esc(s.slot_name)}</h3>
+        <div class="meta">
+          Bodies: <b>${s.body_count}</b><br>
+          Sim Time: <b>${formatSimTime(s.sim_time)}</b><br>
+          Updated: ${timeAgo(s.updated_at)}
+        </div>
+      </div>`).join('');
+  } catch (e) { console.error('Load failed:', e); }
+}
+
+async function deleteSave(id) {
+  if (!confirm('Delete this save permanently?')) return;
+  try { await apiCall('/saves/' + id, { method: 'DELETE' }); loadMyData(); }
+  catch (e) { alert('Delete failed: ' + e.message); }
+}
+
+async function checkAuth() {
+  if (!token) return;
+  try {
+    const data = await apiCall('/auth/me');
+    currentUser = data.user; updateUI();
+  } catch { token = null; localStorage.removeItem('starsim-token'); }
+}
+
+// Helpers
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function timeAgo(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr + (dateStr.endsWith('Z') ? '' : 'Z'));
+  const s = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (s < 60) return 'just now'; if (s < 3600) return Math.floor(s/60) + 'm ago';
+  if (s < 86400) return Math.floor(s/3600) + 'h ago'; return Math.floor(s/86400) + 'd ago';
+}
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  return new Date(dateStr + (dateStr.endsWith('Z') ? '' : 'Z')).toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' });
+}
+function formatSimTime(years) {
+  if (!years) return '0 yr';
+  if (years >= 1e9) return (years/1e9).toFixed(1)+' Byr';
+  if (years >= 1e6) return (years/1e6).toFixed(1)+' Myr';
+  if (years >= 1e3) return (years/1e3).toFixed(1)+' kyr';
+  return years.toFixed(1)+' yr';
+}
+
+// Password reset page
+function checkResetPage() {
+  const params = new URLSearchParams(window.location.search);
+  const resetToken = params.get('token');
+  if (!window.location.pathname.startsWith('/reset') || !resetToken) return;
+  document.querySelector('.container').innerHTML = `
+    <header><h1>StarSim</h1><p>Password Reset</p></header>
+    <div style="max-width:420px;margin:40px auto;">
+      <div class="modal" style="border:1px solid var(--border);border-radius:var(--radius);padding:32px;">
+        <h2 style="text-align:center;color:var(--accent);margin-bottom:20px;">Set New Password</h2>
+        <div class="field"><label style="display:block;font-size:.85em;color:var(--dim);margin-bottom:4px;">New Password</label>
+          <input id="resetNewPass" type="password" style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:15px;" placeholder="At least 6 characters" autofocus></div>
+        <div class="field" style="margin-top:14px;"><label style="display:block;font-size:.85em;color:var(--dim);margin-bottom:4px;">Confirm Password</label>
+          <input id="resetConfirmPass" type="password" style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:15px;" placeholder="Re-enter password"></div>
+        <div id="resetError" class="hidden" style="color:var(--red);font-size:.9em;text-align:center;margin-top:10px;"></div>
+        <div id="resetSuccess" class="hidden" style="color:var(--green);font-size:.9em;text-align:center;margin-top:10px;"></div>
+        <div style="margin-top:20px;"><button class="btn btn-primary" style="width:100%;padding:12px;font-size:15px;" onclick="doResetPassword('${resetToken}')">Reset Password</button></div>
+        <div style="text-align:center;margin-top:16px;"><a href="/" style="color:var(--dim);font-size:.9em;">Back to Dashboard</a></div>
+      </div>
+    </div>`;
+  document.getElementById('resetConfirmPass')?.addEventListener('keydown', e => { if (e.key==='Enter') doResetPassword(resetToken); });
+  document.getElementById('resetNewPass')?.addEventListener('keydown', e => { if (e.key==='Enter') document.getElementById('resetConfirmPass')?.focus(); });
+}
+
+async function doResetPassword(resetToken) {
+  const newPass = document.getElementById('resetNewPass').value;
+  const confirmPass = document.getElementById('resetConfirmPass').value;
+  const errEl = document.getElementById('resetError');
+  const okEl = document.getElementById('resetSuccess');
+  errEl.classList.add('hidden'); okEl.classList.add('hidden');
+  if (!newPass || newPass.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; errEl.classList.remove('hidden'); return; }
+  if (newPass !== confirmPass) { errEl.textContent = 'Passwords do not match.'; errEl.classList.remove('hidden'); return; }
+  try {
+    await apiCall('/auth/reset', { method: 'POST', body: { token: resetToken, newPassword: newPass } });
+    okEl.textContent = 'Password reset successfully! Redirecting to login...'; okEl.classList.remove('hidden');
+    setTimeout(() => { window.location.href = '/'; }, 2500);
+  } catch (e) { errEl.textContent = e.message || 'Reset failed. The link may have expired.'; errEl.classList.remove('hidden'); }
+}
+
+// Init
+checkResetPage();
+checkAuth();
+</script>
+</body>
+</html>

@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StarSim — Central Terminal</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#060612;--bg2:#0d0d24;--bg3:#14142e;--card:#181838;--border:#2a2a5a;--text:#e0e0f0;--dim:#8888aa;--accent:#00ccff;--accent2:#4a9eff;--green:#44ff88;--orange:#ffaa44;--red:#ff4466;--purple:#aa66ff;--gold:#ffd700;--radius:12px}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+button{font-family:inherit;cursor:pointer}input{font-family:inherit}
+
+.starfield{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.starfield span{position:absolute;border-radius:50%;background:white;animation:twinkle 3s infinite alternate}
+@keyframes twinkle{0%{opacity:.2}100%{opacity:.9}}
+
+.container{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:32px 20px}
+header{text-align:center;padding:48px 0 24px}
+header h1{font-size:2.4em;font-weight:700;background:linear-gradient(135deg,var(--gold),var(--orange));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px}
+header .badge{display:inline-block;background:linear-gradient(135deg,var(--orange),var(--red));color:white;font-size:.7em;padding:3px 12px;border-radius:20px;margin-left:8px;vertical-align:middle;letter-spacing:1px;text-transform:uppercase}
+header p{color:var(--dim);font-size:1.05em}
+
+.auth-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);margin-bottom:28px}
+.auth-bar .left{display:flex;align-items:center;gap:12px}
+.operator-badge{display:flex;align-items:center;gap:8px;color:var(--gold);font-weight:600}
+.operator-badge .icon{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--orange));display:flex;align-items:center;justify-content:center;font-size:14px;color:#000;font-weight:700}
+.btn{padding:8px 20px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:14px;transition:all .15s}
+.btn:hover{border-color:var(--accent);box-shadow:0 0 12px rgba(0,204,255,.2)}
+.btn-primary{background:linear-gradient(135deg,var(--accent2),var(--accent));color:white;border:none;font-weight:600}
+.btn-danger{border-color:var(--red);color:var(--red)}.btn-danger:hover{background:rgba(255,68,102,.1)}
+.btn-sm{padding:5px 14px;font-size:13px}
+.btn-promote{border-color:var(--gold);color:var(--gold)}.btn-promote:hover{background:rgba(255,215,0,.1)}
+
+/* Access denied */
+.access-denied{text-align:center;padding:80px 20px}
+.access-denied h2{font-size:1.8em;color:var(--red);margin-bottom:16px}
+.access-denied p{color:var(--dim);margin-bottom:24px;line-height:1.7}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:32px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center}
+.stat-card .num{font-size:2em;font-weight:700;color:var(--accent)}
+.stat-card .label{color:var(--dim);font-size:.85em;margin-top:4px}
+
+/* Tabs */
+.tabs{display:flex;gap:4px;margin-bottom:24px;border-bottom:2px solid var(--border);padding-bottom:0}
+.tab{padding:10px 24px;border:none;background:none;color:var(--dim);font-size:15px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--gold);border-bottom-color:var(--gold);font-weight:600}
+.tab-panel{display:none}.tab-panel.active{display:block}
+
+/* Tables */
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border)}
+th{color:var(--dim);font-size:.8em;text-transform:uppercase;letter-spacing:.5px;position:sticky;top:0;background:var(--bg)}
+td{font-size:.9em}
+tr:hover td{background:rgba(0,204,255,.03)}
+.rank{color:var(--orange);font-weight:700;width:36px}
+.bodies-badge{background:var(--bg3);padding:2px 10px;border-radius:12px;font-size:.85em;color:var(--accent)}
+.admin-tag{background:linear-gradient(135deg,var(--gold),var(--orange));color:#000;font-size:.7em;padding:2px 8px;border-radius:10px;font-weight:700;margin-left:6px}
+.email-dim{color:var(--dim);font-size:.85em}
+.actions-cell{display:flex;gap:6px;flex-wrap:wrap}
+
+/* Login modal */
+.modal-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:32px;width:100%;max-width:420px}
+.modal h2{text-align:center;margin-bottom:20px;color:var(--gold)}
+.modal .field{margin-bottom:14px}
+.modal label{display:block;font-size:.85em;color:var(--dim);margin-bottom:4px}
+.modal input{width:100%;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:15px}
+.modal input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 8px rgba(255,215,0,.2)}
+.modal .actions{display:flex;gap:10px;margin-top:20px}
+.modal .actions .btn{flex:1;text-align:center}
+.modal .error{color:var(--red);font-size:.9em;margin-top:8px;text-align:center}
+
+.hidden{display:none!important}
+footer{text-align:center;color:var(--dim);font-size:.85em;padding:40px 0 24px;border-top:1px solid var(--border);margin-top:40px}
+</style>
+</head>
+<body>
+
+<div class="starfield" id="starfield"></div>
+
+<div class="container">
+  <header>
+    <h1>Central Terminal <span class="badge">Operator</span></h1>
+    <p>Full oversight — all explorers, all universes, one command center.</p>
+  </header>
+
+  <!-- Access denied state -->
+  <div id="accessDenied" class="access-denied">
+    <h2>🔒 Operator Access Required</h2>
+    <p>The Central Terminal is restricted to authorized operators.<br>Log in with an admin account to continue.</p>
+    <button class="btn btn-primary" onclick="showLogin()">Operator Login</button>
+    <div style="margin-top:16px"><a href="/" style="color:var(--dim);font-size:.9em">← Back to User Dashboard</a></div>
+  </div>
+
+  <!-- Terminal content (hidden until admin logs in) -->
+  <div id="terminalContent" class="hidden">
+    <div class="auth-bar">
+      <div class="left">
+        <span class="operator-badge">
+          <span class="icon">★</span>
+          <span id="operatorName">—</span>
+        </span>
+      </div>
+      <div>
+        <a href="/" class="btn btn-sm" style="margin-right:8px">User Dashboard</a>
+        <button class="btn btn-sm btn-danger" onclick="logout()">Log Out</button>
+      </div>
+    </div>
+
+    <!-- Global stats -->
+    <div class="stats">
+      <div class="stat-card"><div class="num" id="statUsers">—</div><div class="label">Total Users</div></div>
+      <div class="stat-card"><div class="num" id="statAdmins">—</div><div class="label">Operators</div></div>
+      <div class="stat-card"><div class="num" id="statSaves">—</div><div class="label">Total Saves</div></div>
+      <div class="stat-card"><div class="num" id="statBodies">—</div><div class="label">Total Bodies</div></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" data-tab="users" onclick="switchTab('users')">👥 All Users</button>
+      <button class="tab" data-tab="saves" onclick="switchTab('saves')">💾 All Saves</button>
+      <button class="tab" data-tab="leaderboard" onclick="switchTab('leaderboard')">🏆 Leaderboard</button>
+      <button class="tab" data-tab="activity" onclick="switchTab('activity')">📡 Recent Activity</button>
+    </div>
+
+    <!-- Users tab -->
+    <div class="tab-panel active" id="panel-users">
+      <table>
+        <thead><tr><th>ID</th><th>Username</th><th>Email</th><th>Role</th><th>Saves</th><th>Bodies</th><th>Joined</th><th>Last Login</th><th>Actions</th></tr></thead>
+        <tbody id="usersTable"></tbody>
+      </table>
+    </div>
+
+    <!-- Saves tab -->
+    <div class="tab-panel" id="panel-saves">
+      <table>
+        <thead><tr><th>ID</th><th>Universe</th><th>Owner</th><th>Bodies</th><th>Sim Time</th><th>Created</th><th>Updated</th></tr></thead>
+        <tbody id="savesTable"></tbody>
+      </table>
+    </div>
+
+    <!-- Leaderboard tab -->
+    <div class="tab-panel" id="panel-leaderboard">
+      <table>
+        <thead><tr><th>#</th><th>Explorer</th><th>Universes</th><th>Bodies</th></tr></thead>
+        <tbody id="leaderboard"></tbody>
+      </table>
+    </div>
+
+    <!-- Activity tab -->
+    <div class="tab-panel" id="panel-activity">
+      <table>
+        <thead><tr><th>Universe</th><th>Explorer</th><th>Bodies</th><th>Updated</th></tr></thead>
+        <tbody id="activityTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>StarSim Central Terminal &mdash; Operator Console</footer>
+</div>
+
+<!-- Login Modal -->
+<div class="modal-overlay hidden" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<script>
+const API = window.location.origin + '/api';
+let token = localStorage.getItem('starsim-terminal-token');
+let currentUser = null;
+
+// Starfield
+(function() {
+  const sf = document.getElementById('starfield');
+  for (let i = 0; i < 80; i++) {
+    const s = document.createElement('span');
+    s.style.width = s.style.height = Math.random() * 2 + 0.5 + 'px';
+    s.style.left = Math.random() * 100 + '%';
+    s.style.top = Math.random() * 100 + '%';
+    s.style.animationDelay = Math.random() * 3 + 's';
+    s.style.animationDuration = 2 + Math.random() * 3 + 's';
+    sf.appendChild(s);
+  }
+})();
+
+async function apiCall(endpoint, opts = {}) {
+  const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  const res = await fetch(API + endpoint, { ...opts, headers, body: opts.body ? JSON.stringify(opts.body) : undefined });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+function showLogin() {
+  const m = document.getElementById('modalOverlay');
+  const c = document.getElementById('modalContent');
+  m.classList.remove('hidden');
+  c.innerHTML = `
+    <h2>★ Operator Login</h2>
+    <div class="field"><label>Username or Email</label><input id="loginUser" autocomplete="username"></div>
+    <div class="field"><label>Password</label><input id="loginPass" type="password" autocomplete="current-password"></div>
+    <div class="error hidden" id="loginError"></div>
+    <div class="actions"><button class="btn btn-primary" style="background:linear-gradient(135deg,var(--gold),var(--orange))" onclick="doLogin()">Access Terminal</button></div>`;
+  setTimeout(() => document.getElementById('loginUser')?.focus(), 100);
+  document.getElementById('loginPass')?.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+}
+function closeModal() { document.getElementById('modalOverlay').classList.add('hidden'); }
+
+async function doLogin() {
+  try {
+    const data = await apiCall('/auth/login', {
+      method: 'POST',
+      body: { username: document.getElementById('loginUser').value, password: document.getElementById('loginPass').value }
+    });
+    if (!data.user.isAdmin) {
+      document.getElementById('loginError').textContent = 'This account does not have operator privileges.';
+      document.getElementById('loginError').classList.remove('hidden');
+      return;
+    }
+    token = data.token; localStorage.setItem('starsim-terminal-token', token);
+    currentUser = data.user; closeModal(); showTerminal();
+  } catch (e) {
+    document.getElementById('loginError').textContent = e.message;
+    document.getElementById('loginError').classList.remove('hidden');
+  }
+}
+
+function logout() {
+  token = null; currentUser = null;
+  localStorage.removeItem('starsim-terminal-token');
+  document.getElementById('accessDenied').classList.remove('hidden');
+  document.getElementById('terminalContent').classList.add('hidden');
+}
+
+function showTerminal() {
+  document.getElementById('accessDenied').classList.add('hidden');
+  document.getElementById('terminalContent').classList.remove('hidden');
+  document.getElementById('operatorName').textContent = currentUser.username;
+  loadAllData();
+}
+
+// Tabs
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + tab));
+}
+
+// Data loading
+async function loadAllData() {
+  try {
+    // Global stats
+    const stats = await apiCall('/terminal/stats');
+    document.getElementById('statUsers').textContent = stats.userCount.toLocaleString();
+    document.getElementById('statSaves').textContent = stats.saveCount.toLocaleString();
+    document.getElementById('statBodies').textContent = stats.totalBodies.toLocaleString();
+
+    // Leaderboard
+    document.getElementById('leaderboard').innerHTML = stats.topCreators.map((u, i) =>
+      `<tr><td class="rank">${i+1}</td><td>${esc(u.username)}</td><td>${u.save_count}</td><td><span class="bodies-badge">${u.total_bodies}</span></td></tr>`
+    ).join('') || '<tr><td colspan="4" style="color:var(--dim);text-align:center">No data</td></tr>';
+
+    // Activity
+    document.getElementById('activityTable').innerHTML = stats.recentSaves.map(s =>
+      `<tr><td>${esc(s.slot_name)}</td><td>${esc(s.username)}</td><td><span class="bodies-badge">${s.body_count}</span></td><td style="color:var(--dim)">${timeAgo(s.updated_at)}</td></tr>`
+    ).join('') || '<tr><td colspan="4" style="color:var(--dim);text-align:center">No activity</td></tr>';
+
+    // Admin endpoints
+    const usersData = await apiCall('/admin/users');
+    const adminCount = usersData.users.filter(u => u.is_admin).length;
+    document.getElementById('statAdmins').textContent = adminCount;
+
+    document.getElementById('usersTable').innerHTML = usersData.users.map(u => `
+      <tr>
+        <td style="color:var(--dim)">${u.id}</td>
+        <td>${esc(u.username)}${u.is_admin ? '<span class="admin-tag">OPERATOR</span>' : ''}</td>
+        <td class="email-dim">${u.email || '—'}</td>
+        <td>${u.is_admin ? '<span style="color:var(--gold)">Operator</span>' : 'User'}</td>
+        <td>${u.save_count}</td>
+        <td><span class="bodies-badge">${u.total_bodies}</span></td>
+        <td style="color:var(--dim)">${formatDate(u.created_at)}</td>
+        <td style="color:var(--dim)">${timeAgo(u.last_login)}</td>
+        <td><div class="actions-cell">
+          ${u.is_admin
+            ? `<button class="btn btn-sm" onclick="demoteUser(${u.id},'${esc(u.username)}')" title="Remove operator">Demote</button>`
+            : `<button class="btn btn-sm btn-promote" onclick="promoteUser(${u.id},'${esc(u.username)}')" title="Make operator">Promote</button>`}
+          <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id},'${esc(u.username)}')" title="Delete user">Delete</button>
+        </div></td>
+      </tr>`).join('');
+
+    const savesData = await apiCall('/admin/saves');
+    document.getElementById('savesTable').innerHTML = savesData.saves.map(s => `
+      <tr>
+        <td style="color:var(--dim)">${s.id}</td>
+        <td>${esc(s.slot_name)}</td>
+        <td>${esc(s.username)}</td>
+        <td><span class="bodies-badge">${s.body_count}</span></td>
+        <td>${formatSimTime(s.sim_time)}</td>
+        <td style="color:var(--dim)">${formatDate(s.created_at)}</td>
+        <td style="color:var(--dim)">${timeAgo(s.updated_at)}</td>
+      </tr>`).join('') || '<tr><td colspan="7" style="color:var(--dim);text-align:center">No saves</td></tr>';
+
+  } catch (e) { console.error('Load failed:', e); }
+}
+
+async function deleteUser(id, name) {
+  if (!confirm(`Delete user "${name}" and all their saves? This cannot be undone.`)) return;
+  try { await apiCall('/admin/users/' + id, { method: 'DELETE' }); loadAllData(); }
+  catch (e) { alert('Delete failed: ' + e.message); }
+}
+
+async function promoteUser(id, name) {
+  if (!confirm(`Promote "${name}" to operator? They will have full terminal access.`)) return;
+  try { await apiCall('/admin/users/' + id + '/promote', { method: 'PUT' }); loadAllData(); }
+  catch (e) { alert('Promote failed: ' + e.message); }
+}
+
+async function demoteUser(id, name) {
+  if (!confirm(`Remove operator privileges from "${name}"?`)) return;
+  try { await apiCall('/admin/users/' + id + '/demote', { method: 'PUT' }); loadAllData(); }
+  catch (e) { alert('Demote failed: ' + e.message); }
+}
+
+// Auth check on load
+async function checkAuth() {
+  if (!token) return;
+  try {
+    const data = await apiCall('/auth/me');
+    if (!data.user.isAdmin) { token = null; localStorage.removeItem('starsim-terminal-token'); return; }
+    currentUser = data.user; showTerminal();
+  } catch { token = null; localStorage.removeItem('starsim-terminal-token'); }
+}
+
+// Helpers
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function timeAgo(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr + (dateStr.endsWith('Z') ? '' : 'Z'));
+  const s = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (s < 60) return 'just now'; if (s < 3600) return Math.floor(s/60)+'m ago';
+  if (s < 86400) return Math.floor(s/3600)+'h ago'; return Math.floor(s/86400)+'d ago';
+}
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  return new Date(dateStr + (dateStr.endsWith('Z') ? '' : 'Z')).toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' });
+}
+function formatSimTime(years) {
+  if (!years) return '0 yr';
+  if (years >= 1e9) return (years/1e9).toFixed(1)+' Byr';
+  if (years >= 1e6) return (years/1e6).toFixed(1)+' Myr';
+  if (years >= 1e3) return (years/1e3).toFixed(1)+' kyr';
+  return years.toFixed(1)+' yr';
+}
+
+checkAuth();
+</script>
+</body>
+</html>

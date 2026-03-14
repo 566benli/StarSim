@@ -1,0 +1,282 @@
+/* AddBodyPanel - Floating panel for adding bodies mid-simulation */
+.add-body-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 420px;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: rgba(8, 8, 24, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg, 16px);
+  padding: 20px;
+  z-index: 500;
+  animation: addPanelIn 0.25s ease;
+  box-shadow:
+    0 0 40px rgba(0, 0, 0, 0.6),
+    0 0 80px rgba(0, 100, 200, 0.08);
+}
+
+@keyframes addPanelIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.add-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.add-panel-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.5px;
+}
+
+.add-panel-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.add-panel-close:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Tabs */
+.add-tab-bar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.add-tab {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.add-tab.active {
+  background: rgba(0, 200, 255, 0.12);
+  color: var(--accent-cyan);
+}
+
+.add-tab:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+/* Preset grid */
+.add-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.add-preset-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 4px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: rgba(20, 20, 50, 0.4);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.add-preset-btn:hover {
+  background: rgba(30, 30, 80, 0.6);
+  border-color: var(--accent-cyan);
+  transform: translateY(-2px);
+}
+
+.add-preset-btn.selected {
+  background: rgba(0, 200, 255, 0.1);
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 12px rgba(0, 200, 255, 0.2);
+}
+
+.preset-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.preset-name {
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.2;
+}
+
+.add-preset-btn.selected .preset-name {
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+
+/* Config area */
+.add-config {
+  animation: configSlideIn 0.2s ease;
+}
+
+@keyframes configSlideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.add-field {
+  margin-bottom: 14px;
+}
+
+.add-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  letter-spacing: 0.5px;
+}
+
+.add-value {
+  color: var(--accent-cyan);
+  font-family: var(--font-mono);
+}
+
+.add-input {
+  width: 100%;
+  padding: 10px 14px;
+  background: rgba(15, 15, 40, 0.6);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s ease;
+  box-sizing: border-box;
+}
+
+.add-input:focus {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 8px rgba(0, 200, 255, 0.15);
+}
+
+.add-input::placeholder {
+  color: var(--text-muted);
+}
+
+.add-select {
+  width: 100%;
+  padding: 10px 14px;
+  background: rgba(15, 15, 40, 0.6);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+  box-sizing: border-box;
+}
+
+.add-select:focus {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 8px rgba(0, 200, 255, 0.15);
+}
+
+.add-confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.add-slider {
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  outline: none;
+}
+
+.add-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+  cursor: pointer;
+  box-shadow: 0 0 6px rgba(0, 200, 255, 0.4);
+}
+
+.add-confirm-btn {
+  width: 100%;
+  padding: 12px;
+  margin-top: 4px;
+  background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+  border: none;
+  border-radius: 10px;
+  color: white;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.5px;
+}
+
+.add-confirm-btn:hover {
+  transform: scale(1.02);
+  box-shadow: 0 0 25px rgba(136, 68, 255, 0.4);
+}
+
+.add-confirm-btn:active {
+  transform: scale(0.98);
+}
+
+.add-hint {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(100, 100, 200, 0.08);
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* Overlay backdrop */
+.add-body-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 499;
+}

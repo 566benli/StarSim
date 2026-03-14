@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StarSim — Central Terminal</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#06060f;--surface:rgba(15,15,35,0.85);--border:rgba(80,100,220,0.2);
+  --text:#d0d0ff;--dim:#7078a0;--cyan:#00ccff;--blue:#4488ff;--green:#44ff88;
+  --purple:#aa66ff;--orange:#ffaa44;--red:#ff4466;--glass:rgba(20,20,50,0.7)}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* Stars background */
+body::before{content:'';position:fixed;inset:0;background:
+  radial-gradient(1px 1px at 10% 20%,rgba(255,255,255,.6),transparent),
+  radial-gradient(1px 1px at 30% 60%,rgba(150,180,255,.5),transparent),
+  radial-gradient(1px 1px at 50% 10%,rgba(255,200,100,.4),transparent),
+  radial-gradient(1px 1px at 70% 80%,rgba(200,150,255,.5),transparent),
+  radial-gradient(1px 1px at 90% 40%,rgba(100,200,255,.4),transparent),
+  radial-gradient(800px 800px at 20% 30%,rgba(40,20,80,0.15),transparent),
+  radial-gradient(600px 600px at 80% 70%,rgba(20,40,80,0.1),transparent);
+  pointer-events:none;z-index:0}
+
+.container{max-width:1200px;margin:0 auto;padding:24px;position:relative;z-index:1}
+
+/* Header */
+.header{text-align:center;padding:40px 0 30px;border-bottom:1px solid var(--border);margin-bottom:32px}
+.header h1{font-size:42px;font-weight:700;background:linear-gradient(135deg,var(--cyan),var(--blue),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px}
+.header .subtitle{color:var(--dim);font-size:16px;letter-spacing:2px;text-transform:uppercase}
+
+/* Stats cards */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:36px}
+.stat-card{background:var(--glass);backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:14px;padding:24px;text-align:center;transition:transform .2s,border-color .2s}
+.stat-card:hover{transform:translateY(-3px);border-color:var(--cyan)}
+.stat-value{font-size:36px;font-weight:700;margin-bottom:4px}
+.stat-label{font-size:13px;color:var(--dim);text-transform:uppercase;letter-spacing:1px}
+.stat-card:nth-child(1) .stat-value{color:var(--cyan)}
+.stat-card:nth-child(2) .stat-value{color:var(--blue)}
+.stat-card:nth-child(3) .stat-value{color:var(--purple)}
+.stat-card:nth-child(4) .stat-value{color:var(--orange)}
+
+/* Sections */
+.section{margin-bottom:36px}
+.section-title{font-size:20px;font-weight:600;color:var(--cyan);margin-bottom:16px;display:flex;align-items:center;gap:10px}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* Tables */
+.table-wrap{background:var(--glass);backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:14px 16px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);border-bottom:1px solid var(--border);background:rgba(0,0,0,0.2)}
+td{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:14px}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(60,80,200,0.06)}
+.username{color:var(--cyan);font-weight:600}
+.sim-name{color:var(--text);font-weight:500}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-count{background:rgba(68,136,255,0.15);color:var(--blue)}
+.badge-time{background:rgba(170,102,255,0.15);color:var(--purple)}
+.badge-bodies{background:rgba(255,170,68,0.15);color:var(--orange)}
+
+/* Search */
+.search-bar{display:flex;gap:12px;margin-bottom:20px}
+.search-bar input{flex:1;padding:12px 16px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:15px}
+.search-bar input:focus{outline:none;border-color:var(--cyan)}
+.search-bar input::placeholder{color:var(--dim)}
+.search-bar button{padding:12px 24px;background:linear-gradient(135deg,var(--blue),var(--cyan));border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:600;cursor:pointer}
+.search-bar button:hover{opacity:0.85}
+
+/* Pagination */
+.pagination{display:flex;justify-content:center;gap:8px;margin-top:16px}
+.pagination button{padding:8px 16px;background:var(--glass);border:1px solid var(--border);border-radius:8px;color:var(--text);cursor:pointer;font-size:13px}
+.pagination button:hover{border-color:var(--cyan)}
+.pagination button.active{background:var(--blue);border-color:var(--blue);color:#fff}
+.pagination button:disabled{opacity:0.3;cursor:not-allowed}
+
+.empty{text-align:center;padding:40px;color:var(--dim);font-size:15px}
+.time-ago{color:var(--dim);font-size:12px}
+
+.loading{text-align:center;padding:60px;color:var(--dim)}
+.loading::after{content:'';display:inline-block;width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--cyan);border-radius:50%;animation:spin .8s linear infinite;margin-left:10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>StarSim Central Terminal</h1>
+    <div class="subtitle">Mission Control &mdash; All Universes, One Station</div>
+  </div>
+
+  <div class="stats" id="stats"><div class="loading">Loading statistics...</div></div>
+
+  <div class="section">
+    <div class="section-title">Top Commanders</div>
+    <div class="table-wrap" id="topUsers"><div class="loading">Loading...</div></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Universe Archive</div>
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Search by simulation or commander name...">
+      <button onclick="searchSims()">Search</button>
+    </div>
+    <div class="table-wrap" id="simTable"><div class="loading">Loading simulations...</div></div>
+    <div class="pagination" id="pagination"></div>
+  </div>
+</div>
+
+<script>
+const API = window.location.origin;
+let currentPage = 1;
+
+function timeAgo(dateStr) {
+  if (!dateStr) return 'never';
+  const diff = Date.now() - new Date(dateStr + 'Z').getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return mins + 'm ago';
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + 'h ago';
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return days + 'd ago';
+  return new Date(dateStr).toLocaleDateString();
+}
+
+function fmtTime(years) {
+  if (!years) return '0 yr';
+  if (years >= 1e9) return (years / 1e9).toFixed(1) + ' Gyr';
+  if (years >= 1e6) return (years / 1e6).toFixed(1) + ' Myr';
+  if (years >= 1e3) return (years / 1e3).toFixed(1) + ' kyr';
+  return years.toFixed(1) + ' yr';
+}
+
+async function loadStats() {
+  try {
+    const r = await fetch(API + '/api/stats');
+    const d = await r.json();
+    document.getElementById('stats').innerHTML = `
+      <div class="stat-card"><div class="stat-value">${d.totalUsers}</div><div class="stat-label">Commanders</div></div>
+      <div class="stat-card"><div class="stat-value">${d.totalSimulations}</div><div class="stat-label">Universes Created</div></div>
+      <div class="stat-card"><div class="stat-value">${d.publicSimulations}</div><div class="stat-label">Public Universes</div></div>
+      <div class="stat-card"><div class="stat-value">${d.totalBodies.toLocaleString()}</div><div class="stat-label">Celestial Bodies</div></div>
+    `;
+    if (d.topUsers?.length) {
+      let rows = d.topUsers.map((u, i) => `<tr>
+        <td>${i + 1}</td>
+        <td class="username">${u.username}</td>
+        <td><span class="badge badge-count">${u.sim_count} universes</span></td>
+        <td class="time-ago">${timeAgo(u.last_active)}</td>
+      </tr>`).join('');
+      document.getElementById('topUsers').innerHTML = `<table><thead><tr><th>#</th><th>Commander</th><th>Universes</th><th>Last Active</th></tr></thead><tbody>${rows}</tbody></table>`;
+    } else {
+      document.getElementById('topUsers').innerHTML = '<div class="empty">No commanders registered yet. Be the first!</div>';
+    }
+  } catch (e) {
+    document.getElementById('stats').innerHTML = '<div class="empty">Could not connect to server</div>';
+  }
+}
+
+async function loadSims(page, search) {
+  currentPage = page || 1;
+  const q = search || document.getElementById('searchInput').value || '';
+  try {
+    const r = await fetch(API + '/api/simulations?page=' + currentPage + '&limit=15&search=' + encodeURIComponent(q));
+    const d = await r.json();
+    if (d.simulations?.length) {
+      let rows = d.simulations.map(s => `<tr>
+        <td class="sim-name">${s.sim_name || s.slot_name}</td>
+        <td class="username">${s.username}</td>
+        <td><span class="badge badge-bodies">${s.body_count} bodies</span></td>
+        <td><span class="badge badge-time">${fmtTime(s.sim_time)}</span></td>
+        <td class="time-ago">${timeAgo(s.updated_at)}</td>
+      </tr>`).join('');
+      document.getElementById('simTable').innerHTML = `<table><thead><tr><th>Universe</th><th>Commander</th><th>Bodies</th><th>Sim Time</th><th>Updated</th></tr></thead><tbody>${rows}</tbody></table>`;
+
+      let pag = '';
+      for (let p = 1; p <= d.pages; p++) {
+        pag += `<button class="${p === currentPage ? 'active' : ''}" onclick="loadSims(${p})">${p}</button>`;
+      }
+      document.getElementById('pagination').innerHTML = pag;
+    } else {
+      document.getElementById('simTable').innerHTML = '<div class="empty">No public universes found. Start a simulation and save it!</div>';
+      document.getElementById('pagination').innerHTML = '';
+    }
+  } catch (e) {
+    document.getElementById('simTable').innerHTML = '<div class="empty">Could not load simulations</div>';
+  }
+}
+
+function searchSims() { loadSims(1); }
+document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') searchSims(); });
+
+loadStats();
+loadSims(1);
+</script>
+</body>
+</html>

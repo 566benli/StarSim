@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StarSim - Cosmic Simulator</title>
+  <style>
+    /* Pre-load styles before JS loads */
+    body {
+      margin: 0;
+      background: #0a0a1a;
+      overflow: hidden;
+    }
+    #root {
+      width: 100vw;
+      height: 100vh;
+    }
+    /* Loading screen */
+    .loading-screen {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #0a0a1a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      font-family: 'Segoe UI', sans-serif;
+      color: #e8e8ff;
+    }
+    .loading-title {
+      font-size: 48px;
+      font-weight: 300;
+      letter-spacing: 8px;
+      margin-bottom: 16px;
+    }
+    .loading-title span {
+      color: #00ccff;
+      text-shadow: 0 0 20px #00ccff;
+    }
+    .loading-subtitle {
+      color: #8888bb;
+      letter-spacing: 3px;
+      margin-bottom: 40px;
+    }
+    .loading-bar {
+      width: 200px;
+      height: 3px;
+      background: #1a1a3a;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .loading-bar::after {
+      content: '';
+      display: block;
+      width: 60%;
+      height: 100%;
+      background: linear-gradient(90deg, #4488ff, #00ccff);
+      border-radius: 2px;
+      animation: loading 1.5s ease-in-out infinite;
+    }
+    @keyframes loading {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(230%); }
+    }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <div class="loading-screen" id="loading">
+      <div class="loading-title"><span>✦</span> StarSim</div>
+      <div class="loading-subtitle">INITIALIZING THE COSMOS</div>
+      <div class="loading-bar"></div>
+    </div>
+  </div>
+</body>
+</html>

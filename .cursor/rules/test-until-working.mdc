@@ -1,0 +1,43 @@
+---
+description: Always test exe and new tools until they work before marking complete
+alwaysApply: true
+---
+
+# StarSim: Test-Until-Working Rule
+
+## Core rule
+
+**Test in the console again and again until the exe opens properly and all new tools function.**
+
+Never mark work complete until the full verification cycle passes.
+
+## Mandatory verification sequence
+
+Run these steps **before** considering any exe/shortcut/build work done:
+
+1. **Build**: `npm run build:all`
+2. **Sync check**: `npm run check-sync` — must show "All versions synchronized"
+3. **Launch exe**: `dist-electron\StarSim.exe` — window must open (no ERR_NOT_FOUND)
+4. **Verify tools**: In-app self-check for orbits; view projections; time scale controls
+
+## What to verify
+
+| Check | How |
+|-------|-----|
+| Exe opens | StarSim window appears, no error dialog |
+| Multi-planet orbits | Add star + planets, start sim, orbits move |
+| View projections | ◇ ⬆ ▬ ◐ buttons switch camera |
+| Time scale | Slider responds; FPS stays smooth |
+| Sync status | `npm run check-sync` passes |
+
+## If something fails
+
+1. Close all StarSim processes
+2. Run `npm run build:all` again (from a normal terminal if electron-builder gets EPERM) (from a normal terminal; sandbox may cause electron-builder EPERM)
+3. Retry the verification sequence
+4. Fix root cause before delivering
+
+## Integration with other rules
+
+- **exe-shortcut-sync**: Version coordination must pass before testing
+- **rebuild-preliminaries**: Run `npm install` before `build:all` when needed

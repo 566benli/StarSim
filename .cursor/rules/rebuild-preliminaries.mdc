@@ -1,0 +1,28 @@
+---
+description: Install prerequisites before each rebuild so the exe can run
+alwaysApply: true
+---
+
+# StarSim: Rebuild Preliminaries Rule
+
+## Core rule
+
+**Before each rebuild, run `npm install` to ensure all preliminaries (dependencies) are in place.** This helps prevent exe build failures and ensures the built exe can run.
+
+## Why this matters
+
+- Corrupted or incomplete `node_modules` can cause `electron-builder` to fail (e.g. spawn EPERM)
+- Missing or outdated dependencies can produce non-runnable exes
+- `npm install` before build verifies electron-builder, app-builder-bin, and Electron are correctly installed
+
+## Implementation
+
+The `build-all.ps1` script already includes Step 0: `npm install` before cleaning and building. This runs automatically when you execute `npm run build:all`.
+
+## When rebuild still fails
+
+1. **Close StarSim.exe** – an open process may lock files
+2. **Run `npm run build:all`** – install + build in one go
+3. **If EPERM (spawn app-builder.exe) occurs** – the build may be running in a sandbox. Run the build with full permissions (e.g. external PowerShell/CMD, or request "all" permissions in Cursor)
+4. **If EPERM persists** – try from an elevated prompt (Run as Administrator) or temporarily exclude the project folder from antivirus
+5. **Nuclear option** – delete `node_modules` and `package-lock.json`, then run `npm install` followed by `npm run build:all`

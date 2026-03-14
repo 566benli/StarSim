@@ -1,0 +1,268 @@
+/* ViewControls - Scale ruler and zoom buttons */
+.view-controls {
+  position: fixed;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 200;
+  pointer-events: auto;
+  user-select: none;
+}
+
+/* Scale Label at top */
+.view-scale-label {
+  background: rgba(10, 10, 30, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-cyan);
+  white-space: nowrap;
+  cursor: default;
+  text-align: center;
+  min-width: 60px;
+}
+
+/* Vertical Ruler Track */
+.view-ruler-track {
+  position: relative;
+  width: 32px;
+  height: 200px;
+  background: rgba(10, 10, 30, 0.6);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.view-ruler-track:hover {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 10px rgba(0, 200, 255, 0.15);
+}
+
+/* Fill bar from bottom */
+.ruler-fill {
+  position: absolute;
+  bottom: 0;
+  left: 2px;
+  right: 2px;
+  border-radius: 0 0 14px 14px;
+  background: linear-gradient(
+    to top,
+    rgba(0, 200, 255, 0.15),
+    rgba(136, 68, 255, 0.25)
+  );
+  pointer-events: none;
+  transition: height 0.05s ease-out;
+}
+
+/* Tick marks on the ruler */
+.ruler-tick {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.tick-line {
+  width: 10px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.tick-label {
+  position: absolute;
+  left: 36px;
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  white-space: nowrap;
+  transform: translateY(-50%);
+}
+
+/* Draggable thumb */
+.ruler-thumb {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 28px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 2;
+  transition: top 0.05s ease-out;
+}
+
+.ruler-thumb.dragging {
+  transition: none;
+}
+
+.thumb-indicator {
+  width: 24px;
+  height: 10px;
+  background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+  border-radius: 5px;
+  box-shadow:
+    0 0 8px rgba(0, 200, 255, 0.5),
+    0 0 16px rgba(136, 68, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.ruler-thumb.dragging .thumb-indicator {
+  box-shadow:
+    0 0 12px rgba(0, 200, 255, 0.7),
+    0 0 24px rgba(136, 68, 255, 0.5);
+  transform: scaleX(1.1);
+}
+
+/* View Projection Presets */
+.view-projections {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.view-proj-btn {
+  width: 32px;
+  height: 28px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: rgba(10, 10, 30, 0.6);
+  backdrop-filter: blur(10px);
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  padding: 0;
+  line-height: 1;
+}
+
+.view-proj-btn:hover {
+  background: rgba(30, 30, 80, 0.7);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+  box-shadow: 0 0 8px rgba(0, 200, 255, 0.2);
+}
+
+/* Control Buttons */
+.view-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.view-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: rgba(10, 10, 30, 0.6);
+  backdrop-filter: blur(10px);
+  color: var(--text-secondary);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  padding: 0;
+  line-height: 1;
+}
+
+.view-btn:hover {
+  background: rgba(30, 30, 80, 0.7);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+  box-shadow: 0 0 8px rgba(0, 200, 255, 0.2);
+}
+
+.view-btn:active {
+  transform: scale(0.92);
+}
+
+.view-btn.fit-all {
+  margin-top: 4px;
+  border-color: var(--accent-purple);
+  color: var(--accent-purple);
+}
+
+.view-btn.fit-all:hover {
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+  box-shadow: 0 0 8px rgba(255, 193, 7, 0.2);
+}
+
+/* Fit menu dropdown */
+.view-fit-wrapper {
+  position: relative;
+}
+
+.view-fit-menu {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  margin-left: 6px;
+  min-width: 140px;
+  background: rgba(10, 10, 30, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  padding: 4px 0;
+  z-index: 300;
+}
+
+.view-fit-item {
+  display: block;
+  width: 100%;
+  padding: 8px 14px;
+  text-align: left;
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.view-fit-item:hover {
+  background: rgba(30, 30, 80, 0.7);
+  color: var(--accent-cyan);
+}
+
+.view-fit-divider {
+  height: 1px;
+  margin: 6px 10px;
+  background: var(--border-subtle);
+}
+
+.view-fit-subtitle {
+  padding: 6px 14px 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+}
+
+.view-fit-hint {
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
