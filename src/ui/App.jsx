@@ -61,6 +61,7 @@ const App = () => {
     setFocusedClusterId, setFocusedSystemId,
     showObjectPalette, showUniversePanel,
     draggingObject, setDraggingObject,
+    showHabitableZone, toggleHabitableZone,
     setUniverseStats: setStoreUniverseStats,
   } = useStore();
 
@@ -252,6 +253,12 @@ const App = () => {
       // Sync scene view level
       if (scene._viewLevel !== currentViewLevel) {
         scene.setViewLevel(currentViewLevel);
+      }
+
+      // Sync habitable zone toggle
+      const hzVisible = useStore.getState().showHabitableZone;
+      if (scene._showHabitableZone !== hzVisible) {
+        scene.setHabitableZoneVisible(hzVisible);
       }
 
       // Determine which bodies to render based on view level
@@ -538,10 +545,23 @@ const App = () => {
   const handleCanvasDragOver = useCallback((e) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
+    const scene = sceneRef.current;
+    const engine = engineRef.current;
+    if (!scene || !engine) return;
+    const worldPos = scene.screenToWorldPlane(e.clientX, e.clientY);
+    const sysId = useStore.getState().focusedSystemId;
+    const bodies = sysId ? engine.getSystemBodies(sysId) : engine.getBodies();
+    const dragObj = useStore.getState().draggingObject;
+    scene.updateDragHelpers(worldPos, bodies, dragObj);
+  }, []);
+
+  const handleCanvasDragLeave = useCallback(() => {
+    sceneRef.current?.clearDragHelpers();
   }, []);
 
   const handleCanvasDrop = useCallback((e) => {
     e.preventDefault();
+    sceneRef.current?.clearDragHelpers();
     try {
       const data = JSON.parse(e.dataTransfer.getData('text/plain'));
       if (data && data.presetId) {
@@ -806,6 +826,7 @@ const App = () => {
         className="canvas-container"
         ref={canvasRef}
         onDragOver={handleCanvasDragOver}
+        onDragLeave={handleCanvasDragLeave}
         onDrop={handleCanvasDrop}
       />
 
@@ -945,6 +966,15 @@ const App = () => {
 
       {/* Toolbar – fixed bottom-right horizontal strip */}
       <div className="toolbar">
+        {simState !== 'setup' && (
+          <button
+            className={`toolbar-btn hz-toggle-btn ${showHabitableZone ? 'active' : ''}`}
+            onClick={toggleHabitableZone}
+            title={showHabitableZone ? 'Hide Habitable Zones' : 'Show Habitable Zones'}
+          >
+            HZ
+          </button>
+        )}
         {simState !== 'setup' && (
           <button
             className={`toolbar-btn ${showAIChat ? 'active' : ''}`}

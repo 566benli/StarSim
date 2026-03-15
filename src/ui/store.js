@@ -98,6 +98,10 @@ export const useStore = create((set, get) => ({
   toggleUniversePanel: () => set((s) => ({ showUniversePanel: !s.showUniversePanel })),
   toggleObjectPalette: () => set((s) => ({ showObjectPalette: !s.showObjectPalette })),
 
+  // === Overlay toggles ===
+  showHabitableZone: true,
+  toggleHabitableZone: () => set((s) => ({ showHabitableZone: !s.showHabitableZone })),
+
   // === Explorer Mode ===
   explorerInfo: null,
   setExplorerInfo: (info) => set({ explorerInfo: info }),

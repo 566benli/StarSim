@@ -133,6 +133,21 @@ export default class SceneManager {
     this._universeGridHelper = null;
 
     this.createUniverseBoundary();
+
+    // Drag placement helpers
+    this._dragHelpersGroup = new THREE.Group();
+    this._dragHelpersGroup.visible = false;
+    this.scene.add(this._dragHelpersGroup);
+    this._dragDistLines = [];
+    this._dragLabels = [];
+    this._dragOrbitRing = null;
+    this._dragAngleArc = null;
+    this._dragRadialLine = null;
+    this._dragAngleLabel = null;
+    this._dragGhost = null;
+
+    // HZ visibility flag (controlled by store toggle)
+    this._showHabitableZone = true;
   }
 
   /**
@@ -358,6 +373,18 @@ export default class SceneManager {
     this._updateViewVisibility();
   }
 
+  setHabitableZoneVisible(visible) {
+    this._showHabitableZone = visible;
+    if (this._habitableZoneMesh) {
+      this._habitableZoneMesh.visible = visible && (this._viewLevel === VIEW_LEVEL.BODY);
+    }
+    if (this._systemHZMeshes) {
+      for (const m of this._systemHZMeshes) {
+        m.visible = visible && (this._viewLevel === VIEW_LEVEL.SYSTEM);
+      }
+    }
+  }
+
   _updateViewVisibility() {
     const level = this._viewLevel;
 
@@ -373,7 +400,12 @@ export default class SceneManager {
     });
 
     if (this._habitableZoneMesh) {
-      this._habitableZoneMesh.visible = (level === VIEW_LEVEL.BODY);
+      this._habitableZoneMesh.visible = this._showHabitableZone && (level === VIEW_LEVEL.BODY);
+    }
+    if (this._systemHZMeshes) {
+      for (const m of this._systemHZMeshes) {
+        m.visible = this._showHabitableZone && (level === VIEW_LEVEL.SYSTEM);
+      }
     }
 
     if (this.starfield) {
@@ -1992,6 +2024,236 @@ export default class SceneManager {
     this.composer.setSize(w, h);
   }
 
+  // === Drag Placement Helpers ===
+
+  /**
+   * Create a small sprite label for drag helper overlays.
+   */
+  _createDragLabel(text, color = '#ffffff') {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 192;
+    canvas.height = 48;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.font = 'bold 20px monospace';
+    ctx.fillStyle = color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    const texture = new THREE.CanvasTexture(canvas);
+    const mat = new THREE.SpriteMaterial({ map: texture, transparent: true, opacity: 0.85, depthTest: false });
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.set(1.6, 0.4, 1);
+    sprite.renderOrder = 999;
+    return sprite;
+  }
+
+  /**
+   * Show drag placement helpers: distance lines, orbit ring, angle arc, ghost.
+   * Called on every dragover event while the user drags an object onto the canvas.
+   */
+  updateDragHelpers(worldPos, bodies, draggingObj) {
+    if (!worldPos) { this.clearDragHelpers(); return; }
+
+    const group = this._dragHelpersGroup;
+    group.visible = true;
+
+    // Remove old helpers
+    while (group.children.length) {
+      const c = group.children[0];
+      group.remove(c);
+      c.traverse(child => {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+          if (child.material.map) child.material.map.dispose();
+          child.material.dispose();
+        }
+      });
+    }
+
+    if (!bodies || bodies.length === 0) return;
+
+    const alive = bodies.filter(b => b.alive);
+    if (alive.length === 0) return;
+
+    // Sort by distance and take closest 5
+    const withDist = alive.map(b => ({
+      body: b,
+      dist: Math.sqrt(
+        (b.position.x - worldPos.x) ** 2 +
+        (b.position.z - worldPos.z) ** 2
+      ),
+    }));
+    withDist.sort((a, b) => a.dist - b.dist);
+    const closest = withDist.slice(0, 5).filter(w => w.dist < 100);
+
+    // --- Distance lines ---
+    const dashMat = new THREE.LineDashedMaterial({
+      color: 0xffffff, transparent: true, opacity: 0.35,
+      dashSize: 0.3, gapSize: 0.15, depthTest: false,
+    });
+
+    for (const { body, dist } of closest) {
+      const pts = [
+        new THREE.Vector3(worldPos.x, 0.05, worldPos.z),
+        new THREE.Vector3(body.position.x, 0.05, body.position.z),
+      ];
+      const geom = new THREE.BufferGeometry().setFromPoints(pts);
+      const line = new THREE.Line(geom, dashMat.clone());
+      line.computeLineDistances();
+      line.renderOrder = 998;
+      group.add(line);
+
+      const mid = new THREE.Vector3(
+        (worldPos.x + body.position.x) / 2,
+        0.5,
+        (worldPos.z + body.position.z) / 2
+      );
+      const label = this._createDragLabel(`${dist.toFixed(1)} AU`);
+      label.position.copy(mid);
+      group.add(label);
+    }
+
+    // --- Find nearest star for orbit ring and angle ---
+    const nearestStar = withDist.find(w => w.body.type === 'star');
+    if (nearestStar && nearestStar.dist > 0.01) {
+      const star = nearestStar.body;
+      const orbitalR = nearestStar.dist;
+
+      // Orbit preview ring (dashed circle on y=0)
+      const ringSegs = 128;
+      const ringPts = [];
+      for (let i = 0; i <= ringSegs; i++) {
+        const a = (i / ringSegs) * Math.PI * 2;
+        ringPts.push(new THREE.Vector3(
+          star.position.x + orbitalR * Math.cos(a),
+          0.03,
+          star.position.z + orbitalR * Math.sin(a)
+        ));
+      }
+      const ringGeom = new THREE.BufferGeometry().setFromPoints(ringPts);
+      const ringMat = new THREE.LineDashedMaterial({
+        color: 0x00ccff, transparent: true, opacity: 0.3,
+        dashSize: 0.5, gapSize: 0.25, depthTest: false,
+      });
+      const ring = new THREE.Line(ringGeom, ringMat);
+      ring.computeLineDistances();
+      ring.renderOrder = 997;
+      group.add(ring);
+
+      // --- Angle indicator ---
+      const dx = worldPos.x - star.position.x;
+      const dz = worldPos.z - star.position.z;
+      const angle = Math.atan2(dz, dx);
+      const angleDeg = ((angle * 180 / Math.PI) + 360) % 360;
+
+      // Radial line from star to cursor
+      const radPts = [
+        new THREE.Vector3(star.position.x, 0.06, star.position.z),
+        new THREE.Vector3(worldPos.x, 0.06, worldPos.z),
+      ];
+      const radGeom = new THREE.BufferGeometry().setFromPoints(radPts);
+      const radMat = new THREE.LineBasicMaterial({
+        color: 0xffcc44, transparent: true, opacity: 0.5, depthTest: false,
+      });
+      const radLine = new THREE.Line(radGeom, radMat);
+      radLine.renderOrder = 998;
+      group.add(radLine);
+
+      // Reference line (+X axis from star, short)
+      const refLen = Math.min(orbitalR * 0.35, 3);
+      const refPts = [
+        new THREE.Vector3(star.position.x, 0.06, star.position.z),
+        new THREE.Vector3(star.position.x + refLen, 0.06, star.position.z),
+      ];
+      const refGeom = new THREE.BufferGeometry().setFromPoints(refPts);
+      const refMat = new THREE.LineBasicMaterial({
+        color: 0xffcc44, transparent: true, opacity: 0.25, depthTest: false,
+      });
+      const refLine = new THREE.Line(refGeom, refMat);
+      refLine.renderOrder = 997;
+      group.add(refLine);
+
+      // Arc from 0 to angle
+      const arcSegs = Math.max(8, Math.round(Math.abs(angleDeg) / 5));
+      const arcR = Math.min(orbitalR * 0.25, 2);
+      const arcPts = [];
+      for (let i = 0; i <= arcSegs; i++) {
+        const a = (i / arcSegs) * angle;
+        arcPts.push(new THREE.Vector3(
+          star.position.x + arcR * Math.cos(a),
+          0.06,
+          star.position.z + arcR * Math.sin(a)
+        ));
+      }
+      if (arcPts.length >= 2) {
+        const arcGeom = new THREE.BufferGeometry().setFromPoints(arcPts);
+        const arcMat = new THREE.LineBasicMaterial({
+          color: 0xffcc44, transparent: true, opacity: 0.5, depthTest: false,
+        });
+        const arc = new THREE.Line(arcGeom, arcMat);
+        arc.renderOrder = 998;
+        group.add(arc);
+      }
+
+      // Angle label
+      const labelR = arcR * 1.4;
+      const labelAngle = angle / 2;
+      const angleLabel = this._createDragLabel(`${angleDeg.toFixed(0)}\u00B0`, '#ffcc44');
+      angleLabel.position.set(
+        star.position.x + labelR * Math.cos(labelAngle),
+        0.6,
+        star.position.z + labelR * Math.sin(labelAngle)
+      );
+      group.add(angleLabel);
+    }
+
+    // --- Ghost sphere at cursor ---
+    if (draggingObj) {
+      const ghostColor = draggingObj.bodyType === 'star' ? 0xffcc44 : 0x4488ff;
+      const ghostR = draggingObj.bodyType === 'star' ? 0.25 : 0.15;
+      const ghostGeom = new THREE.SphereGeometry(ghostR, 16, 16);
+      const ghostMat = new THREE.MeshBasicMaterial({
+        color: ghostColor, transparent: true, opacity: 0.4, depthTest: false,
+      });
+      const ghost = new THREE.Mesh(ghostGeom, ghostMat);
+      ghost.position.set(worldPos.x, ghostR, worldPos.z);
+      ghost.renderOrder = 999;
+      group.add(ghost);
+
+      // Glow ring around ghost
+      const glowGeom = new THREE.RingGeometry(ghostR * 1.5, ghostR * 1.8, 32);
+      glowGeom.rotateX(-Math.PI / 2);
+      const glowMat = new THREE.MeshBasicMaterial({
+        color: ghostColor, transparent: true, opacity: 0.2, side: THREE.DoubleSide, depthTest: false,
+      });
+      const glow = new THREE.Mesh(glowGeom, glowMat);
+      glow.position.set(worldPos.x, 0.02, worldPos.z);
+      glow.renderOrder = 998;
+      group.add(glow);
+    }
+  }
+
+  /**
+   * Remove all drag placement helpers from the scene.
+   */
+  clearDragHelpers() {
+    const group = this._dragHelpersGroup;
+    if (!group) return;
+    group.visible = false;
+    while (group.children.length) {
+      const c = group.children[0];
+      group.remove(c);
+      c.traverse(child => {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+          if (child.material.map) child.material.map.dispose();
+          child.material.dispose();
+        }
+      });
+    }
+  }
+
   /**
    * Cleanup
    */
@@ -2027,6 +2289,7 @@ export default class SceneManager {
 
     this.hideHabitableZone();
     this.hideSystemHabitableZones();
+    this.clearDragHelpers();
 
     this.renderer.dispose();
     this.composer.dispose();

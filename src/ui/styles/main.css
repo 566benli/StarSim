@@ -451,6 +451,29 @@ html, body, #root {
   font-size: 24px;
 }
 
+/* === Habitable Zone Toggle === */
+.toolbar-btn.hz-toggle-btn {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  border-color: var(--border-subtle);
+}
+
+.toolbar-btn.hz-toggle-btn.active {
+  color: #44ff88;
+  border-color: #44ff88;
+  background: rgba(68, 255, 136, 0.12);
+  box-shadow: 0 0 10px rgba(68, 255, 136, 0.2);
+}
+
+.toolbar-btn.hz-toggle-btn:hover {
+  border-color: #44ff88;
+  color: #44ff88;
+  box-shadow: 0 0 8px rgba(68, 255, 136, 0.15);
+}
+
 /* === Toolbar Icon Buttons === */
 .toolbar-btn.save-icon-btn {
   font-size: 18px;
