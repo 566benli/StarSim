@@ -25,8 +25,6 @@ import { getSaveSlots, saveSlot, loadSlot, deleteSlot } from '@services/saveServ
 import cloud from '@services/cloudService';
 import './styles/main.css';
 
-const TOOLBAR_STORAGE_KEY = 'starsim-toolbar-position';
-
 const App = () => {
   const canvasRef = useRef(null);
   const engineRef = useRef(null);
@@ -44,18 +42,6 @@ const App = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [cloudUser, setCloudUser] = useState(null);
   const authCheckedRef = useRef(false);
-
-  const toolbarDragging = useRef(false);
-  const toolbarDragOffset = useRef({ x: 0, y: 0 });
-  const [toolbarPos, setToolbarPos] = useState(() => {
-    try {
-      const s = localStorage.getItem(TOOLBAR_STORAGE_KEY);
-      if (s) { const p = JSON.parse(s); if (typeof p.right === 'number') return p; }
-    } catch (_) {}
-    return { right: 20, bottom: 80 };
-  });
-  const toolbarPosRef = useRef(toolbarPos);
-  toolbarPosRef.current = toolbarPos;
 
   const [showReturnToMenuDialog, setShowReturnToMenuDialog] = useState(false);
   const [showGoodbye, setShowGoodbye] = useState(false);
@@ -686,39 +672,6 @@ const App = () => {
     }
   }, [handleNewSimulation]);
 
-  const handleToolbarDragStart = useCallback((e) => {
-    e.preventDefault();
-    toolbarDragging.current = true;
-    const rect = e.currentTarget.parentElement.getBoundingClientRect();
-    toolbarDragOffset.current = {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-      tw: rect.width,
-      th: rect.height,
-    };
-    e.currentTarget.setPointerCapture(e.pointerId);
-  }, []);
-
-  const handleToolbarDragMove = useCallback((e) => {
-    if (!toolbarDragging.current) return;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const { tw, th } = toolbarDragOffset.current;
-    const newLeft = e.clientX - toolbarDragOffset.current.x;
-    const newTop = e.clientY - toolbarDragOffset.current.y;
-    const right = Math.max(0, Math.min(vw - tw, vw - newLeft - tw));
-    const bottom = Math.max(0, Math.min(vh - th, vh - newTop - th));
-    setToolbarPos({ right, bottom });
-  }, []);
-
-  const handleToolbarDragEnd = useCallback((e) => {
-    if (toolbarDragging.current) {
-      toolbarDragging.current = false;
-      try { localStorage.setItem(TOOLBAR_STORAGE_KEY, JSON.stringify(toolbarPosRef.current)); } catch (_) {}
-      e.currentTarget?.releasePointerCapture?.(e.pointerId);
-    }
-  }, []);
-
   useEffect(() => {
     const handleKeyDown = (e) => {
       const active = document.activeElement;
@@ -990,30 +943,16 @@ const App = () => {
         mode={saveDialogMode}
       />
 
-      {/* Toolbar (draggable) */}
-      <div
-        className="toolbar"
-        style={{ right: toolbarPos.right, bottom: toolbarPos.bottom }}
-      >
-        <div
-          className="toolbar-drag-handle"
-          onPointerDown={handleToolbarDragStart}
-          onPointerMove={handleToolbarDragMove}
-          onPointerUp={handleToolbarDragEnd}
-          title="Drag to reposition toolbar"
-        >
-          &#x2807;
-        </div>
+      {/* Toolbar – fixed bottom-right horizontal strip */}
+      <div className="toolbar">
         {simState !== 'setup' && (
-          <>
-            <button
-              className={`toolbar-btn ${showAIChat ? 'active' : ''}`}
-              onClick={toggleAIChat}
-              title="AI Assistant (C)"
-            >
-              AI
-            </button>
-          </>
+          <button
+            className={`toolbar-btn ${showAIChat ? 'active' : ''}`}
+            onClick={toggleAIChat}
+            title="AI Assistant (C)"
+          >
+            AI
+          </button>
         )}
         <button
           className={`toolbar-btn save-icon-btn ${simState === 'setup' ? 'setup-mode' : ''}`}

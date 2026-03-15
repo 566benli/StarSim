@@ -230,56 +230,31 @@ html, body, #root {
   box-shadow: 0 0 20px rgba(68, 136, 255, 0.4);
 }
 
-/* === Toolbar === */
+/* === Toolbar (fixed bottom-right horizontal strip) === */
 .toolbar {
   position: fixed;
+  right: 16px;
+  bottom: 16px;
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 8px;
-  z-index: 1000;
-}
-
-.toolbar-drag-handle {
-  width: 100%;
-  height: 20px;
-  display: flex;
+  flex-direction: row;
   align-items: center;
-  justify-content: center;
-  cursor: grab;
-  color: var(--text-secondary);
-  font-size: 16px;
-  letter-spacing: 2px;
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-  background: var(--bg-glass);
-  backdrop-filter: blur(10px);
+  gap: 6px;
+  z-index: 1000;
+  background: rgba(6, 6, 20, 0.65);
+  backdrop-filter: blur(12px);
   border: 1px solid var(--border-subtle);
-  border-bottom: none;
-  opacity: 0.5;
-  transition: opacity var(--transition-fast);
-  touch-action: none;
-  user-select: none;
-}
-
-.toolbar-drag-handle:hover {
-  opacity: 1;
-  cursor: grab;
-  background: var(--bg-tertiary);
-}
-
-.toolbar-drag-handle:active {
-  cursor: grabbing;
+  border-radius: var(--radius-md);
+  padding: 6px 10px;
 }
 
 .toolbar-btn {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-md);
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border-subtle);
-  background: var(--bg-glass);
-  backdrop-filter: blur(10px);
+  background: transparent;
   color: var(--text-primary);
-  font-size: 20px;
+  font-size: 17px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -671,16 +646,18 @@ html, body, #root {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 12px;
-  border-radius: var(--radius-md);
-  background: var(--bg-glass);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: transparent;
   border: 1px solid var(--border-subtle);
   color: var(--accent-green);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   transition: all var(--transition-fast);
   white-space: nowrap;
+  height: 38px;
+  box-sizing: border-box;
 }
 
 .toolbar-user:hover {
