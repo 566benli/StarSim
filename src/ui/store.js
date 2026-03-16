@@ -101,6 +101,8 @@ export const useStore = create((set, get) => ({
   // === Overlay toggles ===
   showHabitableZone: true,
   toggleHabitableZone: () => set((s) => ({ showHabitableZone: !s.showHabitableZone })),
+  showDistGrid: false,
+  toggleDistGrid: () => set((s) => ({ showDistGrid: !s.showDistGrid })),
 
   // === Explorer Mode ===
   explorerInfo: null,

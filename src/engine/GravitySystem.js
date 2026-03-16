@@ -13,11 +13,12 @@ import BlackHole from './BlackHole';
 export default class GravitySystem {
   constructor() {
     this.bodies = [];
-    this.softening = 0.05; // Softening parameter to prevent singularities
+    this.softening = 0.15; // Softening parameter to prevent singularities (AU)
     this.collisionEnabled = true;
     this.mergeEnabled = true;
     this.boundaryEnabled = true;
     this.boundaryRadius = ARENA_RADIUS_AU;
+    this.warningRadius = ARENA_RADIUS_AU * 0.8; // Rubber-band zone starts here
     this.onBoundaryExceeded = null; // (body) => {}
 
     // Gravitational constant in simulation units: AU, Solar masses, Years
@@ -82,7 +83,7 @@ export default class GravitySystem {
     }
 
     // Step 4b: Clamp extreme velocities to prevent numerical explosions
-    const vMax = 200; // AU/yr (~95 km/s) - reasonable escape velocity ceiling
+    const vMax = 80; // AU/yr — reasonable for stellar orbits
     for (let i = 0; i < n; i++) {
       const vSq = bodies[i].velocity.lengthSq();
       if (vSq > vMax * vMax) {
@@ -128,13 +129,10 @@ export default class GravitySystem {
     const n = bodies.length;
     const eps2 = this.softening * this.softening;
 
-    // Reset accelerations
     for (let i = 0; i < n; i++) {
       bodies[i].acceleration.set(0, 0, 0);
     }
 
-    // Compute pairwise forces (Newton's third law optimization)
-    // a_i = G * Σ m_j * (r_j - r_i) / |r_j - r_i|³
     const Grav = this.G;
     for (let i = 0; i < n; i++) {
       for (let j = i + 1; j < n; j++) {
@@ -146,12 +144,10 @@ export default class GravitySystem {
         const dist = Math.sqrt(distSq);
         const GinvDist3 = Grav / (distSq * dist);
 
-        // Force magnitude components (with G included)
         const fx = dx * GinvDist3;
         const fy = dy * GinvDist3;
         const fz = dz * GinvDist3;
 
-        // Apply to both bodies (Newton's third law)
         bodies[i].acceleration.x += bodies[j].mass * fx;
         bodies[i].acceleration.y += bodies[j].mass * fy;
         bodies[i].acceleration.z += bodies[j].mass * fz;
@@ -161,23 +157,48 @@ export default class GravitySystem {
         bodies[j].acceleration.z -= bodies[i].mass * fz;
       }
     }
+
+    // Clamp accelerations to prevent extreme kicks from near-misses
+    const aMax = 500; // AU/yr²
+    for (let i = 0; i < n; i++) {
+      const aSq = bodies[i].acceleration.lengthSq();
+      if (aSq > aMax * aMax) {
+        bodies[i].acceleration.multiplyScalar(aMax / Math.sqrt(aSq));
+      }
+    }
   }
 
   /**
-   * Destroy bodies that exceed the arena boundary (infinite energy wall)
+   * Boundary enforcement with rubber-band zone:
+   * - Inside warningRadius: normal physics
+   * - Between warningRadius and boundaryRadius: apply restoring deceleration toward COM
+   * - Beyond boundaryRadius: destroy
    */
   detectBoundary(bodies, com) {
-    const R2 = this.boundaryRadius * this.boundaryRadius;
+    const R = this.boundaryRadius;
+    const Rw = this.warningRadius;
+    const R2 = R * R;
     for (const body of bodies) {
       if (!body.alive) continue;
       const dx = body.position.x - com.x;
       const dy = body.position.y - com.y;
       const dz = body.position.z - com.z;
       const distSq = dx * dx + dy * dy + dz * dz;
+
       if (distSq > R2) {
         body.logEvent({ type: 'boundary', message: `${body.name} crossed the simulation boundary and was destroyed.` });
         body.destroy();
         if (this.onBoundaryExceeded) this.onBoundaryExceeded(body);
+      } else if (distSq > Rw * Rw) {
+        const dist = Math.sqrt(distSq);
+        const fraction = (dist - Rw) / (R - Rw); // 0 at Rw, 1 at R
+        const dampStrength = 0.15 + 0.85 * fraction; // progressive damping
+        body.velocity.multiplyScalar(1 - dampStrength * 0.3);
+        // Gentle pull toward COM
+        const pullStrength = 0.05 * fraction;
+        body.velocity.x -= (dx / dist) * pullStrength * body.velocity.length();
+        body.velocity.y -= (dy / dist) * pullStrength * body.velocity.length();
+        body.velocity.z -= (dz / dist) * pullStrength * body.velocity.length();
       }
     }
   }

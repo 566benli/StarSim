@@ -45,9 +45,9 @@ export default class SimEngine {
     this.onBodyDestroyed = null;
     this.onBodyCreated = null;
 
-    this.stepsPerFrame = 8;
-    this.maxDtPerStep = 0.02;
-    this.maxStepsPerFrame = 48;
+    this.stepsPerFrame = 12;
+    this.maxDtPerStep = 0.005; // tighter integration for stability
+    this.maxStepsPerFrame = 80;
     this.typicalFrameTime = 1 / 60;
     this.lastFrameTime = 0;
     this.fps = 60;
@@ -71,7 +71,8 @@ export default class SimEngine {
     for (const gs of this.gravitySystems.values()) {
       maxN = Math.max(maxN, gs.getAliveBodies().length);
     }
-    const stepsBudget = Math.max(8, this.maxStepsPerFrame - Math.max(0, maxN - 4) * 4);
+    // Degrade more gently: keep at least 16 steps even with many bodies
+    const stepsBudget = Math.max(16, this.maxStepsPerFrame - Math.max(0, maxN - 6) * 2);
     return (stepsBudget * this.maxDtPerStep) / this.typicalFrameTime;
   }
 

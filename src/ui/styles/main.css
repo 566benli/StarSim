@@ -474,6 +474,27 @@ html, body, #root {
   box-shadow: 0 0 8px rgba(68, 255, 136, 0.15);
 }
 
+/* === Distance Grid Toggle === */
+.toolbar-btn.grid-toggle-btn {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-muted);
+  border-color: var(--border-subtle);
+}
+
+.toolbar-btn.grid-toggle-btn.active {
+  color: #88aadd;
+  border-color: #88aadd;
+  background: rgba(136, 170, 221, 0.12);
+  box-shadow: 0 0 10px rgba(136, 170, 221, 0.2);
+}
+
+.toolbar-btn.grid-toggle-btn:hover {
+  border-color: #88aadd;
+  color: #88aadd;
+  box-shadow: 0 0 8px rgba(136, 170, 221, 0.15);
+}
+
 /* === Toolbar Icon Buttons === */
 .toolbar-btn.save-icon-btn {
   font-size: 18px;

@@ -148,6 +148,10 @@ export default class SceneManager {
 
     // HZ visibility flag (controlled by store toggle)
     this._showHabitableZone = true;
+
+    // Distance grid visibility
+    this._showDistGrid = false;
+    this._distGridGroup = null;
   }
 
   /**
@@ -373,6 +377,15 @@ export default class SceneManager {
     this._updateViewVisibility();
   }
 
+  setDistGridVisible(visible, center) {
+    this._showDistGrid = visible;
+    if (visible && this._viewLevel === VIEW_LEVEL.SYSTEM) {
+      this.createDistanceGrid(center || this._comTarget);
+    } else {
+      this.removeDistanceGrid();
+    }
+  }
+
   setHabitableZoneVisible(visible) {
     this._showHabitableZone = visible;
     if (this._habitableZoneMesh) {
@@ -412,12 +425,17 @@ export default class SceneManager {
       this.starfield.visible = (level !== VIEW_LEVEL.BODY);
     }
 
-    // Hide grid in body view
+    // Hide grid in non-system views
     this.scene.traverse(child => {
       if (child.isGridHelper) {
         child.visible = (level === VIEW_LEVEL.SYSTEM);
       }
     });
+
+    // Distance grid: only visible in system view when toggled on
+    if (this._distGridGroup) {
+      this._distGridGroup.visible = this._showDistGrid && (level === VIEW_LEVEL.SYSTEM);
+    }
 
     // Show/hide body meshes based on view level
     this.bodyMeshes.forEach(group => {
@@ -776,6 +794,91 @@ export default class SceneManager {
   }
 
   /**
+   * Create or update the distance grid overlay — concentric circles with labels,
+   * centered on the system's center of mass. Toggled via UI.
+   */
+  createDistanceGrid(center) {
+    this.removeDistanceGrid();
+
+    const cx = center ? center.x : 0;
+    const cz = center ? center.z : 0;
+    this._distGridGroup = new THREE.Group();
+    this._distGridGroup.renderOrder = 800;
+
+    const distances = [5, 10, 25, 50, 100, 200, 500];
+    const segments = 128;
+
+    for (const r of distances) {
+      if (r > this._arenaRadius * 1.5) continue;
+      const pts = [];
+      for (let i = 0; i <= segments; i++) {
+        const a = (i / segments) * Math.PI * 2;
+        pts.push(new THREE.Vector3(
+          cx + r * Math.cos(a),
+          0.01,
+          cz + r * Math.sin(a)
+        ));
+      }
+      const geom = new THREE.BufferGeometry().setFromPoints(pts);
+      const isMajor = (r === 50 || r === 100 || r === 200 || r === 500);
+      const mat = new THREE.LineDashedMaterial({
+        color: isMajor ? 0x4466aa : 0x334488,
+        transparent: true,
+        opacity: isMajor ? 0.35 : 0.18,
+        dashSize: isMajor ? 1.0 : 0.5,
+        gapSize: isMajor ? 0.5 : 0.3,
+        depthTest: false,
+      });
+      const line = new THREE.Line(geom, mat);
+      line.computeLineDistances();
+      this._distGridGroup.add(line);
+
+      // Distance label on the +X axis
+      const label = this._createDragLabel(`${r} AU`, isMajor ? '#88aadd' : '#556688');
+      label.position.set(cx + r, 0.4, cz);
+      this._distGridGroup.add(label);
+    }
+
+    // Radial lines every 45°
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      const maxR = Math.min(500, this._arenaRadius);
+      const pts = [
+        new THREE.Vector3(cx, 0.01, cz),
+        new THREE.Vector3(cx + maxR * Math.cos(a), 0.01, cz + maxR * Math.sin(a)),
+      ];
+      const geom = new THREE.BufferGeometry().setFromPoints(pts);
+      const mat = new THREE.LineDashedMaterial({
+        color: 0x334488,
+        transparent: true,
+        opacity: 0.12,
+        dashSize: 1.5,
+        gapSize: 1.0,
+        depthTest: false,
+      });
+      const line = new THREE.Line(geom, mat);
+      line.computeLineDistances();
+      this._distGridGroup.add(line);
+    }
+
+    this.scene.add(this._distGridGroup);
+  }
+
+  removeDistanceGrid() {
+    if (this._distGridGroup) {
+      this._distGridGroup.traverse(child => {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+          if (child.material.map) child.material.map.dispose();
+          child.material.dispose();
+        }
+      });
+      this.scene.remove(this._distGridGroup);
+      this._distGridGroup = null;
+    }
+  }
+
+  /**
    * Create or update the visual mesh for a celestial body
    */
   updateBodyVisual(body) {
@@ -880,6 +983,25 @@ export default class SceneManager {
       if (body.selected) {
         group.userData.selectionRing.rotation.z += 0.02;
       }
+    }
+
+    // Update beacon and locator for stars (pulsing, distance-aware)
+    if (group.userData.beacon) {
+      const pulse = 0.35 + 0.25 * Math.sin(this.elapsedTime * 2.5);
+      group.userData.beacon.material.opacity = pulse;
+      const camDist = this.camera.position.distanceTo(body.position);
+      const beaconScale = Math.max(1, camDist * 0.08);
+      group.userData.beacon.scale.set(1, beaconScale, 1);
+      // Only show beacon in system view
+      group.userData.beacon.visible = (this._viewLevel === VIEW_LEVEL.SYSTEM);
+    }
+    if (group.userData.locator) {
+      const isStarBeacon = body.type === 'star';
+      const locPulse = isStarBeacon
+        ? 0.5 + 0.3 * Math.sin(this.elapsedTime * 3)
+        : 0.4 + 0.2 * Math.sin(this.elapsedTime * 2);
+      group.userData.locator.material.opacity = locPulse;
+      group.userData.locator.visible = (this._viewLevel === VIEW_LEVEL.SYSTEM);
     }
 
     return group;
@@ -1133,6 +1255,57 @@ export default class SceneManager {
     const hitProxy = new THREE.Mesh(hitProxyGeom, hitProxyMat);
     group.add(hitProxy);
     group.userData.hitProxy = hitProxy;
+
+    // Beacon column — vertical line above/below star for long-range visibility
+    const beaconH = 4;
+    const beaconPts = [
+      new THREE.Vector3(0, -beaconH, 0),
+      new THREE.Vector3(0, beaconH, 0),
+    ];
+    const beaconGeom = new THREE.BufferGeometry().setFromPoints(beaconPts);
+    const beaconMat = new THREE.LineBasicMaterial({
+      color: temperatureToColor(body.temperature),
+      transparent: true,
+      opacity: 0.5,
+      depthTest: false,
+    });
+    const beacon = new THREE.Line(beaconGeom, beaconMat);
+    beacon.renderOrder = 900;
+    group.add(beacon);
+    group.userData.beacon = beacon;
+
+    // Pulsing diamond locator sprite — always visible from afar
+    const locatorCanvas = document.createElement('canvas');
+    locatorCanvas.width = 64;
+    locatorCanvas.height = 64;
+    const lctx = locatorCanvas.getContext('2d');
+    const starColor = temperatureToColor(body.temperature);
+    const hexColor = `#${starColor.getHexString()}`;
+    lctx.fillStyle = hexColor;
+    lctx.beginPath();
+    lctx.moveTo(32, 4);
+    lctx.lineTo(60, 32);
+    lctx.lineTo(32, 60);
+    lctx.lineTo(4, 32);
+    lctx.closePath();
+    lctx.fill();
+    lctx.strokeStyle = '#ffffff';
+    lctx.lineWidth = 2;
+    lctx.stroke();
+    const locTexture = new THREE.CanvasTexture(locatorCanvas);
+    const locMat = new THREE.SpriteMaterial({
+      map: locTexture,
+      transparent: true,
+      opacity: 0.7,
+      depthTest: false,
+      sizeAttenuation: false,
+    });
+    const locator = new THREE.Sprite(locMat);
+    locator.scale.set(0.04, 0.04, 1); // fixed screen size
+    locator.position.set(0, 0, 0);
+    locator.renderOrder = 901;
+    group.add(locator);
+    group.userData.locator = locator;
 
     return group;
   }
@@ -1457,6 +1630,30 @@ export default class SceneManager {
     const hitProxy = new THREE.Mesh(hitProxyGeom, hitProxyMat);
     group.add(hitProxy);
     group.userData.hitProxy = hitProxy;
+
+    // Small circle locator for planets — visible from afar
+    const pLocCanvas = document.createElement('canvas');
+    pLocCanvas.width = 32;
+    pLocCanvas.height = 32;
+    const plctx = pLocCanvas.getContext('2d');
+    const pColor = body.color || '#4488cc';
+    plctx.beginPath();
+    plctx.arc(16, 16, 12, 0, Math.PI * 2);
+    plctx.fillStyle = pColor;
+    plctx.fill();
+    plctx.strokeStyle = '#ffffff';
+    plctx.lineWidth = 2;
+    plctx.stroke();
+    const pLocTex = new THREE.CanvasTexture(pLocCanvas);
+    const pLocMat = new THREE.SpriteMaterial({
+      map: pLocTex, transparent: true, opacity: 0.6,
+      depthTest: false, sizeAttenuation: false,
+    });
+    const pLocator = new THREE.Sprite(pLocMat);
+    pLocator.scale.set(0.025, 0.025, 1);
+    pLocator.renderOrder = 901;
+    group.add(pLocator);
+    group.userData.locator = pLocator;
 
     return group;
   }
@@ -2290,6 +2487,7 @@ export default class SceneManager {
     this.hideHabitableZone();
     this.hideSystemHabitableZones();
     this.clearDragHelpers();
+    this.removeDistanceGrid();
 
     this.renderer.dispose();
     this.composer.dispose();

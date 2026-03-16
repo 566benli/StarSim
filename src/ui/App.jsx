@@ -62,6 +62,7 @@ const App = () => {
     showObjectPalette, showUniversePanel,
     draggingObject, setDraggingObject,
     showHabitableZone, toggleHabitableZone,
+    showDistGrid, toggleDistGrid,
     setUniverseStats: setStoreUniverseStats,
   } = useStore();
 
@@ -259,6 +260,12 @@ const App = () => {
       const hzVisible = useStore.getState().showHabitableZone;
       if (scene._showHabitableZone !== hzVisible) {
         scene.setHabitableZoneVisible(hzVisible);
+      }
+
+      // Sync distance grid toggle
+      const dgVisible = useStore.getState().showDistGrid;
+      if (scene._showDistGrid !== dgVisible) {
+        scene.setDistGridVisible(dgVisible, scene._comTarget);
       }
 
       // Determine which bodies to render based on view level
@@ -973,6 +980,15 @@ const App = () => {
             title={showHabitableZone ? 'Hide Habitable Zones' : 'Show Habitable Zones'}
           >
             HZ
+          </button>
+        )}
+        {simState !== 'setup' && (
+          <button
+            className={`toolbar-btn grid-toggle-btn ${showDistGrid ? 'active' : ''}`}
+            onClick={toggleDistGrid}
+            title={showDistGrid ? 'Hide Distance Grid' : 'Show Distance Grid'}
+          >
+            ⊞
           </button>
         )}
         {simState !== 'setup' && (
