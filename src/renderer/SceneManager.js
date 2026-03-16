@@ -507,58 +507,109 @@ export default class SceneManager {
       group = new THREE.Group();
       group.userData.clusterId = cluster.id;
 
-      // Glowing nebula sphere
-      const coreGeom = new THREE.SphereGeometry(1, 32, 32);
       const color = new THREE.Color(cluster.color || '#6688ff');
+
+      // Glowing nebula sphere — large enough to see from universe camera
+      const coreGeom = new THREE.SphereGeometry(8, 32, 32);
       const coreMat = new THREE.MeshBasicMaterial({
         color,
         transparent: true,
-        opacity: 0.6,
+        opacity: 0.7,
       });
       const core = new THREE.Mesh(coreGeom, coreMat);
       group.add(core);
       group.userData.core = core;
 
-      // Outer glow
-      const glowGeom = new THREE.SphereGeometry(2, 32, 32);
+      // Outer glow — much larger halo
+      const glowGeom = new THREE.SphereGeometry(14, 32, 32);
       const glowMat = new THREE.MeshBasicMaterial({
         color,
         transparent: true,
-        opacity: 0.15,
+        opacity: 0.18,
         side: THREE.BackSide,
       });
       const glow = new THREE.Mesh(glowGeom, glowMat);
       group.add(glow);
       group.userData.glow = glow;
 
-      // Label
-      const label = this.createLabel(cluster.name);
-      label.position.y = 3;
+      // Label — non-attenuating sprite so it's always readable
+      const labelCanvas = document.createElement('canvas');
+      const lctx = labelCanvas.getContext('2d');
+      labelCanvas.width = 512;
+      labelCanvas.height = 64;
+      lctx.clearRect(0, 0, 512, 64);
+      lctx.font = 'bold 28px "Segoe UI", Arial, sans-serif';
+      lctx.fillStyle = '#ffffff';
+      lctx.textAlign = 'center';
+      lctx.textBaseline = 'middle';
+      lctx.fillText(cluster.name, 256, 32);
+      const labelTex = new THREE.CanvasTexture(labelCanvas);
+      const labelMat = new THREE.SpriteMaterial({
+        map: labelTex,
+        transparent: true,
+        opacity: 0.9,
+        depthTest: false,
+        sizeAttenuation: false,
+      });
+      const label = new THREE.Sprite(labelMat);
+      label.scale.set(0.15, 0.02, 1);
+      label.position.y = 14;
+      label.renderOrder = 900;
       group.add(label);
       group.userData.label = label;
 
-      // Point light
-      const light = new THREE.PointLight(color, 2, 50);
+      // Pulsing diamond locator — always visible
+      const locCanvas = document.createElement('canvas');
+      locCanvas.width = 64;
+      locCanvas.height = 64;
+      const locCtx = locCanvas.getContext('2d');
+      locCtx.fillStyle = `#${color.getHexString()}`;
+      locCtx.beginPath();
+      locCtx.moveTo(32, 2); locCtx.lineTo(62, 32);
+      locCtx.lineTo(32, 62); locCtx.lineTo(2, 32);
+      locCtx.closePath();
+      locCtx.fill();
+      locCtx.strokeStyle = '#ffffff';
+      locCtx.lineWidth = 3;
+      locCtx.stroke();
+      const locTex = new THREE.CanvasTexture(locCanvas);
+      const locMat = new THREE.SpriteMaterial({
+        map: locTex, transparent: true, opacity: 0.85,
+        depthTest: false, sizeAttenuation: false,
+      });
+      const locator = new THREE.Sprite(locMat);
+      locator.scale.set(0.05, 0.05, 1);
+      locator.renderOrder = 901;
+      group.add(locator);
+      group.userData.locator = locator;
+
+      // Point light — extended range for bloom
+      const light = new THREE.PointLight(color, 4, 300);
       group.add(light);
 
       this._clusterMeshes.set(cluster.id, group);
       this.scene.add(group);
     }
 
-    // Scale based on cluster size
-    const scale = Math.max(1, cluster.size / 30);
+    // Scale based on cluster size (relative to base 8-unit core)
+    const scale = Math.max(1, cluster.size / 50);
     group.userData.core.scale.setScalar(scale);
-    group.userData.glow.scale.setScalar(scale * 1.5);
+    group.userData.glow.scale.setScalar(scale);
 
-    // Position in universe coordinates (scaled for scene)
-    const uScale = 0.4; // Mly to scene units
+    // Pulsing locator
+    if (group.userData.locator) {
+      const pulse = 0.6 + 0.3 * Math.sin(this.elapsedTime * 2);
+      group.userData.locator.material.opacity = pulse;
+    }
+
+    // Position in universe coordinates
+    const uScale = 0.4;
     group.position.set(
       cluster.position.x * uScale,
       cluster.position.y * uScale,
       cluster.position.z * uScale
     );
 
-    // Rotation
     group.rotation.y = cluster.rotationAngle;
 
     if (!cluster.alive) {
@@ -665,15 +716,19 @@ export default class SceneManager {
   transitionToUniverse() {
     this._viewLevel = VIEW_LEVEL.UNIVERSE;
     this._focusedBody = null;
+    this.selectedBody = null;
     this.scene.background = new THREE.Color(0x020210);
     this.controls.maxDistance = 800;
+    this.controls.minDistance = 5;
     this.hideHabitableZone();
     this.hideSystemHabitableZones();
+    this.removeDistanceGrid();
     this._updateViewVisibility();
     if (this._universeBoundary) this._universeBoundary.visible = true;
     if (this._universeDisk) this._universeDisk.visible = true;
 
-    const endPos = new THREE.Vector3(0, 200, 300);
+    // Camera closer to see cluster visuals clearly
+    const endPos = new THREE.Vector3(0, 60, 90);
     const endTarget = new THREE.Vector3(0, 0, 0);
     this.animateCamera(endPos, endTarget, 800);
   }
@@ -684,10 +739,20 @@ export default class SceneManager {
   transitionToSystem(bodies) {
     this._viewLevel = VIEW_LEVEL.SYSTEM;
     this._focusedBody = null;
+    this.selectedBody = null;
     this.scene.background = new THREE.Color(0x020210);
     this.controls.maxDistance = Math.min(1000, ARENA_RADIUS_AU * 1.2);
+    this.controls.minDistance = 0.01;
     this._updateViewVisibility();
     this.hideHabitableZone();
+    this.removeDistanceGrid();
+
+    // Force-update body mesh positions immediately (they may be stale from universe view)
+    if (bodies) {
+      for (const body of bodies) {
+        if (body.alive) this.updateBodyVisual(body);
+      }
+    }
 
     if (bodies && bodies.length > 0) {
       this.computeSystemMetrics(bodies);
@@ -700,6 +765,11 @@ export default class SceneManager {
       const endPos = this._comTarget.clone().addScaledVector(dir, Math.max(dist, 2));
 
       this.animateCamera(endPos, this._comTarget.clone(), 700);
+    } else {
+      // No bodies — reset camera to a reasonable default system view
+      const endPos = new THREE.Vector3(5, 4, 8);
+      const endTarget = new THREE.Vector3(0, 0, 0);
+      this.animateCamera(endPos, endTarget, 700);
     }
   }
 
@@ -1971,22 +2041,36 @@ export default class SceneManager {
    * Handle click for selection
    */
   onClick(event) {
-    // Use click position directly (mouse may be stale if user hasn't moved it)
     this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
     this.raycaster.setFromCamera(this.mouse, this.camera);
 
+    // In universe view: check cluster meshes for clicks
+    if (this._viewLevel === VIEW_LEVEL.UNIVERSE) {
+      const clusterMeshes = [];
+      this._clusterMeshes.forEach((group) => {
+        if (group.userData.core) clusterMeshes.push(group.userData.core);
+        if (group.userData.glow) clusterMeshes.push(group.userData.glow);
+      });
+      const hits = this.raycaster.intersectObjects(clusterMeshes);
+      if (hits.length > 0) {
+        const clusterId = hits[0].object.parent?.userData.clusterId;
+        if (clusterId && this.onClusterSelected) {
+          this.onClusterSelected(clusterId);
+          return;
+        }
+      }
+      return;
+    }
+
+    // System/Body view: check body meshes
     const meshes = [];
     this.bodyMeshes.forEach((group) => {
       if (group.userData.mainMesh) meshes.push(group.userData.mainMesh);
-      // Include atmosphere for planets (larger hit area, easier to click)
       if (group.userData.atmosphere) meshes.push(group.userData.atmosphere);
-      // Include rings for ringed planets
       if (group.userData.rings) meshes.push(group.userData.rings);
-      // Include accretion disk and photon ring for black holes
       if (group.userData.accretionDisk) meshes.push(group.userData.accretionDisk);
       if (group.userData.photonRing) meshes.push(group.userData.photonRing);
-      // Include hit-proxy (stars, planets, black holes - 2x invisible sphere for easier clicking)
       if (group.userData.hitProxy) meshes.push(group.userData.hitProxy);
     });
 
@@ -2094,9 +2178,22 @@ export default class SceneManager {
   render(bodies, clusters, allBodies) {
     this.elapsedTime = this.clock.getElapsedTime();
 
-    // Universe view: render clusters
+    // Universe view: render clusters (but still keep body positions updated for smooth transitions)
     if (this._viewLevel === VIEW_LEVEL.UNIVERSE) {
       this.renderUniverse(clusters || []);
+
+      // Silently update body positions so transition back to system is seamless
+      if (bodies) {
+        for (const body of bodies) {
+          if (body.alive) {
+            let group = this.bodyMeshes.get(body.id);
+            if (group) {
+              group.position.copy(body.position);
+            }
+          }
+        }
+      }
+
       this.controls.update();
       this.composer.render();
       return;
@@ -2497,4 +2594,5 @@ export default class SceneManager {
   // Callbacks (set by the app)
   onBodySelected = null;
   onBodyDeselected = null;
+  onClusterSelected = null;
 }

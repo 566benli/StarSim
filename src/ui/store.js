@@ -38,7 +38,8 @@ export const useStore = create((set, get) => ({
   navigateTo: (level, { clusterId, systemId, bodyId } = {}) => set({
     viewLevel: level,
     focusedClusterId: clusterId ?? get().focusedClusterId,
-    focusedSystemId: systemId ?? (level === VIEW_LEVEL.UNIVERSE ? null : get().focusedSystemId),
+    // Preserve focusedSystemId even when going to universe — needed for "back to system"
+    focusedSystemId: systemId ?? get().focusedSystemId,
     focusedBodyId: bodyId ?? (level === VIEW_LEVEL.BODY ? get().focusedBodyId : null),
   }),
 

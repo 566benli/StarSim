@@ -193,6 +193,17 @@ const App = () => {
       }
     };
 
+    scene.onClusterSelected = (clusterId) => {
+      const cluster = engine.universe.getCluster(clusterId);
+      if (!cluster) return;
+      const firstSystemId = cluster.systemIds[0];
+      navigateTo(VIEW_LEVEL.SYSTEM, { clusterId: cluster.id, systemId: firstSystemId });
+      const bodies = firstSystemId
+        ? engine.getSystemBodies(firstSystemId)
+        : engine.getBodies();
+      scene.transitionToSystem(bodies.length > 0 ? bodies : engine.getBodies());
+    };
+
     scene.onBodyDeselected = () => {
       engine.getBodies().forEach(b => b.selected = false);
       clearSelection();
@@ -405,15 +416,30 @@ const App = () => {
       const alive = engine.universe.clusters.filter(c => c.alive);
       cluster = alive[0] || null;
     }
-    if (!cluster) return;
+    if (!cluster) {
+      // No clusters at all — just switch to system view with all bodies
+      navigateTo(VIEW_LEVEL.SYSTEM);
+      scene.transitionToSystem(engine.getBodies());
+      return;
+    }
 
-    const firstSystemId = cluster.systemIds[0];
-    navigateTo(VIEW_LEVEL.SYSTEM, { clusterId: cluster.id, systemId: firstSystemId });
+    // Try each system in the cluster until we find one with bodies
+    let bestSystemId = null;
+    let bestBodies = [];
+    for (const sysId of cluster.systemIds) {
+      const sysBodies = engine.getSystemBodies(sysId);
+      if (sysBodies.length > bestBodies.length) {
+        bestSystemId = sysId;
+        bestBodies = sysBodies;
+      }
+    }
+    if (!bestSystemId) bestSystemId = cluster.systemIds[0];
 
-    const bodies = firstSystemId
-      ? engine.getSystemBodies(firstSystemId)
-      : engine.getBodies();
-    scene.transitionToSystem(bodies.length > 0 ? bodies : engine.getBodies());
+    navigateTo(VIEW_LEVEL.SYSTEM, { clusterId: cluster.id, systemId: bestSystemId });
+
+    const allBodies = engine.getBodies();
+    const bodiesToShow = bestBodies.length > 0 ? bestBodies : allBodies;
+    scene.transitionToSystem(bodiesToShow);
   }, []);
 
   /**
@@ -850,11 +876,8 @@ const App = () => {
           <span className="view-nav-sep">/</span>
           <button
             className={`view-nav-btn ${viewLevel === VIEW_LEVEL.SYSTEM ? 'active' : ''}`}
-            onClick={() => handleNavigateToCluster(
-              focusedClusterId || engineRef.current?.universe?.clusters?.find(c => c.alive)?.id
-            )}
+            onClick={() => handleNavigateToCluster(focusedClusterId)}
             title="System View - shows orbiting bodies"
-            disabled={!(focusedClusterId || engineRef.current?.universe?.clusters?.some(c => c.alive))}
           >
             &#x2B50; System
           </button>
