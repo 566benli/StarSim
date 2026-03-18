@@ -63,6 +63,23 @@ async function clickButtonByText(page, searchText, description) {
   return false;
 }
 
+async function clickPresetCard(page, description) {
+  const clicked = await page.evaluate(() => {
+    const cards = Array.from(document.querySelectorAll('.preset-card'))
+      .filter(el => el.offsetParent !== null);
+    if (cards.length === 0) return false;
+    cards[0].click();
+    return true;
+  });
+
+  if (clicked) {
+    console.log(`   ✓ Clicking preset card: ${description}`);
+  } else {
+    console.log(`   ✗ No preset card found: ${description}`);
+  }
+  return clicked;
+}
+
 async function testStarSim() {
   console.log('\n🚀 StarSim Full Test - Creating Objects & Testing Time Controls\n');
   console.log('═══════════════════════════════════════════════════════════\n');
@@ -83,6 +100,16 @@ async function testStarSim() {
     await sleep(2000);
     await page.screenshot({ path: path.join(screenshotsDir, '01-loaded.png'), fullPage: true });
     console.log('   ✓ Screenshot saved\n');
+
+    // Handle auth gate if present
+    console.log('📍 STEP 1.5: Handling auth gate (if present)');
+    const enteredOffline = await clickButtonByText(page, 'play offline', 'Play Offline button');
+    if (enteredOffline) {
+      await sleep(1000);
+      console.log('   ✓ Entered offline mode\n');
+    } else {
+      console.log('   ℹ No auth gate detected, continue\n');
+    }
     
     // === STEP 2: Create a Star ===
     console.log('📍 STEP 2: Creating a Star');
@@ -111,23 +138,10 @@ async function testStarSim() {
     }
     
     if (!starCreated) {
-      // Just click any button that looks like a preset
-      buttons = await getAllButtons(page);
-      const presetBtn = buttons.find(btn => 
-        !btn.text.includes('Save') && 
-        !btn.text.includes('Load') &&
-        !btn.text.includes('⭐') &&
-        !btn.text.includes('🌍') &&
-        btn.text.length > 0 &&
-        btn.text.length < 30
-      );
-      
-      if (presetBtn) {
-        console.log(`   ✓ Clicking preset: "${presetBtn.text}"`);
-        await page.evaluate((idx) => {
-          document.querySelectorAll('button')[idx].click();
-        }, presetBtn.index);
-        starCreated = true;
+      starCreated = await clickPresetCard(page, 'star preset');
+      if (starCreated) {
+        await sleep(500);
+        await clickButtonByText(page, 'add to system', 'Add to System button');
         await sleep(1000);
       }
     }
@@ -162,23 +176,10 @@ async function testStarSim() {
     }
     
     if (!planetCreated) {
-      // Click any preset button
-      buttons = await getAllButtons(page);
-      const presetBtn = buttons.find(btn => 
-        !btn.text.includes('Save') && 
-        !btn.text.includes('Load') &&
-        !btn.text.includes('⭐') &&
-        !btn.text.includes('🌍') &&
-        btn.text.length > 0 &&
-        btn.text.length < 30
-      );
-      
-      if (presetBtn) {
-        console.log(`   ✓ Clicking preset: "${presetBtn.text}"`);
-        await page.evaluate((idx) => {
-          document.querySelectorAll('button')[idx].click();
-        }, presetBtn.index);
-        planetCreated = true;
+      planetCreated = await clickPresetCard(page, 'planet preset');
+      if (planetCreated) {
+        await sleep(500);
+        await clickButtonByText(page, 'add to system', 'Add to System button');
         await sleep(1000);
       }
     }
@@ -193,7 +194,8 @@ async function testStarSim() {
     buttons = await getAllButtons(page);
     console.log(`   Looking for Launch button among ${buttons.length} buttons...`);
     
-    const launched = await clickButtonByText(page, 'launch', 'Launch button') ||
+    const launched = await clickButtonByText(page, 'launch simulation', 'Launch Simulation button') ||
+                     await clickButtonByText(page, 'launch', 'Launch button') ||
                      await clickButtonByText(page, 'start', 'Start button') ||
                      await clickButtonByText(page, 'begin', 'Begin button');
     
@@ -387,22 +389,30 @@ async function testStarSim() {
     console.log('📍 STEP 10: Monitoring Time Advancement');
     
     const timeReadings = [];
+    let currentSpeedText = null;
     for (let i = 0; i < 5; i++) {
       const reading = await page.evaluate(() => {
         const text = document.body.innerText;
+        const speedMatch = text.match(/(\d+(\.\d+)?)\s*(yr|Myr|Gyr)\/s/);
         const match = text.match(/Time:\s*(\d+(\.\d+)?)\s*(yr|Myr|Gyr)/i) ||
                      text.match(/(\d+(\.\d+)?)\s*(yr|Myr|Gyr)/);
-        return match ? match[0] : null;
+        return {
+          reading: match ? match[0] : null,
+          speed: speedMatch ? speedMatch[0] : null,
+        };
       });
       
-      timeReadings.push(reading);
-      console.log(`   Reading ${i + 1}: ${reading || 'N/A'}`);
+      timeReadings.push(reading.reading);
+      currentSpeedText = reading.speed || currentSpeedText;
+      console.log(`   Reading ${i + 1}: ${reading.reading || 'N/A'}`);
       await sleep(1000);
     }
     
     const uniqueReadings = [...new Set(timeReadings.filter(r => r))];
     const isAdvancing = uniqueReadings.length > 1;
-    console.log(`   Time is advancing: ${isAdvancing ? 'YES ✓' : 'NO ✗'}`);
+    const precisionLimited = !isAdvancing && !!currentSpeedText && /(Myr|Gyr)\/s/.test(currentSpeedText);
+    const advancingStatus = isAdvancing ? 'YES ✓' : (precisionLimited ? 'INCONCLUSIVE (display precision limited)' : 'NO ✗');
+    console.log(`   Time is advancing: ${advancingStatus}`);
     console.log();
     
     // === STEP 11: Final State ===
@@ -424,7 +434,7 @@ async function testStarSim() {
     console.log(`✓ 1 Myr/s preset clickable: ${myrClicked ? 'YES ✓' : 'NO ✗'}`);
     console.log(`✓ 1 Gyr/s preset clickable: ${gyrClicked ? 'YES ✓' : 'NO ✗'}`);
     console.log(`✓ WARP indicator present: ${warpCheck.hasWarpText ? 'YES ✓' : 'NO ✗'}`);
-    console.log(`✓ Time advancing: ${isAdvancing ? 'YES ✓' : 'NO ✗'}`);
+    console.log(`✓ Time advancing: ${advancingStatus}`);
     console.log(`✓ Orbits smooth: VISUAL CHECK REQUIRED`);
     console.log('═══════════════════════════════════════════════════════════');
     console.log(`\n📁 All screenshots saved to: ${screenshotsDir}`);

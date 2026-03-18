@@ -1,0 +1,23 @@
+---
+description: Enforce synchronized builds, exe testing, and push-after-debug workflow
+alwaysApply: true
+---
+
+# StarSim: Mandatory Debug Workflow
+
+These rules are mandatory for every code change session.
+
+1. **Full synchronization is required**
+   - Any functional change must be synchronized across all deliverables.
+   - Keep web build and exe build aligned to the same updated version.
+   - Do not treat web-only or exe-only output as complete delivery.
+
+2. **Run exe and fix discovered bugs**
+   - After changes, run the local exe and perform a sanity check.
+   - If additional bugs appear, report them in the chat and fix them directly.
+   - Repeat test-and-fix until no blocking issue remains.
+
+3. **Push updates back to GitHub after each debug/update cycle**
+   - When debugging/updating for the session is done, push all necessary updates to `566benli/StarSim`.
+   - Ensure required dependency and lockfile changes are included when relevant.
+   - Do not finish the cycle without updating the original StarSim project.
