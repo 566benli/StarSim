@@ -21,6 +21,7 @@ import SaveDialog from './components/SaveDialog';
 import AuthModal from './components/AuthModal';
 import ObjectPalette from './components/ObjectPalette';
 import UniversePanel from './components/UniversePanel';
+import ClusterInfoPanel from './components/ClusterInfoPanel';
 import { getSaveSlots, saveSlot, loadSlot, deleteSlot } from '@services/saveService';
 import cloud from '@services/cloudService';
 import './styles/main.css';
@@ -46,6 +47,9 @@ const App = () => {
   const [showReturnToMenuDialog, setShowReturnToMenuDialog] = useState(false);
   const [showGoodbye, setShowGoodbye] = useState(false);
   const returnToMenuAfterSaveRef = useRef(false);
+
+  const [clusterPopup, setClusterPopup] = useState(null);
+  const [clusterTooltip, setClusterTooltip] = useState(null);
 
   const {
     simState, setSimState,
@@ -193,15 +197,38 @@ const App = () => {
       }
     };
 
-    scene.onClusterSelected = (clusterId) => {
+    scene.onClusterSelected = (clusterId, screenPos) => {
       const cluster = engine.universe.getCluster(clusterId);
       if (!cluster) return;
-      const firstSystemId = cluster.systemIds[0];
-      navigateTo(VIEW_LEVEL.SYSTEM, { clusterId: cluster.id, systemId: firstSystemId });
-      const bodies = firstSystemId
-        ? engine.getSystemBodies(firstSystemId)
-        : engine.getBodies();
-      scene.transitionToSystem(bodies.length > 0 ? bodies : engine.getBodies());
+
+      const clusterBodies = [];
+      const clusterSystems = [];
+      for (const sysId of cluster.systemIds) {
+        const sys = engine.universe.getSystem(sysId);
+        if (sys) clusterSystems.push(sys);
+        clusterBodies.push(...engine.getSystemBodies(sysId));
+      }
+
+      setClusterPopup({
+        cluster,
+        systems: clusterSystems,
+        bodies: clusterBodies,
+        screenPos: screenPos || { x: window.innerWidth / 2, y: window.innerHeight / 2 },
+      });
+    };
+
+    scene.onClusterHover = (clusterId, screenPos) => {
+      if (!clusterId) { setClusterTooltip(null); return; }
+      const cluster = engine.universe.getCluster(clusterId);
+      if (!cluster) { setClusterTooltip(null); return; }
+      const bodyCount = cluster.systemIds.reduce((n, sysId) =>
+        n + engine.getSystemBodies(sysId).filter(b => b.alive).length, 0);
+      setClusterTooltip({
+        name: cluster.name,
+        bodyCount,
+        x: screenPos.x,
+        y: screenPos.y,
+      });
     };
 
     scene.onBodyDeselected = () => {
@@ -398,6 +425,7 @@ const App = () => {
    */
   const handleNavigateToUniverse = useCallback(() => {
     const scene = sceneRef.current;
+    setClusterPopup(null);
     navigateTo(VIEW_LEVEL.UNIVERSE);
     if (scene) scene.transitionToUniverse();
   }, []);
@@ -441,6 +469,11 @@ const App = () => {
     const bodiesToShow = bestBodies.length > 0 ? bestBodies : allBodies;
     scene.transitionToSystem(bodiesToShow);
   }, []);
+
+  const handleGoToSystemFromPopup = useCallback((clusterId) => {
+    setClusterPopup(null);
+    handleNavigateToCluster(clusterId);
+  }, [handleNavigateToCluster]);
 
   /**
    * Navigate to body view - centers on the body, isolates it, dark background, info panel beside
@@ -739,7 +772,9 @@ const App = () => {
           }
           break;
         case 'Escape':
-          if (simState === 'explorer') {
+          if (clusterPopup) {
+            setClusterPopup(null);
+          } else if (simState === 'explorer') {
             handleExitExplorer();
           } else if (viewLevel === VIEW_LEVEL.BODY) {
             handleNavigateToCluster(useStore.getState().focusedClusterId);
@@ -891,6 +926,29 @@ const App = () => {
             &#x1F52D; Body
           </button>
         </div>
+      )}
+
+      {/* Cluster hover tooltip */}
+      {clusterTooltip && !clusterPopup && viewLevel === VIEW_LEVEL.UNIVERSE && (
+        <div
+          className="cluster-tooltip"
+          style={{ left: clusterTooltip.x + 16, top: clusterTooltip.y - 10 }}
+        >
+          <strong>{clusterTooltip.name}</strong>
+          <span>{clusterTooltip.bodyCount} bodies &bull; Click for details</span>
+        </div>
+      )}
+
+      {/* Cluster Info Popup (appears when clicking a cluster diamond in universe view) */}
+      {clusterPopup && viewLevel === VIEW_LEVEL.UNIVERSE && (
+        <ClusterInfoPanel
+          cluster={clusterPopup.cluster}
+          systems={clusterPopup.systems}
+          bodies={clusterPopup.bodies}
+          screenPos={clusterPopup.screenPos}
+          onGoToSystem={handleGoToSystemFromPopup}
+          onClose={() => setClusterPopup(null)}
+        />
       )}
 
       {/* Object Palette (top panel - Universe Sandbox style) */}

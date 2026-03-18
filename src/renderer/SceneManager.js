@@ -2035,6 +2035,23 @@ export default class SceneManager {
   onMouseMove(event) {
     this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    if (this._viewLevel === VIEW_LEVEL.UNIVERSE) {
+      this.raycaster.setFromCamera(this.mouse, this.camera);
+      const targets = [];
+      this._clusterMeshes.forEach((group) => {
+        if (group.userData.core) targets.push(group.userData.core);
+        if (group.userData.glow) targets.push(group.userData.glow);
+      });
+      const hits = this.raycaster.intersectObjects(targets);
+      const hoveredId = hits.length > 0 ? hits[0].object.parent?.userData.clusterId : null;
+
+      if (hoveredId !== this._hoveredClusterId) {
+        this._hoveredClusterId = hoveredId;
+        this.container.style.cursor = hoveredId ? 'pointer' : '';
+        if (this.onClusterHover) this.onClusterHover(hoveredId, { x: event.clientX, y: event.clientY });
+      }
+    }
   }
 
   /**
@@ -2056,7 +2073,7 @@ export default class SceneManager {
       if (hits.length > 0) {
         const clusterId = hits[0].object.parent?.userData.clusterId;
         if (clusterId && this.onClusterSelected) {
-          this.onClusterSelected(clusterId);
+          this.onClusterSelected(clusterId, { x: event.clientX, y: event.clientY });
           return;
         }
       }
@@ -2595,4 +2612,6 @@ export default class SceneManager {
   onBodySelected = null;
   onBodyDeselected = null;
   onClusterSelected = null;
+  onClusterHover = null;
+  _hoveredClusterId = null;
 }
