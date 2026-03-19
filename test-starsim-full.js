@@ -63,21 +63,27 @@ async function clickButtonByText(page, searchText, description) {
   return false;
 }
 
-async function clickPresetCard(page, description) {
-  const clicked = await page.evaluate(() => {
-    const cards = Array.from(document.querySelectorAll('.preset-card'))
-      .filter(el => el.offsetParent !== null);
-    if (cards.length === 0) return false;
-    cards[0].click();
-    return true;
+async function clickPresetCardByText(page, searchText, description) {
+  const cards = await page.evaluate(() => {
+    return Array.from(document.querySelectorAll('.preset-card'))
+      .map((card, idx) => ({
+        index: idx,
+        text: card.innerText || '',
+      }));
   });
 
-  if (clicked) {
-    console.log(`   ✓ Clicking preset card: ${description}`);
-  } else {
-    console.log(`   ✗ No preset card found: ${description}`);
+  const match = cards.find((c) => c.text.toLowerCase().includes(searchText.toLowerCase()));
+  if (match) {
+    console.log(`   ✓ Clicking preset card: "${searchText}"`);
+    await page.evaluate((idx) => {
+      const list = document.querySelectorAll('.preset-card');
+      if (list[idx]) list[idx].click();
+    }, match.index);
+    return true;
   }
-  return clicked;
+
+  console.log(`   ✗ Preset card not found: ${description}`);
+  return false;
 }
 
 async function testStarSim() {
@@ -98,6 +104,8 @@ async function testStarSim() {
     await page.goto('http://localhost:8080', { waitUntil: 'networkidle0' });
     await waitForReact(page);
     await sleep(2000);
+    await clickButtonByText(page, 'play offline', 'Play Offline button');
+    await sleep(500);
     await page.screenshot({ path: path.join(screenshotsDir, '01-loaded.png'), fullPage: true });
     console.log('   ✓ Screenshot saved\n');
 
@@ -125,12 +133,14 @@ async function testStarSim() {
       console.log(`     - "${btn.text}" ${btn.disabled ? '(disabled)' : ''}`);
     });
     
-    // Try to click a star preset (Sun-like, G-type, etc.)
+    // Try to click a star preset card (cards are divs, not buttons)
     const starPresets = ['sun', 'g-type', 'solar', 'main sequence', 'yellow'];
     let starCreated = false;
     
     for (const preset of starPresets) {
-      if (await clickButtonByText(page, preset, `${preset} star`)) {
+      if (await clickPresetCardByText(page, preset, `${preset} star`)) {
+        await sleep(400);
+        await clickButtonByText(page, 'add to system', 'Add to System button');
         starCreated = true;
         await sleep(1000);
         break;
@@ -138,10 +148,17 @@ async function testStarSim() {
     }
     
     if (!starCreated) {
-      starCreated = await clickPresetCard(page, 'star preset');
-      if (starCreated) {
-        await sleep(500);
+      const clickedAnyCard = await page.evaluate(() => {
+        const card = document.querySelector('.preset-card');
+        if (!card) return false;
+        card.click();
+        return true;
+      });
+      if (clickedAnyCard) {
+        console.log('   ✓ Clicking first available star preset card');
+        await sleep(400);
         await clickButtonByText(page, 'add to system', 'Add to System button');
+        starCreated = true;
         await sleep(1000);
       }
     }
@@ -163,12 +180,14 @@ async function testStarSim() {
       console.log(`     - "${btn.text}" ${btn.disabled ? '(disabled)' : ''}`);
     });
     
-    // Try to click a planet preset
+    // Try to click a planet preset card
     const planetPresets = ['earth', 'rocky', 'terrestrial', 'habitable'];
     let planetCreated = false;
     
     for (const preset of planetPresets) {
-      if (await clickButtonByText(page, preset, `${preset} planet`)) {
+      if (await clickPresetCardByText(page, preset, `${preset} planet`)) {
+        await sleep(400);
+        await clickButtonByText(page, 'add to system', 'Add to System button');
         planetCreated = true;
         await sleep(1000);
         break;
@@ -176,10 +195,17 @@ async function testStarSim() {
     }
     
     if (!planetCreated) {
-      planetCreated = await clickPresetCard(page, 'planet preset');
-      if (planetCreated) {
-        await sleep(500);
+      const clickedAnyCard = await page.evaluate(() => {
+        const card = document.querySelector('.preset-card');
+        if (!card) return false;
+        card.click();
+        return true;
+      });
+      if (clickedAnyCard) {
+        console.log('   ✓ Clicking first available planet preset card');
+        await sleep(400);
         await clickButtonByText(page, 'add to system', 'Add to System button');
+        planetCreated = true;
         await sleep(1000);
       }
     }
@@ -392,13 +418,11 @@ async function testStarSim() {
     let currentSpeedText = null;
     for (let i = 0; i < 5; i++) {
       const reading = await page.evaluate(() => {
-        const text = document.body.innerText;
-        const speedMatch = text.match(/(\d+(\.\d+)?)\s*(yr|Myr|Gyr)\/s/);
-        const match = text.match(/Time:\s*(\d+(\.\d+)?)\s*(yr|Myr|Gyr)/i) ||
-                     text.match(/(\d+(\.\d+)?)\s*(yr|Myr|Gyr)/);
+        const timeEl = document.querySelector('.time-control .time-value');
+        const speedEl = document.querySelector('.time-control .speed-display');
         return {
-          reading: match ? match[0] : null,
-          speed: speedMatch ? speedMatch[0] : null,
+          reading: timeEl ? timeEl.textContent.trim() : null,
+          speed: speedEl ? speedEl.textContent.trim() : null,
         };
       });
       

@@ -88,7 +88,8 @@ if ($shortcutTarget) {
 
 if ($allSync) {
     Write-Host "  ✅ All versions synchronized!" -ForegroundColor Green
+    exit 0
 } else {
     Write-Host "  ❌ Run 'npm run build:all' to synchronize" -ForegroundColor Red
+    exit 1
 }
-exit 0

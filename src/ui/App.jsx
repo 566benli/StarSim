@@ -119,6 +119,30 @@ const App = () => {
 
   const [initError, setInitError] = useState(null);
 
+  const getBodiesForView = useCallback(() => {
+    const engine = engineRef.current;
+    if (!engine) return [];
+
+    const allBodies = engine.getBodies();
+    const state = useStore.getState();
+
+    if (state.viewLevel === VIEW_LEVEL.SYSTEM && state.focusedSystemId) {
+      const systemBodies = engine.getSystemBodies(state.focusedSystemId);
+      return systemBodies.length > 0 ? systemBodies : allBodies;
+    }
+
+    if (state.viewLevel === VIEW_LEVEL.BODY && state.focusedBodyId) {
+      const focusedBody = engine.getBody(state.focusedBodyId);
+      if (focusedBody?.systemId) {
+        const systemBodies = engine.getSystemBodies(focusedBody.systemId);
+        return systemBodies.length > 0 ? systemBodies : [focusedBody];
+      }
+      if (focusedBody) return [focusedBody];
+    }
+
+    return allBodies;
+  }, []);
+
   useEffect(() => {
     let engine, scene, explorer, ai;
     try {
@@ -288,6 +312,7 @@ const App = () => {
       // Get the current view level from the store
       const currentViewLevel = useStore.getState().viewLevel;
       const currentFocusedSystemId = useStore.getState().focusedSystemId;
+      const currentFocusedBodyId = useStore.getState().focusedBodyId;
 
       // Sync scene view level
       if (scene._viewLevel !== currentViewLevel) {
@@ -312,6 +337,14 @@ const App = () => {
       if (currentViewLevel === VIEW_LEVEL.SYSTEM && currentFocusedSystemId) {
         bodiesToRender = engine.getSystemBodies(currentFocusedSystemId);
         if (bodiesToRender.length === 0) bodiesToRender = allBodies;
+      } else if (currentViewLevel === VIEW_LEVEL.BODY && currentFocusedBodyId) {
+        const focusedBody = engine.getBody(currentFocusedBodyId);
+        if (focusedBody?.systemId) {
+          const systemBodies = engine.getSystemBodies(focusedBody.systemId);
+          bodiesToRender = systemBodies.length > 0 ? systemBodies : [focusedBody];
+        } else if (focusedBody) {
+          bodiesToRender = [focusedBody];
+        }
       }
 
       scene.render(bodiesToRender, engine.universe.clusters, allBodies);
@@ -351,6 +384,7 @@ const App = () => {
     });
 
     let primaryStar = null;
+    const hasPlanetConfigs = createdBodies.some((bodyConfig) => bodyConfig.bodyType === 'planet');
 
     for (const bodyConfig of createdBodies) {
       if (bodyConfig.bodyType === 'star') {
@@ -361,6 +395,15 @@ const App = () => {
         });
         if (!primaryStar) primaryStar = star;
       }
+    }
+
+    // Ensure planets always have a valid orbital parent star.
+    // Without this, planet-only setups start with overlapping bodies and no stable orbit initialization.
+    if (!primaryStar && hasPlanetConfigs) {
+      primaryStar = engine.createStar('sun_like', {
+        name: 'Primary Star',
+        systemId: system.id,
+      });
     }
 
     for (const bodyConfig of createdBodies) {
@@ -767,8 +810,14 @@ const App = () => {
         case 'Space':
           e.preventDefault();
           if (simState !== 'setup') {
-            engineRef.current?.togglePause();
-            setSimState(engineRef.current?.paused ? 'paused' : 'running');
+            if (simState === 'explorer') {
+              handleExitExplorer();
+              engineRef.current?.resume();
+              setSimState('running');
+            } else {
+              engineRef.current?.togglePause();
+              setSimState(engineRef.current?.paused ? 'paused' : 'running');
+            }
           }
           break;
         case 'Escape':
@@ -789,7 +838,7 @@ const App = () => {
           toggleInfoPanel();
           break;
         case 'KeyF':
-          sceneRef.current?.fitAllBodies();
+          sceneRef.current?.fitBodiesFiltered(getBodiesForView());
           break;
         case 'KeyU':
           handleNavigateToUniverse();
@@ -822,7 +871,7 @@ const App = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [simState, viewLevel]);
+  }, [simState, viewLevel, handleExitExplorer, getBodiesForView]);
 
   const isElectron = !!window.electronAPI;
   const userDisplayName = cloudUser?.username || null;
@@ -995,7 +1044,10 @@ const App = () => {
 
       {/* Time Control Bar */}
       {simState !== 'setup' && (
-        <TimeControl engine={engineRef.current} />
+        <TimeControl
+          engine={engineRef.current}
+          onResumeFromExplorer={handleExitExplorer}
+        />
       )}
 
       {/* Info Panel (when body selected) */}
@@ -1011,7 +1063,7 @@ const App = () => {
       {simState !== 'setup' && viewLevel !== VIEW_LEVEL.UNIVERSE && (
         <ViewControls
           sceneManager={sceneRef.current}
-          getBodies={() => engineRef.current?.getBodies?.() ?? []}
+          getBodies={getBodiesForView}
         />
       )}
 

@@ -56,6 +56,25 @@ const Minimap = ({ getBodies, sceneManager, selectedBodyId, simState, onBodySele
     );
   });
 
+  const getVisibleBodies = useCallback(() => {
+    const bodies = getBodies ? getBodies() : [];
+    let aliveBodies = (bodies || []).filter(b => b.alive);
+
+    if (viewLevel === VIEW_LEVEL.SYSTEM && focusedSystemId) {
+      aliveBodies = aliveBodies.filter(b => b.systemId === focusedSystemId);
+    }
+
+    if (viewLevel === VIEW_LEVEL.BODY && selectedBodyId) {
+      const focused = aliveBodies.find(b => b.id === selectedBodyId);
+      const sysId = focused?.systemId;
+      if (sysId) {
+        aliveBodies = aliveBodies.filter(b => b.systemId === sysId);
+      }
+    }
+
+    return aliveBodies;
+  }, [getBodies, viewLevel, focusedSystemId, selectedBodyId]);
+
   const worldToMap = useCallback((wx, wz, com, extent, size) => {
     const padding = 8;
     const r = (size - padding * 2) / 2;
@@ -127,22 +146,7 @@ const Minimap = ({ getBodies, sceneManager, selectedBodyId, simState, onBodySele
   const drawBodies = useCallback((ctx, size) => {
     if (!sceneManager) return;
     const metrics = sceneManager.getSystemMetrics();
-
-    const bodies = getBodies ? getBodies() : [];
-    let aliveBodies = (bodies || []).filter(b => b.alive);
-
-    // If viewing a specific system, filter to those bodies
-    if (viewLevel === VIEW_LEVEL.SYSTEM && focusedSystemId) {
-      aliveBodies = aliveBodies.filter(b => b.systemId === focusedSystemId);
-    }
-    // If viewing a single body, show only that body + siblings in same system
-    if (viewLevel === VIEW_LEVEL.BODY && selectedBodyId) {
-      const focused = aliveBodies.find(b => b.id === selectedBodyId);
-      const sysId = focused?.systemId;
-      if (sysId) {
-        aliveBodies = aliveBodies.filter(b => b.systemId === sysId);
-      }
-    }
+    const aliveBodies = getVisibleBodies();
 
     if (aliveBodies.length === 0) return;
 
@@ -206,7 +210,7 @@ const Minimap = ({ getBodies, sceneManager, selectedBodyId, simState, onBodySele
         ctx.setLineDash([]);
       }
     }
-  }, [getBodies, sceneManager, selectedBodyId, viewLevel, focusedSystemId, worldToMap]);
+  }, [getVisibleBodies, sceneManager, selectedBodyId, worldToMap]);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -348,7 +352,7 @@ const Minimap = ({ getBodies, sceneManager, selectedBodyId, simState, onBodySele
         const metrics = sceneManager.getSystemMetrics();
         const extent = Math.max(metrics?.extent || 1, 0.1);
         const com = metrics?.com || { x: 0, z: 0 };
-        const bodies = (getBodies() || []).filter(b => b.alive);
+        const bodies = getVisibleBodies();
         let nearest = null;
         let nearestDist = 14;
         for (const body of bodies) {
@@ -370,7 +374,7 @@ const Minimap = ({ getBodies, sceneManager, selectedBodyId, simState, onBodySele
     }
     pointerDownPos.current = null;
     isMapDragging.current = false;
-  }, [onBodySelected, onNavigateToCluster, onNavigateToBody, getBodies, sceneManager, viewLevel, engine, worldToMap]);
+  }, [onBodySelected, onNavigateToCluster, onNavigateToBody, sceneManager, viewLevel, engine, worldToMap, getVisibleBodies]);
 
   const positionRef = useRef(position);
   positionRef.current = position;

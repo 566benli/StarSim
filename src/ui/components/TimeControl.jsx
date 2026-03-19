@@ -19,7 +19,7 @@ const TIME_PRESETS = [
   { label: '1 Gyr/s',  value: 1e9,     icon: '💫' },
 ];
 
-const TimeControl = ({ engine }) => {
+const TimeControl = ({ engine, onResumeFromExplorer }) => {
   const {
     simState,
     simulationTime,
@@ -34,6 +34,9 @@ const TimeControl = ({ engine }) => {
       engine.pause();
       setSimState('paused');
     } else {
+      if (simState === 'explorer' && onResumeFromExplorer) {
+        onResumeFromExplorer();
+      }
       engine.resume();
       setSimState('running');
     }
@@ -49,6 +52,9 @@ const TimeControl = ({ engine }) => {
     engine.setTimeScale(preset.value);
     setTimeScale(engine.timeScale);
     if (simState !== 'running') {
+      if (simState === 'explorer' && onResumeFromExplorer) {
+        onResumeFromExplorer();
+      }
       engine.resume();
       setSimState('running');
     }
