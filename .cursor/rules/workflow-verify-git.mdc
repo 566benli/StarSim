@@ -5,6 +5,10 @@ alwaysApply: true
 
 # StarSim: GitHub sync + terminal verification (mandatory)
 
+## Core rule (user requirement)
+
+**Finish every procedure and self-test in this terminal** until changes are fully verified. **Always pull from GitHub before starting new work.** **Always push to GitHub after each completed change** (after verify + commit). Do not mark work done without terminal verification and a successful push (or a clear report if push is blocked).
+
 ## Before any new change or session
 
 1. **Sync from GitHub first** — treat `origin` as source of truth before editing:
@@ -18,7 +22,7 @@ alwaysApply: true
    - `npm install` if dependencies or lockfile changed, or if unsure.
    - `npm run build:all` — must complete successfully (web + exe + sync).
    - `npm run check-sync` — must report versions synchronized.
-2. **Optional self-checks** when touching sim/UI: launch `dist-electron\StarSim.exe` or `npm run serve:web` if the task requires runtime proof.
+2. **Optional self-checks** when touching sim/UI: `npm run test-launch`, or launch `dist-electron\StarSim.exe`, or `npm run serve:web` if the task requires runtime proof.
 3. **Only then** consider the procedure complete.
 
 ## After verification passes
