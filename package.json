@@ -8,6 +8,7 @@
     "build": "webpack --mode production",
     "build:web": "webpack --mode production --env web",
     "build:all": "powershell -ExecutionPolicy Bypass -File build/build-all.ps1",
+    "portable:pack": "powershell -ExecutionPolicy Bypass -File build/create-portable-release.ps1 -FailIfMissing",
     "check-sync": "powershell -ExecutionPolicy Bypass -File build/check-sync.ps1",
     "setup": "powershell -ExecutionPolicy Bypass -File build/setup-dependencies.ps1",
     "diagnose": "powershell -ExecutionPolicy Bypass -File build/diagnose.ps1",

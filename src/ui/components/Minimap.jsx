@@ -38,14 +38,14 @@ const clampPosition = (left, top) => {
   };
 };
 
-const Minimap = ({ getBodies, sceneManager, selectedBodyId, simState, onBodySelected, engine, onNavigateToCluster, onNavigateToBody }) => {
+const Minimap = ({ getBodies, sceneManager, selectedBodyId, simState, onBodySelected, engine, onNavigateToCluster }) => {
   const canvasRef = useRef(null);
   const isMapDragging = useRef(false);
   const isPanelDragging = useRef(false);
   const lastPos = useRef({ x: 0, y: 0 });
   const pointerDownPos = useRef(null);
   const hasDragged = useRef(false);
-  const { viewLevel, focusedSystemId, navigateTo } = useStore();
+  const { viewLevel, focusedSystemId } = useStore();
 
   const [position, setPosition] = useState(() => {
     const saved = loadPosition();
@@ -63,7 +63,6 @@ const Minimap = ({ getBodies, sceneManager, selectedBodyId, simState, onBodySele
     if (viewLevel === VIEW_LEVEL.SYSTEM && focusedSystemId) {
       aliveBodies = aliveBodies.filter(b => b.systemId === focusedSystemId);
     }
-
     if (viewLevel === VIEW_LEVEL.BODY && selectedBodyId) {
       const focused = aliveBodies.find(b => b.id === selectedBodyId);
       const sysId = focused?.systemId;
@@ -71,7 +70,6 @@ const Minimap = ({ getBodies, sceneManager, selectedBodyId, simState, onBodySele
         aliveBodies = aliveBodies.filter(b => b.systemId === sysId);
       }
     }
-
     return aliveBodies;
   }, [getBodies, viewLevel, focusedSystemId, selectedBodyId]);
 
@@ -368,7 +366,6 @@ const Minimap = ({ getBodies, sceneManager, selectedBodyId, simState, onBodySele
         }
         if (nearest) {
           onBodySelected(nearest.id);
-          if (onNavigateToBody) onNavigateToBody(nearest.id);
         }
       }
     }

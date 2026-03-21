@@ -10,7 +10,7 @@ import { useStore } from '../store';
 import ParameterSlider from './ParameterSlider';
 import './CreationPanel.css';
 
-const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, onSaveSimulation }) => {
+const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, onSaveSimulation, onDeleteSlot, onReplayWelcome }) => {
   const {
     creationStep, setCreationStep,
     creationTarget, setCreationTarget,
@@ -63,16 +63,20 @@ const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, on
    * Select a preset to customize
    */
   const selectPreset = (presetId) => {
+    if (createdBodies.length >= 1) return;
     const preset = allPresets[presetId];
-    setCreationTarget({ ...preset, presetId, bodyType: activeTab === 'stars' ? 'star' : 'planet' });
+    const bodyType = activeTab === 'stars' ? 'star' : 'planet';
+    setCreationTarget({ ...preset, presetId, bodyType });
     setCreationStep('customize');
     setCustomName(preset.name);
   };
 
   /**
    * Add the customized body to the creation queue
+   * Exactly one object (star, planet, etc.) — then launch; more bodies come from the in-game palette.
    */
   const addToSystem = () => {
+    if (createdBodies.length >= 1) return;
     addCreatedBody({
       ...creationTarget,
       name: customName || creationTarget.name,
@@ -84,6 +88,19 @@ const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, on
   /**
    * Load a simulation from a specific slot
    */
+  const refreshSlots = async () => {
+    try {
+      const getSlots = window.electronAPI?.getSaveSlots ?? (async () => {
+        const { getSaveSlots } = await import('@services/saveService');
+        return getSaveSlots();
+      });
+      const slots = await getSlots();
+      setSaveSlots(slots || {});
+    } catch (error) {
+      console.error('Failed to refresh save slots:', error);
+    }
+  };
+
   const loadFromSlot = async (slotId) => {
     const loader = onLoadFromSlot || onLoadSimulation;
     if (!loader) return;
@@ -91,15 +108,21 @@ const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, on
     try {
       const result = await loader(slotId);
       if (result) {
-        const getSlots = window.electronAPI?.getSaveSlots ?? (async () => {
-          const { getSaveSlots } = await import('@services/saveService');
-          return getSaveSlots();
-        });
-        const slots = await getSlots();
-        setSaveSlots(slots || {});
+        await refreshSlots();
       }
     } catch (error) {
       console.error('Failed to load from slot:', error);
+    }
+  };
+
+  const deleteFromSlot = async (slotId) => {
+    if (!onDeleteSlot) return;
+    if (!confirm(`Delete save slot ${slotId}? This cannot be undone.`)) return;
+    try {
+      await onDeleteSlot(slotId);
+      await refreshSlots();
+    } catch (error) {
+      console.error('Failed to delete slot:', error);
     }
   };
 
@@ -134,7 +157,7 @@ const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, on
    * Start the simulation with all created bodies
    */
   const startSim = () => {
-    if (createdBodies.length === 0) return;
+    if (createdBodies.length !== 1) return;
     onStartSimulation(createdBodies);
   };
 
@@ -147,6 +170,18 @@ const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, on
             <span className="title-star">✦</span> StarSim
           </h1>
           <p className="creation-subtitle">Build Your Universe</p>
+          <p className="creation-hint">
+            Add <strong>exactly one</strong> object — a star, planet, black hole, or other preset. If you pick a planet, a
+            default primary star is placed for it to orbit. After launch, use the <strong>Objects</strong> bar to drag in
+            more bodies (distance &amp; angle on the canvas). New here? Run the welcome tour again anytime.
+          </p>
+          {onReplayWelcome && (
+            <p className="creation-hint-actions">
+              <button type="button" className="replay-welcome-btn" onClick={onReplayWelcome}>
+                Replay welcome tour
+              </button>
+            </p>
+          )}
         </div>
 
         {/* Saved Universes Section */}
@@ -160,13 +195,26 @@ const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, on
                   <div className="slot-header">
                     <span className="slot-number">Slot {slotId}</span>
                     {slot.exists && (
-                      <button
-                        className="slot-load-btn"
-                        onClick={() => loadFromSlot(slotId)}
-                        title="Load this universe"
-                      >
-                        🚀 Load
-                      </button>
+                      <div className="slot-actions-row">
+                        <button
+                          type="button"
+                          className="slot-load-btn"
+                          onClick={() => loadFromSlot(slotId)}
+                          title="Load this universe"
+                        >
+                          🚀 Load
+                        </button>
+                        {onDeleteSlot && (
+                          <button
+                            type="button"
+                            className="slot-delete-btn"
+                            onClick={() => deleteFromSlot(slotId)}
+                            title="Delete this save permanently"
+                          >
+                            🗑 Delete
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                   {slot.exists ? (
@@ -218,12 +266,14 @@ const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, on
         {/* Tab Switcher */}
         <div className="tab-switcher">
           <button
+            type="button"
             className={`tab-btn ${activeTab === 'stars' ? 'active' : ''}`}
             onClick={() => setActiveTab('stars')}
           >
-            ⭐ Stars & Remnants
+            ⭐ Stars &amp; Remnants
           </button>
           <button
+            type="button"
             className={`tab-btn ${activeTab === 'planets' ? 'active' : ''}`}
             onClick={() => setActiveTab('planets')}
           >
@@ -261,7 +311,7 @@ const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, on
         {/* Created Bodies Queue */}
         {createdBodies.length > 0 && (
           <div className="creation-queue">
-            <h3>Your System ({createdBodies.length} bodies)</h3>
+            <h3>Your first object (launch when ready)</h3>
             <div className="queue-list">
               {createdBodies.map((body, i) => (
                 <div key={i} className="queue-item">
@@ -271,7 +321,11 @@ const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, on
                 </div>
               ))}
             </div>
-            <button className="start-btn" onClick={startSim}>
+            <button
+              className="start-btn"
+              onClick={startSim}
+              disabled={createdBodies.length !== 1}
+            >
               🚀 Launch Simulation
             </button>
           </div>
@@ -429,9 +483,16 @@ const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, on
           )}
         </div>
 
-        <button className="add-to-system-btn" onClick={addToSystem}>
-          ✨ Add to System
+        <button
+          className="add-to-system-btn"
+          onClick={addToSystem}
+          disabled={createdBodies.length >= 1}
+        >
+          ✨ Add to system (first object only)
         </button>
+        {createdBodies.length >= 1 && (
+          <p className="creation-hint small">Remove it above to pick another, or launch and use the top palette for more.</p>
+        )}
       </div>
     );
   }

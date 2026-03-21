@@ -22,6 +22,8 @@ import AuthModal from './components/AuthModal';
 import ObjectPalette from './components/ObjectPalette';
 import UniversePanel from './components/UniversePanel';
 import ClusterInfoPanel from './components/ClusterInfoPanel';
+import WelcomeFlow from './components/WelcomeFlow';
+import { ONBOARDING_DONE_KEY } from '@utils/onboardingKeys';
 import { getSaveSlots, saveSlot, loadSlot, deleteSlot } from '@services/saveService';
 import cloud from '@services/cloudService';
 import './styles/main.css';
@@ -50,6 +52,14 @@ const App = () => {
 
   const [clusterPopup, setClusterPopup] = useState(null);
   const [clusterTooltip, setClusterTooltip] = useState(null);
+
+  const [welcomeFlowOpen, setWelcomeFlowOpen] = useState(() => {
+    try {
+      return !localStorage.getItem(ONBOARDING_DONE_KEY);
+    } catch {
+      return true;
+    }
+  });
 
   const {
     simState, setSimState,
@@ -209,15 +219,11 @@ const App = () => {
         engine.getBodies().forEach(b => b.selected = false);
         body.selected = true;
         setSelectedBody(body);
-        scene.setSelectedBody(body);
-        // Auto-transition to body view: center on this body only
-        const sys = body.systemId ? engine.universe.getSystem(body.systemId) : null;
-        navigateTo(VIEW_LEVEL.BODY, {
-          systemId: body.systemId,
-          clusterId: sys?.clusterId ?? null,
-          bodyId: body.id,
-        });
-        scene.transitionToBody(body);
+        // Stay in system view: show the InfoPanel and center camera on the body with
+        // enough context to see its orbit. Clicking the InfoPanel panel will switch
+        // to the full body-centred view.
+        const extent = Math.max((body.orbitalDistance || 0) * 2.5, 5);
+        scene.fitOnBody(body, extent);
       }
     };
 
@@ -371,6 +377,12 @@ const App = () => {
     const scene = sceneRef.current;
     if (!engine) return;
 
+    if (!Array.isArray(createdBodies) || createdBodies.length !== 1) {
+      return;
+    }
+
+    const first = createdBodies[0];
+
     // Create default cluster and system
     const cluster = engine.createCluster({
       name: 'Galaxy Alpha',
@@ -383,37 +395,24 @@ const App = () => {
       position: { x: 0, y: 0, z: 0 },
     });
 
-    let primaryStar = null;
-    const hasPlanetConfigs = createdBodies.some((bodyConfig) => bodyConfig.bodyType === 'planet');
-
-    for (const bodyConfig of createdBodies) {
-      if (bodyConfig.bodyType === 'star') {
-        const star = engine.createStar(bodyConfig.presetId, {
-          name: bodyConfig.name,
-          systemId: system.id,
-          ...bodyConfig.params,
-        });
-        if (!primaryStar) primaryStar = star;
-      }
-    }
-
-    // Ensure planets always have a valid orbital parent star.
-    // Without this, planet-only setups start with overlapping bodies and no stable orbit initialization.
-    if (!primaryStar && hasPlanetConfigs) {
-      primaryStar = engine.createStar('sun_like', {
+    if (first.bodyType === 'planet') {
+      const primaryStar = engine.createStar('sun_like', {
         name: 'Primary Star',
         systemId: system.id,
+        position: { x: 0, y: 0, z: 0 },
       });
-    }
-
-    for (const bodyConfig of createdBodies) {
-      if (bodyConfig.bodyType === 'planet') {
-        engine.createPlanet(bodyConfig.presetId, primaryStar, {
-          name: bodyConfig.name,
-          systemId: system.id,
-          ...bodyConfig.params,
-        });
-      }
+      engine.createPlanet(first.presetId, primaryStar, {
+        name: first.name,
+        systemId: system.id,
+        ...first.params,
+      });
+    } else {
+      engine.createStar(first.presetId, {
+        name: first.name,
+        systemId: system.id,
+        position: { x: 0, y: 0, z: 0 },
+        ...first.params,
+      });
     }
 
     engine.start();
@@ -427,9 +426,48 @@ const App = () => {
     });
 
     if (scene) {
-      scene.computeSystemMetrics(engine.getBodies());
-      scene.transitionToSystem(engine.getBodies());
+      const systemBodies = engine.getSystemBodies(system.id).filter(b => b.alive);
+      scene.transitionToSystem(systemBodies.length ? systemBodies : engine.getBodies().filter(b => b.alive));
     }
+  }, []);
+
+  const handleWelcomeScratch = useCallback(() => {
+    setWelcomeFlowOpen(false);
+  }, []);
+
+  const handleWelcomeExample = useCallback((seedFn) => {
+    const engine = engineRef.current;
+    const scene = sceneRef.current;
+    setWelcomeFlowOpen(false);
+    if (!engine || !scene || typeof seedFn !== 'function') return;
+
+    engine.reset();
+    scene.clearSimulationVisuals({ clearClusters: true });
+    const ids = seedFn(engine);
+    useStore.getState().clearCreatedBodies();
+    setTimeScale(engine.timeScale);
+    engine.start();
+    setSimState('running');
+    navigateTo(VIEW_LEVEL.SYSTEM, {
+      clusterId: ids?.clusterId ?? null,
+      systemId: ids?.systemId ?? null,
+    });
+    setTimeout(() => {
+      for (const gs of engine.gravitySystems.values()) {
+        gs.computeAccelerations(gs.getAliveBodies());
+      }
+      const sysId = ids?.systemId;
+      const alive = (b) => b.alive;
+      const bodies = sysId ? engine.getSystemBodies(sysId).filter(alive) : engine.getBodies().filter(alive);
+      scene.transitionToSystem(bodies.length ? bodies : engine.getBodies().filter(alive));
+    }, 100);
+  }, [navigateTo, setSimState, setTimeScale]);
+
+  const handleReplayWelcome = useCallback(() => {
+    try {
+      localStorage.removeItem(ONBOARDING_DONE_KEY);
+    } catch (_) {}
+    setWelcomeFlowOpen(true);
   }, []);
 
   const handleExplore = useCallback((body) => {
@@ -551,6 +589,15 @@ const App = () => {
     scene.transitionToBody(body);
   }, []);
 
+  const handleDeselectBody = useCallback(() => {
+    const scene = sceneRef.current;
+    if (scene?.onBodyDeselected) {
+      scene.onBodyDeselected();
+      return;
+    }
+    clearSelection();
+  }, [clearSelection]);
+
   const handleAddBody = useCallback((config) => {
     const engine = engineRef.current;
     const scene = sceneRef.current;
@@ -645,8 +692,30 @@ const App = () => {
 
     if (newBody && scene) {
       scene.pauseTrackingFor(2);
+      const vl = useStore.getState().viewLevel;
+      let framedByTransition = false;
+      // If user was in universe view, enter system view so the edited system is centred on screen
+      if (vl === VIEW_LEVEL.UNIVERSE && currentSystemId) {
+        const sys = engine.universe.getSystem(currentSystemId);
+        if (sys) {
+          navigateTo(VIEW_LEVEL.SYSTEM, { clusterId: sys.clusterId, systemId: currentSystemId });
+          const sb = engine.getSystemBodies(currentSystemId).filter(b => b.alive);
+          scene.transitionToSystem(sb.length ? sb : engine.getBodies().filter(b => b.alive));
+          framedByTransition = true; // already animates camera to this system’s COM + extent
+        }
+      }
+      // Refit only when not already framed by transitionToSystem (avoids fighting the 700ms animation)
+      if (!framedByTransition) {
+        setTimeout(() => {
+          const sysId = useStore.getState().focusedSystemId || currentSystemId;
+          const sysBodies = sysId ? engine.getSystemBodies(sysId).filter(b => b.alive) : [];
+          const toFrame = sysBodies.length > 0 ? sysBodies : engine.getBodies().filter(b => b.alive);
+          scene.computeSystemMetrics(toFrame);
+          scene.fitAllBodies();
+        }, 80);
+      }
     }
-  }, [setSimState]);
+  }, [setSimState, navigateTo]);
 
   /**
    * Handle drag-and-drop from ObjectPalette into simulation
@@ -714,11 +783,11 @@ const App = () => {
         const scene = sceneRef.current;
         if (engine && scene) {
           engine.reset();
-          scene.bodyMeshes.clear();
+          scene.clearSimulationVisuals({ clearClusters: true });
           engine.fromJSON(savedData);
           setTimeScale(engine.timeScale);
           setSimState('paused');
-          clearSelection();
+          handleDeselectBody();
 
           for (const gs of engine.gravitySystems.values()) {
             gs.computeAccelerations(gs.getAliveBodies());
@@ -737,7 +806,7 @@ const App = () => {
       console.error('Failed to load simulation:', error);
     }
     return false;
-  }, [setSimState, clearSelection]);
+  }, [setSimState, handleDeselectBody]);
 
   const handleGetSaveSlots = useCallback(() => getSaveSlots(), []);
   const handleDeleteSlot = useCallback(async (slotId) => deleteSlot(slotId), []);
@@ -766,16 +835,14 @@ const App = () => {
 
     if (engine && scene) {
       engine.reset();
-      scene.bodyMeshes.clear();
-      scene._clusterMeshes.forEach(g => { scene.scene.remove(g); });
-      scene._clusterMeshes.clear();
+      scene.clearSimulationVisuals({ clearClusters: true });
       setSimState('setup');
-      clearSelection();
+      handleDeselectBody();
       setShowNewSimDialog(false);
       setShowReturnToMenuDialog(false);
       navigateTo(VIEW_LEVEL.UNIVERSE);
     }
-  }, [setSimState, clearSelection]);
+  }, [setSimState, handleDeselectBody]);
 
   const handleReturnToMenuRequest = useCallback(() => {
     setShowReturnToMenuDialog(true);
@@ -871,7 +938,11 @@ const App = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [simState, viewLevel, handleExitExplorer, getBodiesForView]);
+  }, [
+    simState, viewLevel, clusterPopup, handleExitExplorer, handleNavigateToCluster,
+    handleNavigateToUniverse, showSaveDialogHandler, setSimState, toggleAIChat,
+    toggleInfoPanel, getBodiesForView,
+  ]);
 
   const isElectron = !!window.electronAPI;
   const userDisplayName = cloudUser?.username || null;
@@ -1030,12 +1101,21 @@ const App = () => {
       )}
 
       {/* Creation Panel (Setup Phase) */}
+      {simState === 'setup' && welcomeFlowOpen && (
+        <WelcomeFlow
+          onChooseScratch={handleWelcomeScratch}
+          onChooseExample={handleWelcomeExample}
+        />
+      )}
+
       {simState === 'setup' && (
         <CreationPanel
           onStartSimulation={handleStartSimulation}
           onLoadSimulation={showSaveDialogHandler}
           onLoadFromSlot={handleLoadSlot}
           onSaveSimulation={showSaveDialogHandler}
+          onDeleteSlot={handleDeleteSlot}
+          onReplayWelcome={handleReplayWelcome}
         />
       )}
 
@@ -1051,10 +1131,11 @@ const App = () => {
       )}
 
       {/* Info Panel (when body selected) */}
-      {selectedBody && simState !== 'setup' && (
+      {selectedBody && showInfoPanel && simState !== 'setup' && (
         <InfoPanel
           onExplore={handleExplore}
-          onClose={clearSelection}
+          onClose={handleDeselectBody}
+          onFocusBody={handleNavigateToBody}
           getBodies={() => engineRef.current?.getBodies?.() ?? []}
         />
       )}

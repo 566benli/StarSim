@@ -164,6 +164,35 @@ if (Test-Path "dist-electron\StarSim.exe") {
 # Step 6: Sync check
 if (Test-Path "build/check-sync.ps1") { & "build/check-sync.ps1" }
 
+# Hard gate: never package/share if build IDs are not synchronized
+$webBuildIdNow = $null
+$exeBuildIdNow = $null
+if (Test-Path "dist\BUILD_ID.txt") { $webBuildIdNow = (Get-Content "dist\BUILD_ID.txt" -Raw).Trim() }
+if (Test-Path "dist-electron\BUILD_ID.txt") { $exeBuildIdNow = (Get-Content "dist-electron\BUILD_ID.txt" -Raw).Trim() }
+if ([string]::IsNullOrWhiteSpace($webBuildIdNow) -or [string]::IsNullOrWhiteSpace($exeBuildIdNow) -or ($webBuildIdNow -ne $exeBuildIdNow)) {
+    Write-Host "`n❌ Build synchronization gate failed." -ForegroundColor Red
+    Write-Host "   web BUILD_ID: $webBuildIdNow" -ForegroundColor Yellow
+    Write-Host "   exe BUILD_ID: $exeBuildIdNow" -ForegroundColor Yellow
+    Write-Host "   Portable package was NOT updated to avoid shipping mismatched versions." -ForegroundColor Yellow
+    Write-Host "   Close StarSim.exe and re-run: npm run build:all" -ForegroundColor Yellow
+    exit 1
+}
+
+# Step 7: Build portable release package (always refreshed with latest synchronized build)
+Write-Host "`n📦 Creating portable release package..." -ForegroundColor Cyan
+if (Test-Path "build/create-portable-release.ps1") {
+    try {
+        & "build/create-portable-release.ps1" -FailIfMissing
+        Write-Host "  ✅ Portable release package updated" -ForegroundColor Green
+    } catch {
+        Write-Host "  ❌ Portable release packaging failed: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "     Run 'npm run portable:pack' after fixing packaging issues" -ForegroundColor Yellow
+        exit 1
+    }
+} else {
+    Write-Host "  ⚠️ Portable packaging script not found" -ForegroundColor Yellow
+}
+
 Write-Host "`n📊 FINAL BUILD STATUS:" -ForegroundColor Cyan
 if ($webExists -and $exeBuildSuccess) {
     Write-Host "  ✅ FULL SUCCESS: Both web and exe versions built and synchronized!" -ForegroundColor Green
@@ -180,8 +209,10 @@ if ($exeExists) {
 Write-Host "  🌐 Web Version: Run 'npm run serve:web' (opens http://localhost:8080)" -ForegroundColor White
 Write-Host "  🛠️  Development: Run 'npm run electron-dev'" -ForegroundColor White
 Write-Host "  🔄 Rebuild All: Run 'npm run build:all' (ALWAYS rebuilds both)" -ForegroundColor White
+Write-Host "  📤 Share Package: Send 'releases\StarSim-Portable-latest.zip'" -ForegroundColor White
 
 Write-Host "`n⚠️  IMPORTANT:" -ForegroundColor Yellow
 Write-Host "  • Run 'npm run build:all' AFTER EVERY CODE CHANGE" -ForegroundColor White
 Write-Host "  • This ensures web and exe versions stay synchronized" -ForegroundColor White
+Write-Host "  • Portable release zip is refreshed on every build:all run" -ForegroundColor White
 Write-Host "  • Never modify code without rebuilding both versions!" -ForegroundColor White

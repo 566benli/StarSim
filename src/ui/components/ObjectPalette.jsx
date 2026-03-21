@@ -100,6 +100,32 @@ const ObjectPalette = ({ onDragStart, onAddBody, viewLevel }) => {
     setEditParams(prev => ({ ...prev, [key]: value }));
   }, []);
 
+  const randomizePaletteParams = useCallback(() => {
+    if (!selectedPreset) return;
+    const preset = tab === 'stars' ? STAR_PRESETS[selectedPreset] : PLANET_PRESETS[selectedPreset];
+    if (!preset) return;
+    setEditParams((prev) => {
+      const next = { ...prev, name: prev.name || preset.name };
+      if (preset.mass) {
+        next.mass = preset.mass.min + Math.random() * (preset.mass.max - preset.mass.min);
+      }
+      if (preset.temperature) {
+        next.temperature = preset.temperature.min + Math.random() * (preset.temperature.max - preset.temperature.min);
+      }
+      if (preset.radius && !preset.radius.computed) {
+        next.radius = preset.radius.min + Math.random() * (preset.radius.max - preset.radius.min);
+      }
+      if (preset.luminosity) {
+        next.luminosity = preset.luminosity.min + Math.random() * (preset.luminosity.max - preset.luminosity.min);
+      }
+      if (tab === 'planets' && preset.orbitalDistance) {
+        next.orbitalDistance = preset.orbitalDistance.min
+          + Math.random() * (preset.orbitalDistance.max - preset.orbitalDistance.min);
+      }
+      return next;
+    });
+  }, [selectedPreset, tab]);
+
   const updateComposition = useCallback((element, value) => {
     setEditComposition(prev => {
       const next = { ...(prev || {}) };
@@ -202,7 +228,17 @@ const ObjectPalette = ({ onDragStart, onAddBody, viewLevel }) => {
       {/* Parameter Editor */}
       {selectedPreset && currentPreset && (
         <div className="palette-editor">
-          <h4 className="editor-title">Customize: {editParams.name || currentPreset.name}</h4>
+          <div className="editor-title-row">
+            <h4 className="editor-title">Customize: {editParams.name || currentPreset.name}</h4>
+            <button
+              type="button"
+              className="palette-randomize-btn"
+              onClick={randomizePaletteParams}
+              title="Randomize mass, temperature, and (for planets) orbital distance within preset ranges"
+            >
+              🎲 Randomize
+            </button>
+          </div>
 
           <div className="editor-field">
             <label>Name</label>

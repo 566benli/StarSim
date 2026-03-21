@@ -68,8 +68,13 @@ export default class SceneManager {
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.05;
     this.controls.minDistance = 0.01;
-    this.controls.maxDistance = Math.min(1000, ARENA_RADIUS_AU * 1.2); // Camera can't zoom past arena
+    this.controls.maxDistance = Math.min(1000, ARENA_RADIUS_AU * 1.2);
     this.controls.zoomSpeed = 1.5;
+
+    // Pause COM tracking while user is actively interacting
+    this.controls.addEventListener('start', () => {
+      this.pauseTrackingFor(1.5);
+    });
 
     // Lighting
     this.ambientLight = new THREE.AmbientLight(0x111122, 0.3);
@@ -98,13 +103,21 @@ export default class SceneManager {
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
 
+    // Drag-vs-click detection: track pointer movement
+    this._pointerDownPos = null;
+    this._pointerMoved = false;
+    this._CLICK_THRESHOLD = 5; // px — movements smaller than this count as click
+
     // Store bound handlers so we can remove them in dispose()
     this._boundOnResize = this.onResize.bind(this);
     this._boundOnMouseMove = this.onMouseMove.bind(this);
     this._boundOnClick = this.onClick.bind(this);
+    this._boundOnPointerDown = this._onPointerDown.bind(this);
+    this._boundOnPointerUp = this._onPointerUp.bind(this);
     window.addEventListener('resize', this._boundOnResize);
     this.renderer.domElement.addEventListener('mousemove', this._boundOnMouseMove);
-    this.renderer.domElement.addEventListener('click', this._boundOnClick);
+    this.renderer.domElement.addEventListener('pointerdown', this._boundOnPointerDown);
+    this.renderer.domElement.addEventListener('pointerup', this._boundOnPointerUp);
 
     // Clock
     this.clock = new THREE.Clock();
@@ -124,6 +137,7 @@ export default class SceneManager {
     // Body-follow mode: when set, camera locks onto this body each frame
     this.selectedBody = null;
     this._fastForwardMode = false;
+    this._cameraAnimating = false;
 
     // Multi-level view
     this._viewLevel = VIEW_LEVEL.UNIVERSE;
@@ -165,7 +179,58 @@ export default class SceneManager {
    * Set the user-controlled view scale (visual size of bodies)
    */
   setViewScale(scale) {
-    this.viewScale = Math.max(0.1, Math.min(10, scale));
+    const next = Math.max(0.1, Math.min(10, scale));
+    if (next === this.viewScale) return;
+    this.viewScale = next;
+    if (this.onViewScaleChange) this.onViewScaleChange(this.viewScale);
+  }
+
+  _disposeObject(obj) {
+    if (!obj) return;
+    obj.traverse((child) => {
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) {
+        if (child.material.map) child.material.map.dispose();
+        child.material.dispose();
+      }
+    });
+  }
+
+  /**
+   * Clear all body/trail/cluster visuals so a fresh simulation can render cleanly.
+   */
+  clearSimulationVisuals({ clearClusters = true } = {}) {
+    this.selectedBody = null;
+    this._focusedBody = null;
+    this._explorerTarget = null;
+    this._nearestStarPos = null;
+
+    this.trailLines.forEach((line) => {
+      this.scene.remove(line);
+      this._disposeObject(line);
+    });
+    this.trailLines.clear();
+
+    this.bodyMeshes.forEach((group) => {
+      this.scene.remove(group);
+      this._disposeObject(group);
+    });
+    this.bodyMeshes.clear();
+
+    if (clearClusters) {
+      this._clusterMeshes.forEach((group) => {
+        this.scene.remove(group);
+        this._disposeObject(group);
+      });
+      this._clusterMeshes.clear();
+      this._hoveredClusterId = null;
+      this.container.style.cursor = '';
+    }
+
+    this.hideHabitableZone();
+    this.hideSystemHabitableZones();
+    this.clearDragHelpers();
+    this.removeDistanceGrid();
   }
 
   /** Get system extent and center of mass for minimap */
@@ -207,6 +272,9 @@ export default class SceneManager {
    * Uses smooth interpolation over `durationMs` milliseconds.
    */
   animateCamera(targetPos, lookAt, durationMs = 800) {
+    this._cameraAnimating = true;
+    this.pauseTrackingFor(durationMs / 1000 + 0.5);
+
     const startPos = this.camera.position.clone();
     const startTarget = this.controls.target.clone();
     const endPos = targetPos.clone();
@@ -221,7 +289,11 @@ export default class SceneManager {
       this.controls.target.lerpVectors(startTarget, endTarget, ease);
       this.controls.update();
 
-      if (t < 1) requestAnimationFrame(animate);
+      if (t < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        this._cameraAnimating = false;
+      }
     };
     requestAnimationFrame(animate);
   }
@@ -281,6 +353,41 @@ export default class SceneManager {
     side: new THREE.Vector3(1, 0.25, 0).normalize(),  // Side / edge-on
     front: new THREE.Vector3(0, 0.4, 1).normalize(),  // Front view
   };
+
+  static _AXIS_Y = new THREE.Vector3(0, 1, 0);
+
+  /**
+   * Mean angular speed about +Y through COM (xz plane). Drives co-rotating camera in system view.
+   */
+  _estimateSystemCorotationOmega(bodies) {
+    if (!bodies || bodies.length < 2) return 0;
+    const com = this._comTarget;
+    let M = 0;
+    let cvx = 0; let cvy = 0; let cvz = 0;
+    for (const b of bodies) {
+      if (!b.alive) continue;
+      M += b.mass;
+      cvx += b.mass * b.velocity.x;
+      cvy += b.mass * b.velocity.y;
+      cvz += b.mass * b.velocity.z;
+    }
+    if (M < 1e-12) return 0;
+    cvx /= M; cvy /= M; cvz /= M;
+
+    let Ly = 0;
+    let I = 0;
+    for (const b of bodies) {
+      if (!b.alive) continue;
+      const rx = b.position.x - com.x;
+      const rz = b.position.z - com.z;
+      const vx = b.velocity.x - cvx;
+      const vz = b.velocity.z - cvz;
+      Ly += b.mass * (rx * vz - rz * vx);
+      I += b.mass * (rx * rx + rz * rz);
+    }
+    if (I < 1e-18) return 0;
+    return Ly / I;
+  }
 
   /**
    * Set view projection and fit camera. Call with: 'isometric'|'top'|'side'|'front'
@@ -425,10 +532,10 @@ export default class SceneManager {
       this.starfield.visible = (level !== VIEW_LEVEL.BODY);
     }
 
-    // Hide grid in non-system views
+    // Hide axis grid always — orbit trails are used as the visual reference instead
     this.scene.traverse(child => {
       if (child.isGridHelper) {
-        child.visible = (level === VIEW_LEVEL.SYSTEM);
+        child.visible = false;
       }
     });
 
@@ -583,6 +690,14 @@ export default class SceneManager {
       group.add(locator);
       group.userData.locator = locator;
 
+      // Invisible hit proxy — large sphere for reliable click/raycast detection
+      const hitGeom = new THREE.SphereGeometry(18, 16, 16);
+      const hitMat = new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide });
+      const hitProxy = new THREE.Mesh(hitGeom, hitMat);
+      hitProxy.userData.clusterId = cluster.id;
+      group.add(hitProxy);
+      group.userData.hitProxy = hitProxy;
+
       // Point light — extended range for bloom
       const light = new THREE.PointLight(color, 4, 300);
       group.add(light);
@@ -595,6 +710,7 @@ export default class SceneManager {
     const scale = Math.max(1, cluster.size / 50);
     group.userData.core.scale.setScalar(scale);
     group.userData.glow.scale.setScalar(scale);
+    if (group.userData.hitProxy) group.userData.hitProxy.scale.setScalar(scale);
 
     // Pulsing locator
     if (group.userData.locator) {
@@ -719,7 +835,10 @@ export default class SceneManager {
     this.selectedBody = null;
     this.scene.background = new THREE.Color(0x020210);
     this.controls.maxDistance = 800;
-    this.controls.minDistance = 5;
+    this.controls.minDistance = 2;
+    this.controls.zoomSpeed = 2.0;
+    this.controls.rotateSpeed = 0.8;
+    this.controls.panSpeed = 1.5;
     this.hideHabitableZone();
     this.hideSystemHabitableZones();
     this.removeDistanceGrid();
@@ -743,6 +862,9 @@ export default class SceneManager {
     this.scene.background = new THREE.Color(0x020210);
     this.controls.maxDistance = Math.min(1000, ARENA_RADIUS_AU * 1.2);
     this.controls.minDistance = 0.01;
+    this.controls.zoomSpeed = 1.5;
+    this.controls.rotateSpeed = 1.0;
+    this.controls.panSpeed = 1.0;
     this._updateViewVisibility();
     this.hideHabitableZone();
     this.removeDistanceGrid();
@@ -1055,15 +1177,9 @@ export default class SceneManager {
       }
     }
 
-    // Update beacon and locator for stars (pulsing, distance-aware)
+    // Legacy saves may still have a vertical beacon line — keep it hidden (axis-free look)
     if (group.userData.beacon) {
-      const pulse = 0.35 + 0.25 * Math.sin(this.elapsedTime * 2.5);
-      group.userData.beacon.material.opacity = pulse;
-      const camDist = this.camera.position.distanceTo(body.position);
-      const beaconScale = Math.max(1, camDist * 0.08);
-      group.userData.beacon.scale.set(1, beaconScale, 1);
-      // Only show beacon in system view
-      group.userData.beacon.visible = (this._viewLevel === VIEW_LEVEL.SYSTEM);
+      group.userData.beacon.visible = false;
     }
     if (group.userData.locator) {
       const isStarBeacon = body.type === 'star';
@@ -1326,23 +1442,7 @@ export default class SceneManager {
     group.add(hitProxy);
     group.userData.hitProxy = hitProxy;
 
-    // Beacon column — vertical line above/below star for long-range visibility
-    const beaconH = 4;
-    const beaconPts = [
-      new THREE.Vector3(0, -beaconH, 0),
-      new THREE.Vector3(0, beaconH, 0),
-    ];
-    const beaconGeom = new THREE.BufferGeometry().setFromPoints(beaconPts);
-    const beaconMat = new THREE.LineBasicMaterial({
-      color: temperatureToColor(body.temperature),
-      transparent: true,
-      opacity: 0.5,
-      depthTest: false,
-    });
-    const beacon = new THREE.Line(beaconGeom, beaconMat);
-    beacon.renderOrder = 900;
-    group.add(beacon);
-    group.userData.beacon = beacon;
+    // (Removed vertical “beacon” line — read as an object axis; orbit trails + locator suffice.)
 
     // Pulsing diamond locator sprite — always visible from afar
     const locatorCanvas = document.createElement('canvas');
@@ -2032,30 +2132,68 @@ export default class SceneManager {
   /**
    * Handle mouse move for hover effects
    */
+  _onPointerDown(event) {
+    this._pointerDownPos = { x: event.clientX, y: event.clientY };
+    this._pointerMoved = false;
+  }
+
+  _onPointerUp(event) {
+    if (!this._pointerDownPos) return;
+    const dx = event.clientX - this._pointerDownPos.x;
+    const dy = event.clientY - this._pointerDownPos.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    this._pointerMoved = dist > this._CLICK_THRESHOLD;
+
+    if (!this._pointerMoved) {
+      this.onClick(event);
+    }
+    this._pointerDownPos = null;
+  }
+
   onMouseMove(event) {
     this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
     if (this._viewLevel === VIEW_LEVEL.UNIVERSE) {
       this.raycaster.setFromCamera(this.mouse, this.camera);
-      const targets = [];
-      this._clusterMeshes.forEach((group) => {
-        if (group.userData.core) targets.push(group.userData.core);
-        if (group.userData.glow) targets.push(group.userData.glow);
-      });
+      const targets = this._getClusterHitTargets();
       const hits = this.raycaster.intersectObjects(targets);
-      const hoveredId = hits.length > 0 ? hits[0].object.parent?.userData.clusterId : null;
+      const hoveredId = hits.length > 0 ? this._clusterIdFromHit(hits[0]) : null;
+      const hoverChanged = hoveredId !== this._hoveredClusterId;
 
-      if (hoveredId !== this._hoveredClusterId) {
+      if (hoverChanged) {
         this._hoveredClusterId = hoveredId;
         this.container.style.cursor = hoveredId ? 'pointer' : '';
-        if (this.onClusterHover) this.onClusterHover(hoveredId, { x: event.clientX, y: event.clientY });
+      }
+      // Keep tooltip position fresh while hovering the same cluster.
+      if (this.onClusterHover) {
+        if (hoveredId) {
+          this.onClusterHover(hoveredId, { x: event.clientX, y: event.clientY });
+        } else if (hoverChanged) {
+          this.onClusterHover(null, { x: event.clientX, y: event.clientY });
+        }
       }
     }
   }
 
+  _getClusterHitTargets() {
+    const targets = [];
+    this._clusterMeshes.forEach((group) => {
+      if (group.userData.hitProxy) targets.push(group.userData.hitProxy);
+      if (group.userData.core) targets.push(group.userData.core);
+      if (group.userData.glow) targets.push(group.userData.glow);
+    });
+    return targets;
+  }
+
+  _clusterIdFromHit(hit) {
+    return hit.object.parent?.userData.clusterId
+        || hit.object.userData?.clusterId
+        || null;
+  }
+
   /**
-   * Handle click for selection
+   * Handle click for selection (only called for genuine clicks, not drags)
    */
   onClick(event) {
     this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -2064,14 +2202,10 @@ export default class SceneManager {
 
     // In universe view: check cluster meshes for clicks
     if (this._viewLevel === VIEW_LEVEL.UNIVERSE) {
-      const clusterMeshes = [];
-      this._clusterMeshes.forEach((group) => {
-        if (group.userData.core) clusterMeshes.push(group.userData.core);
-        if (group.userData.glow) clusterMeshes.push(group.userData.glow);
-      });
-      const hits = this.raycaster.intersectObjects(clusterMeshes);
+      const targets = this._getClusterHitTargets();
+      const hits = this.raycaster.intersectObjects(targets);
       if (hits.length > 0) {
-        const clusterId = hits[0].object.parent?.userData.clusterId;
+        const clusterId = this._clusterIdFromHit(hits[0]);
         if (clusterId && this.onClusterSelected) {
           this.onClusterSelected(clusterId, { x: event.clientX, y: event.clientY });
           return;
@@ -2194,6 +2328,7 @@ export default class SceneManager {
    */
   render(bodies, clusters, allBodies) {
     this.elapsedTime = this.clock.getElapsedTime();
+    const frameDelta = Math.min(0.1, Math.max(0, this.clock.getDelta()));
 
     // Universe view: render clusters (but still keep body positions updated for smooth transitions)
     if (this._viewLevel === VIEW_LEVEL.UNIVERSE) {
@@ -2226,12 +2361,22 @@ export default class SceneManager {
         this.camera.position.copy(this.selectedBody.position).add(offset);
       } else if (this._explorerTarget) {
         this._updateExplorerTracking();
-      } else if (this.trackCOM && this.elapsedTime >= this._trackingPausedUntil) {
+      } else if (this.trackCOM && this.elapsedTime >= this._trackingPausedUntil && !this._cameraAnimating) {
         const lerpFactor = this._fastForwardMode ? 0.4 : 0.05;
         this._comSmooth.lerp(this._comTarget, lerpFactor);
         const offset = this.camera.position.clone().sub(this.controls.target);
         this.controls.target.copy(this._comSmooth);
         this.camera.position.copy(this._comSmooth).add(offset);
+
+        // System co-rotating camera: cancel mean orbital spin about vertical axis so the system stays steadier on screen
+        if (this._viewLevel === VIEW_LEVEL.SYSTEM && frameDelta > 0) {
+          const omega = this._estimateSystemCorotationOmega(bodies);
+          if (Math.abs(omega) > 1e-10) {
+            const rel = this.camera.position.clone().sub(this._comSmooth);
+            rel.applyAxisAngle(SceneManager._AXIS_Y, -omega * frameDelta);
+            this.camera.position.copy(this._comSmooth).add(rel);
+          }
+        }
       }
 
       if (this.autoFrame) {
@@ -2471,20 +2616,6 @@ export default class SceneManager {
       radLine.renderOrder = 998;
       group.add(radLine);
 
-      // Reference line (+X axis from star, short)
-      const refLen = Math.min(orbitalR * 0.35, 3);
-      const refPts = [
-        new THREE.Vector3(star.position.x, 0.06, star.position.z),
-        new THREE.Vector3(star.position.x + refLen, 0.06, star.position.z),
-      ];
-      const refGeom = new THREE.BufferGeometry().setFromPoints(refPts);
-      const refMat = new THREE.LineBasicMaterial({
-        color: 0xffcc44, transparent: true, opacity: 0.25, depthTest: false,
-      });
-      const refLine = new THREE.Line(refGeom, refMat);
-      refLine.renderOrder = 997;
-      group.add(refLine);
-
       // Arc from 0 to angle
       const arcSegs = Math.max(8, Math.round(Math.abs(angleDeg) / 5));
       const arcR = Math.min(orbitalR * 0.25, 2);
@@ -2571,7 +2702,8 @@ export default class SceneManager {
   dispose() {
     window.removeEventListener('resize', this._boundOnResize);
     this.renderer.domElement.removeEventListener('mousemove', this._boundOnMouseMove);
-    this.renderer.domElement.removeEventListener('click', this._boundOnClick);
+    this.renderer.domElement.removeEventListener('pointerdown', this._boundOnPointerDown);
+    this.renderer.domElement.removeEventListener('pointerup', this._boundOnPointerUp);
 
     this.trailLines.forEach((line) => {
       line.geometry?.dispose();
@@ -2613,5 +2745,6 @@ export default class SceneManager {
   onBodyDeselected = null;
   onClusterSelected = null;
   onClusterHover = null;
+  onViewScaleChange = null;
   _hoveredClusterId = null;
 }

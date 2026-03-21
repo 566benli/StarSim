@@ -2,10 +2,10 @@
  * SaveDialog - Unified save/load dialog with multi-slot management.
  * Each slot shows save, load, and delete actions as appropriate.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import './SaveDialog.css';
 
-const SaveDialog = ({ isOpen, onClose, onSave, onLoad, onGetSlots, onDelete, onSaveSuccess, mode = 'save' }) => {
+function SaveDialog({ isOpen, onClose, onSave, onLoad, onGetSlots, onDelete, onSaveSuccess, mode = 'save' }) {
   const [slots, setSlots] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -132,18 +132,18 @@ const SaveDialog = ({ isOpen, onClose, onSave, onLoad, onGetSlots, onDelete, onS
                             &#x1F4BE;
                           </button>
                           <button
-                            className="action-btn load"
-                            onClick={() => handleLoad(slotId)}
-                            title="Load this simulation"
-                          >
-                            &#x1F4C2;
-                          </button>
-                          <button
                             className="action-btn delete"
                             onClick={() => handleDelete(slotId)}
                             title="Delete this save"
                           >
                             &#x1F5D1;
+                          </button>
+                          <button
+                            className="action-btn load"
+                            onClick={() => handleLoad(slotId)}
+                            title="Load this simulation"
+                          >
+                            &#x1F4C2;
                           </button>
                         </div>
                       )}
@@ -189,6 +189,6 @@ const SaveDialog = ({ isOpen, onClose, onSave, onLoad, onGetSlots, onDelete, onS
       </div>
     </div>
   );
-};
+}
 
-export default SaveDialog;
+export default memo(SaveDialog);

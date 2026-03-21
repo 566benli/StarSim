@@ -30,6 +30,7 @@ const TimeControl = ({ engine, onResumeFromExplorer }) => {
 
   const togglePlay = () => {
     if (!engine) return;
+    if (simState === 'explorer') return;
     if (simState === 'running') {
       engine.pause();
       setSimState('paused');
@@ -49,6 +50,7 @@ const TimeControl = ({ engine, onResumeFromExplorer }) => {
 
   const setSpeed = (preset) => {
     if (!engine) return;
+    if (simState === 'explorer') return;
     engine.setTimeScale(preset.value);
     setTimeScale(engine.timeScale);
     if (simState !== 'running') {
@@ -62,6 +64,7 @@ const TimeControl = ({ engine, onResumeFromExplorer }) => {
 
   const handleSliderChange = (e) => {
     if (!engine) return;
+    if (simState === 'explorer') return;
     const logValue = parseFloat(e.target.value);
     engine.setTimeScale(Math.pow(10, logValue));
     setTimeScale(engine.timeScale);
@@ -77,10 +80,11 @@ const TimeControl = ({ engine, onResumeFromExplorer }) => {
     return `${(scale / 1e9).toFixed(1)} Gyr/s`;
   };
 
+  const sliderMin = -8;
   const sliderMax = Math.log10(Math.max(maxTimeScale, 1));
   const physicsMaxLog = Math.log10(Math.max(physicsMax, 1));
   const sliderValue = Math.log10(Math.max(Math.min(effectiveScale, maxTimeScale), 1e-8));
-  const physicsThresholdPercent = ((physicsMaxLog - (-7)) / (sliderMax - (-7))) * 100;
+  const physicsThresholdPercent = ((physicsMaxLog - sliderMin) / (sliderMax - sliderMin)) * 100;
 
   return (
     <div className={`time-control ${isFastForward ? 'fast-forward-active' : ''}`}>
@@ -93,6 +97,7 @@ const TimeControl = ({ engine, onResumeFromExplorer }) => {
         <button
           className={`time-btn play-btn ${simState === 'running' ? 'playing' : ''}`}
           onClick={togglePlay}
+          disabled={simState === 'explorer'}
         >
           {simState === 'running' ? '⏸' : '▶'}
         </button>
@@ -106,6 +111,7 @@ const TimeControl = ({ engine, onResumeFromExplorer }) => {
                 className={`speed-btn ${abovePhysics ? 'warp' : ''} ${Math.abs(effectiveScale - preset.value) < preset.value * 0.1 ? 'active' : ''}`}
                 onClick={() => setSpeed(preset)}
                 title={`${preset.label}${abovePhysics ? ' (Fast-Forward)' : ''}`}
+                disabled={simState === 'explorer'}
               >
                 {preset.icon}
               </button>
@@ -122,7 +128,7 @@ const TimeControl = ({ engine, onResumeFromExplorer }) => {
             />
             <input
               type="range"
-              min="-7"
+              min={sliderMin}
               max={sliderMax}
               step="0.1"
               value={sliderValue}

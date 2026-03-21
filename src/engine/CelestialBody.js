@@ -73,6 +73,42 @@ export default class CelestialBody {
 
     // Core temperature (for fusion calculations); surface temp is this.temperature
     this.coreTemperature = config.coreTemperature || this._estimateCoreTemp();
+
+    // ── Extended physics properties (Layer 1 upgrade) ─────────────────────────
+
+    // Radiation received (normalised solar-constant units, updated by RadiationSystem)
+    this.radiationFlux = 0;
+    this.uvFlux        = 0;
+    this.xrayFlux      = 0;
+
+    // Biological / civilisation consequence hook (Layer 3)
+    this.aberranceProbability = config.aberranceProbability || 0; // 0–1
+
+    // Structural damage from shockwaves / impacts (0 = pristine, 1 = destroyed)
+    this.surfaceDamage = config.surfaceDamage || 0;
+
+    // How readily this body is perturbed by shockwaves
+    this.shockwaveVulnerability = config.shockwaveVulnerability ?? 1.0;
+
+    // How well the atmosphere is retained under radiation pressure
+    this.atmosphereRetentionFactor = config.atmosphereRetentionFactor ?? 1.0;
+
+    // Spin angular momentum (used for collision angular-momentum bookkeeping)
+    this.spinAngularMomentum = config.spinAngularMomentum || 0;
+
+    // Orbital stability flags (written by OrbitalAnalysisSystem)
+    this.orbitStable          = true;
+    this.orbitalEnergy        = null;
+    this.eccentricityTracked  = null;
+    this._orbitWarned         = false;
+    this._ejectionWarned      = false;
+
+    // Temporary luminosity boost after merger/explosion (decays each evolve step)
+    // { factor: Number > 1, decayRate: (1/yr) }
+    this._luminosityBoost = null;
+
+    // Pending explosion payload (read by SimEngine.checkPhaseChanges)
+    this._pendingExplosion = null;
   }
 
   _estimateCoreTemp() {
@@ -111,6 +147,13 @@ export default class CelestialBody {
       },
       composition: this.composition,
       coreTemperature: { value: this.coreTemperature, unit: 'K' },
+      // Extended physics
+      radiationFlux: { value: this.radiationFlux, unit: 'S☉' },
+      uvFlux:        { value: this.uvFlux,        unit: 'S☉' },
+      xrayFlux:      { value: this.xrayFlux,      unit: 'S☉' },
+      aberranceProbability: this.aberranceProbability,
+      surfaceDamage: this.surfaceDamage,
+      orbitStable: this.orbitStable,
     };
   }
 
@@ -152,6 +195,21 @@ export default class CelestialBody {
 
     // Reset acceleration (will be recalculated by gravity system)
     this.acceleration.set(0, 0, 0);
+  }
+
+  /**
+   * Apply and decay the temporary luminosity boost granted after mergers / flares.
+   * Called from subclass evolve() hooks or GravitySystem after the step.
+   * @param {number} dt years
+   */
+  tickLuminosityBoost(dt) {
+    if (!this._luminosityBoost) return;
+    const b = this._luminosityBoost;
+    // Exponential decay back toward factor = 1
+    b.factor = 1.0 + (b.factor - 1.0) * Math.exp(-b.decayRate * dt);
+    if (b.factor < 1.001) {
+      this._luminosityBoost = null;
+    }
   }
 
   /**
@@ -218,6 +276,13 @@ export default class CelestialBody {
       systemId: this.systemId,
       composition: this.composition ? { ...this.composition } : null,
       coreTemperature: this.coreTemperature,
+      // Extended physics
+      aberranceProbability: this.aberranceProbability,
+      surfaceDamage: this.surfaceDamage,
+      shockwaveVulnerability: this.shockwaveVulnerability,
+      atmosphereRetentionFactor: this.atmosphereRetentionFactor,
+      spinAngularMomentum: this.spinAngularMomentum,
+      orbitStable: this.orbitStable,
     };
   }
 

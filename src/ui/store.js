@@ -57,8 +57,9 @@ export const useStore = create((set, get) => ({
   setSelectedBody: (body) => set({
     selectedBodyId: body?.id || null,
     selectedBody: body,
+    showInfoPanel: body ? true : get().showInfoPanel,
   }),
-  clearSelection: () => set({ selectedBodyId: null, selectedBody: null }),
+  clearSelection: () => set({ selectedBodyId: null, selectedBody: null, showInfoPanel: false }),
 
   // === Creation Panel ===
   creationStep: 'choose_type', // 'choose_type', 'customize', 'place', 'ready'
@@ -86,7 +87,7 @@ export const useStore = create((set, get) => ({
   clearCreatedBodies: () => set({ createdBodies: [] }),
 
   // === Panels ===
-  showInfoPanel: false,
+  showInfoPanel: true,
   showAIChat: false,
   showEventLog: false,
   showSettings: false,

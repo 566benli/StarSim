@@ -2,8 +2,13 @@
  * SimEngine - The master simulation controller
  * Multi-scale architecture:
  *   Universe (Mly) → Clusters (kly) → Star Systems (AU)
- * Each StarSystem has its own GravitySystem with independent N-body physics.
- * Bodies within a system interact gravitationally; bodies in different systems do not.
+ *
+ * N-body gravity (AU): each StarSystem has a GravitySystem with full mutual Newtonian
+ * forces between all bodies in that system (softened, Velocity Verlet).
+ *
+ * Between systems: bodies in different star systems do not feel each other in AU physics —
+ * separations at galaxy scale would be negligible vs in-system dynamics. Cluster motion uses
+ * Universe.updateClusterPhysics (Mly). UI may show cross-system distances as reference only.
  */
 import GravitySystem from './GravitySystem';
 import Universe from './Universe';
@@ -12,6 +17,9 @@ import StarSystem from './StarSystem';
 import Star from './Star';
 import Planet from './Planet';
 import BlackHole from './BlackHole';
+import RadiationSystem from './RadiationSystem';
+import CatastropheSystem from './CatastropheSystem';
+import OrbitalAnalysisSystem from './OrbitalAnalysisSystem';
 import { getApplicableEvents } from '@data/events';
 import { STAR_PRESETS } from '@data/starTypes';
 import { PLANET_PRESETS } from '@data/planetTypes';
@@ -40,19 +48,35 @@ export default class SimEngine {
     this.eventCheckInterval = 1.0;
     this.lastEventCheck = 0;
 
-    this.onEvent = null;
+    this.onEvent      = null;
     this.onPhaseChange = null;
     this.onBodyDestroyed = null;
-    this.onBodyCreated = null;
+    this.onBodyCreated   = null;
+    /** Called with VFX event payloads for Three.js animation hooks */
+    this.onVfxEvent   = null;
 
     this.stepsPerFrame = 12;
-    this.maxDtPerStep = 0.005; // tighter integration for stability
+    this.maxDtPerStep  = 0.005;
     this.maxStepsPerFrame = 80;
     this.typicalFrameTime = 1 / 60;
     this.lastFrameTime = 0;
     this.fps = 60;
 
     this.fastForward = false;
+
+    // VFX event queue (consumed by SceneManager each frame)
+    this.pendingVfxEvents = [];
+
+    // ── New physics subsystems ─────────────────────────────────────────────
+    this.radiationSystem    = new RadiationSystem();
+    this.catastropheSystem  = new CatastropheSystem();
+    this.orbitalAnalysis    = new OrbitalAnalysisSystem();
+
+    // How often (in sim years) to run orbital analysis (expensive for many bodies)
+    this._orbitalCheckInterval   = 1.0;
+    this._lastOrbitalCheck       = 0;
+    this._radiationUpdateInterval = 0.1;
+    this._lastRadiationUpdate    = 0;
   }
 
   /** Get or create a GravitySystem for a given system id */
@@ -64,6 +88,20 @@ export default class SimEngine {
       this.gravitySystems.set(systemId, gs);
     }
     return this.gravitySystems.get(systemId);
+  }
+
+  /** Enable/disable collision debug logging across all GravitySystems */
+  setCollisionDebug(enabled) {
+    for (const gs of this.gravitySystems.values()) {
+      if (gs.collisionSystem) gs.collisionSystem.debugMode = enabled;
+    }
+  }
+
+  /** Consume and return all pending VFX events (called by SceneManager each frame) */
+  consumeVfxEvents() {
+    const events = [...this.pendingVfxEvents];
+    this.pendingVfxEvents = [];
+    return events;
   }
 
   getMaxPhysicsTimeScale() {
@@ -335,6 +373,7 @@ export default class SimEngine {
       if (inFastForward) {
         for (let i = 0; i < steps; i++) {
           gs.step(subDt, true);
+          this._consumeGsPending(gs, fullSimDt);
         }
         const maxEvolveDt = 1e5;
         const evolveSteps = Math.min(
@@ -353,12 +392,29 @@ export default class SimEngine {
       } else {
         for (let i = 0; i < steps; i++) {
           gs.step(subDt, false);
+          this._consumeGsPending(gs, subDt);
         }
         const bodies = gs.getAliveBodies();
         for (const body of bodies) {
           body.evolveComposition(fullSimDt);
         }
       }
+    }
+
+    // ── Radiation system (throttled) ────────────────────────────────────────
+    if (this.simulationTime - this._lastRadiationUpdate >= this._radiationUpdateInterval) {
+      for (const gs of this.gravitySystems.values()) {
+        this.radiationSystem.update(gs.getAliveBodies(), fullSimDt);
+      }
+      this._lastRadiationUpdate = this.simulationTime;
+    }
+
+    // ── Orbital stability analysis (throttled) ──────────────────────────────
+    if (this.simulationTime - this._lastOrbitalCheck >= this._orbitalCheckInterval) {
+      for (const gs of this.gravitySystems.values()) {
+        this.orbitalAnalysis.analyzeAll(gs.getAliveBodies());
+      }
+      this._lastOrbitalCheck = this.simulationTime;
     }
 
     this.simulationTime += fullSimDt;
@@ -411,13 +467,13 @@ export default class SimEngine {
         body.composition = getDefaultComposition(body.type, body.subtype, change.newPhase);
 
         const phaseNames = {
-          'main_sequence': 'Main Sequence',
-          'subgiant': 'Subgiant',
-          'red_giant': 'Red Giant',
+          'main_sequence':  'Main Sequence',
+          'subgiant':       'Subgiant',
+          'red_giant':      'Red Giant',
           'red_supergiant': 'Red Supergiant',
-          'white_dwarf': 'White Dwarf',
-          'neutron_star': 'Neutron Star',
-          'black_hole': 'Black Hole',
+          'white_dwarf':    'White Dwarf',
+          'neutron_star':   'Neutron Star',
+          'black_hole':     'Black Hole',
         };
 
         const newPhaseName = phaseNames[change.newPhase] || change.newPhase;
@@ -432,9 +488,9 @@ export default class SimEngine {
           notification: {
             title: 'Stellar Evolution!',
             body: `${body.name} has evolved from ${oldPhaseName} to ${newPhaseName}!`,
-            severity: change.newPhase === 'black_hole' ? 'catastrophic'
-              : change.newPhase === 'neutron_star' ? 'critical'
-              : change.newPhase === 'white_dwarf' ? 'major'
+            severity: change.newPhase === 'black_hole'    ? 'catastrophic'
+              : change.newPhase === 'neutron_star'        ? 'critical'
+              : change.newPhase === 'white_dwarf'         ? 'major'
               : 'notable',
           },
           effects: {},
@@ -445,6 +501,121 @@ export default class SimEngine {
         if (this.onEvent) this.onEvent(event);
         if (this.onPhaseChange) this.onPhaseChange(body, change.newPhase);
       }
+
+      // ── Process supernova / explosion payloads ─────────────────────────────
+      if (body._pendingExplosion) {
+        const expl = body._pendingExplosion;
+        body._pendingExplosion = null;
+
+        // VFX event for SceneManager
+        const vfxEvent = {
+          type: 'supernova_explosion',
+          sourceId: body.id,
+          sourceName: body.name,
+          ...expl,
+          timestamp: Date.now(),
+        };
+        this.pendingVfxEvents.push(vfxEvent);
+        if (this.onVfxEvent) this.onVfxEvent(vfxEvent);
+
+        // Emit game event notification
+        const gameEvent = {
+          id: `supernova_${Date.now()}_${Math.random()}`,
+          name: 'Supernova!',
+          category: 'catastrophe',
+          targetBody: body,
+          time: this.simulationTime,
+          notification: {
+            title: 'SUPERNOVA!',
+            body: `${body.name} exploded as a supernova! Remnant: ${expl.remnantType}`,
+            severity: 'catastrophic',
+          },
+          effects: { radiationBurst: true, shockwave: true },
+        };
+        this.eventHistory.push(gameEvent);
+        this.pendingEvents.push(gameEvent);
+        if (this.onEvent) this.onEvent(gameEvent);
+
+        // Propagate catastrophe to nearby bodies in the same system
+        const gs = body.systemId ? this.gravitySystems.get(body.systemId) : null;
+        if (gs) {
+          this.catastropheSystem.propagateSupernova(
+            body, gs.getAliveBodies(), expl.ejectaMass, expl.energy
+          );
+          // Apply radiation burst via RadiationSystem
+          this.radiationSystem.applyRadiationBurst(
+            gs.getAliveBodies(), expl.position, expl.radiationBurst
+          );
+        }
+      }
+    }
+  }
+
+  /**
+   * Consume pending spawns and VFX/catastrophe events from a GravitySystem
+   * after each sub-step.  Called inside the update loop.
+   */
+  _consumeGsPending(gs, dt) {
+    // ── Spawn new bodies created by collision resolution ───────────────────
+    if (gs.pendingSpawns.length > 0) {
+      for (const nb of gs.pendingSpawns) {
+        gs.addBody(nb);
+        if (nb.systemId) {
+          const sys = this.universe.getSystem(nb.systemId);
+          if (sys) sys.addBody(nb);
+        }
+        if (this.onBodyCreated) this.onBodyCreated(nb);
+      }
+      gs.pendingSpawns = [];
+    }
+
+    // ── Collect VFX events from collision system ───────────────────────────
+    if (gs.collisionSystem && gs.collisionSystem.pendingVfxEvents.length > 0) {
+      for (const vfx of gs.collisionSystem.pendingVfxEvents) {
+        this.pendingVfxEvents.push(vfx);
+        if (this.onVfxEvent) this.onVfxEvent(vfx);
+      }
+      gs.collisionSystem.pendingVfxEvents = [];
+    }
+
+    // ── Process catastrophe events from collision system ───────────────────
+    if (gs.collisionSystem && gs.collisionSystem.pendingCatastrophes.length > 0) {
+      const aliveBodies = gs.getAliveBodies();
+      for (const cat of gs.collisionSystem.pendingCatastrophes) {
+        this.catastropheSystem.process(cat, aliveBodies, dt);
+
+        // Radiation burst component
+        if (cat.radiationBurst > 0 && cat.position) {
+          this.radiationSystem.applyRadiationBurst(
+            aliveBodies, cat.position, cat.radiationBurst
+          );
+        }
+
+        // Forward shockwave as a VFX event
+        this.pendingVfxEvents.push({
+          type: 'shockwave',
+          ...cat,
+          timestamp: Date.now(),
+        });
+        if (this.onVfxEvent) this.onVfxEvent({ type: 'shockwave', ...cat });
+
+        // Also emit as a game event
+        const gameEvent = {
+          id: `catastrophe_${Date.now()}_${Math.random()}`,
+          name: 'Catastrophic Event',
+          category: 'catastrophe',
+          time: this.simulationTime,
+          notification: {
+            title: 'Catastrophic Event!',
+            body: `A ${cat.type} event was detected in the system!`,
+            severity: 'catastrophic',
+          },
+          effects: {},
+        };
+        this.pendingEvents.push(gameEvent);
+        if (this.onEvent) this.onEvent(gameEvent);
+      }
+      gs.collisionSystem.pendingCatastrophes = [];
     }
   }
 
@@ -564,6 +735,8 @@ export default class SimEngine {
       totalMass += gs.centerOfMass().totalMass;
     }
 
+    const unstableOrbits = bodies.filter(b => !b.orbitStable && b.type === 'planet').length;
+
     return {
       bodyCount: bodies.length,
       stars: bodies.filter(b => b.type === 'star').length,
@@ -578,6 +751,8 @@ export default class SimEngine {
       state: this.state,
       clusters: this.universe.stats.clusterCount,
       systems: this.universe.stats.systemCount,
+      unstableOrbits,
+      fastForward: this.fastForward,
     };
   }
 
@@ -659,6 +834,11 @@ export default class SimEngine {
     // Ensure every known system has a GravitySystem
     for (const sys of this.universe.systems) {
       this.getOrCreateGS(sys.id);
+    }
+
+    // Ensure all restored GravitySystems have pendingSpawns initialised
+    for (const gs of this.gravitySystems.values()) {
+      if (!gs.pendingSpawns) gs.pendingSpawns = [];
     }
 
     if (data.simulationTime != null) this.simulationTime = data.simulationTime;

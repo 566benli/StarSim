@@ -1,7 +1,12 @@
 /**
  * GravitySystem - N-body gravitational simulation
- * Uses Velocity Verlet integration for better energy conservation
- * Includes collision detection and merge logic
+ *
+ * Uses Velocity Verlet (leapfrog) integration for energy conservation.
+ * Now includes:
+ *   - Continuous Collision Detection (CCD) via swept-sphere to prevent tunneling
+ *   - Adaptive per-pair sub-stepping for high-velocity close encounters
+ *   - CollisionSystem integration for physically classified outcomes
+ *   - pendingSpawns queue for new bodies created by collisions
  */
 import * as THREE from 'three';
 import { R_SUN_IN_AU, ARENA_RADIUS_AU } from '@utils/constants';
@@ -9,26 +14,34 @@ import CelestialBody from './CelestialBody';
 import Star from './Star';
 import Planet from './Planet';
 import BlackHole from './BlackHole';
+import CollisionSystem from './CollisionSystem';
 
 export default class GravitySystem {
   constructor() {
     this.bodies = [];
-    this.softening = 0.15; // Softening parameter to prevent singularities (AU)
+    this.softening = 0.15; // AU — prevents singularities
     this.collisionEnabled = true;
     this.mergeEnabled = true;
     this.boundaryEnabled = true;
     this.boundaryRadius = ARENA_RADIUS_AU;
-    this.warningRadius = ARENA_RADIUS_AU * 0.8; // Rubber-band zone starts here
+    this.warningRadius  = ARENA_RADIUS_AU * 0.8;
     this.onBoundaryExceeded = null; // (body) => {}
 
-    // Gravitational constant in simulation units: AU, Solar masses, Years
     // G = 4π² AU³ / (M☉ · yr²) ≈ 39.478
-    // This ensures Kepler's third law: T² = (4π²/GM) a³ → T=1 yr for a=1 AU, M=1 M☉
-    this.G = 4 * Math.PI * Math.PI; // ~39.478
+    this.G = 4 * Math.PI * Math.PI;
 
-    // Temp vectors for calculations (avoid GC pressure)
-    this._tempVec = new THREE.Vector3();
+    // ── Collision subsystem ────────────────────────────────────────────────
+    this.collisionSystem = new CollisionSystem();
+
+    // Bodies spawned by collision resolution (remnants, etc.) — consumed by SimEngine
+    this.pendingSpawns = [];
+
+    // Temp vectors (avoid GC pressure)
+    this._tempVec  = new THREE.Vector3();
     this._forceVec = new THREE.Vector3();
+
+    // CCD danger-zone multiplier: pairs within this many collision radii get CCD checked
+    this._ccdDangerMultiplier = 30;
   }
 
   /**
@@ -55,35 +68,43 @@ export default class GravitySystem {
   }
 
   /**
-   * Main simulation step using Velocity Verlet (Leapfrog) integration
-   * More accurate and energy-conserving than Euler
-   * @param {number} dt - Timestep in simulation years
-   * @param {boolean} skipEvolve - If true, skip age/evolution updates (caller handles them at a different rate)
+   * Main simulation step using Velocity Verlet (Leapfrog) integration.
+   * Includes CCD swept-sphere collision detection and CollisionSystem integration.
+   *
+   * @param {number}  dt          Timestep in simulation years
+   * @param {boolean} skipEvolve  If true skip age/evolution (caller handles separately)
    */
   step(dt, skipEvolve = false) {
     const bodies = this.getAliveBodies();
     const n = bodies.length;
 
-    // Step 1: Half-step velocity update (kick)
+    // ── Step 0: Save previous positions for CCD ────────────────────────────
+    for (let i = 0; i < n; i++) {
+      const b = bodies[i];
+      if (!b._prevPos) b._prevPos = new THREE.Vector3();
+      b._prevPos.copy(b.position);
+    }
+
+    // ── Step 1: Half-kick (velocity) ───────────────────────────────────────
     for (let i = 0; i < n; i++) {
       bodies[i].velocity.addScaledVector(bodies[i].acceleration, dt * 0.5);
     }
 
-    // Step 2: Full-step position update (drift)
+    // ── Step 2: Drift (position) ───────────────────────────────────────────
     for (let i = 0; i < n; i++) {
       bodies[i].position.addScaledVector(bodies[i].velocity, dt);
     }
 
-    // Step 3: Compute new accelerations
+    // ── Step 3: Recompute accelerations ───────────────────────────────────
     this.computeAccelerations(bodies);
 
-    // Step 4: Second half-step velocity update (kick)
+    // ── Step 4: Second half-kick ───────────────────────────────────────────
     for (let i = 0; i < n; i++) {
       bodies[i].velocity.addScaledVector(bodies[i].acceleration, dt * 0.5);
     }
 
-    // Step 4b: Clamp extreme velocities to prevent numerical explosions
-    const vMax = 80; // AU/yr — reasonable for stellar orbits
+    // ── Step 4b: Velocity clamp ────────────────────────────────────────────
+    const vMax = 80; // AU/yr
     for (let i = 0; i < n; i++) {
       const vSq = bodies[i].velocity.lengthSq();
       if (vSq > vMax * vMax) {
@@ -91,31 +112,27 @@ export default class GravitySystem {
       }
     }
 
-    // Step 5: Update other body properties (age, rotation, trail, etc.)
+    // ── Step 5: Age, rotation, trail, evolution ────────────────────────────
     for (let i = 0; i < n; i++) {
-      if (!skipEvolve) {
-        bodies[i].age += dt;
-      }
-      bodies[i].rotationAngle += bodies[i].rotationSpeed * dt;
+      const b = bodies[i];
+      if (!skipEvolve) b.age += dt;
+      b.rotationAngle += b.rotationSpeed * dt;
 
-      // Update trail
-      bodies[i].trail.push(bodies[i].position.clone());
-      if (bodies[i].trail.length > bodies[i].maxTrailLength) {
-        bodies[i].trail.shift();
-      }
+      b.trail.push(b.position.clone());
+      if (b.trail.length > b.maxTrailLength) b.trail.shift();
 
-      if (!skipEvolve && bodies[i].evolve) bodies[i].evolve(dt);
+      if (!skipEvolve && b.evolve) b.evolve(dt);
     }
 
-    // Step 6: Boundary check (bodies beyond arena radius are destroyed)
+    // ── Step 6: Boundary enforcement ──────────────────────────────────────
     if (this.boundaryEnabled && this.boundaryRadius > 0) {
       const { position: com } = this.centerOfMass();
-      this.detectBoundary(bodies, com);
+      this.detectBoundary(this.getAliveBodies(), com);
     }
 
-    // Step 7: Collision detection
+    // ── Step 7: CCD-enhanced collision detection ───────────────────────────
     if (this.collisionEnabled) {
-      this.detectCollisions(this.getAliveBodies());
+      this._detectCollisionsCCD(this.getAliveBodies(), dt);
     }
 
     return this.getAliveBodies();
@@ -203,63 +220,146 @@ export default class GravitySystem {
     }
   }
 
+  // ────────────────────────────────────────────────────────────────────────────
+  // CCD — Continuous Collision Detection
+  // ────────────────────────────────────────────────────────────────────────────
+
   /**
-   * Detect and handle collisions between bodies
+   * Swept-sphere CCD collision detection.
+   * Replaces the old point-in-time check so fast bodies can't tunnel through.
+   *
+   * For each pair within the danger zone we:
+   *   1. Compute the minimum distance between the two swept trajectories.
+   *   2. If < sum of radii, we have a collision; record parametric t and impact parameter.
+   *   3. Sort collisions by earliest t, then resolve via CollisionSystem.
    */
-  detectCollisions(bodies) {
-    const collisions = [];
+  _detectCollisionsCCD(bodies, dt) {
+    const hits = [];
 
     for (let i = 0; i < bodies.length; i++) {
       for (let j = i + 1; j < bodies.length; j++) {
-        const dist = bodies[i].position.distanceTo(bodies[j].position);
-        // Use physical radius in AU; fallback to ~Earth-size if missing
-        const r1 = (bodies[i].radius ?? 0.009) * R_SUN_IN_AU;
-        const r2 = (bodies[j].radius ?? 0.009) * R_SUN_IN_AU;
-        const collisionDist = r1 + r2;
+        const a = bodies[i];
+        const b = bodies[j];
+        if (!a.alive || !b.alive) continue;
 
-        if (dist < collisionDist) {
-          collisions.push([i, j, dist]);
+        const r1   = Math.max((a.radius ?? 0.009) * R_SUN_IN_AU, 1e-9);
+        const r2   = Math.max((b.radius ?? 0.009) * R_SUN_IN_AU, 1e-9);
+        const sumR = r1 + r2;
+
+        // Broad-phase: only check pairs within danger zone
+        const currDist = a.position.distanceTo(b.position);
+        if (currDist > sumR * this._ccdDangerMultiplier) continue;
+
+        const hit = this._sweptSphereCheck(a, b, sumR);
+        if (hit) {
+          hits.push({ a, b, t: hit.t, impactParam: hit.impactParam });
         }
       }
     }
 
-    // Process collisions (skip if either body already dead from prior merge)
-    for (const [i, j] of collisions) {
-      if (!bodies[i].alive || !bodies[j].alive) continue;
-      if (this.mergeEnabled) {
-        this.mergeBodies(bodies[i], bodies[j]);
+    // Process earliest collision first
+    hits.sort((x, y) => x.t - y.t);
+
+    for (const { a, b, t, impactParam } of hits) {
+      if (!a.alive || !b.alive) continue;
+
+      const relVelVec = b.velocity.clone().sub(a.velocity);
+
+      if (this.collisionSystem) {
+        // Rich, physically classified resolution
+        const newBodies = this.collisionSystem.resolve(a, b, relVelVec, impactParam, bodies);
+        for (const nb of newBodies) {
+          this.pendingSpawns.push(nb);
+        }
+      } else if (this.mergeEnabled) {
+        // Legacy fallback
+        this._legacyMerge(a, b);
       }
     }
   }
 
   /**
-   * Merge two bodies (the more massive absorbs the less massive)
+   * Swept-sphere check for pair (a, b).
+   * Uses saved _prevPos and current position to define the swept path this step.
+   *
+   * @returns {{ t, impactParam }} or null if no collision
    */
-  mergeBodies(a, b) {
+  _sweptSphereCheck(a, b, sumR) {
+    // Current overlap: already penetrating
+    const dx0 = a.position.x - b.position.x;
+    const dy0 = a.position.y - b.position.y;
+    const dz0 = a.position.z - b.position.z;
+    if (dx0*dx0 + dy0*dy0 + dz0*dz0 < sumR * sumR) {
+      return { t: 1.0, impactParam: 0 };
+    }
+
+    // Relative position at START of step (previous positions)
+    const prevA = a._prevPos || a.position;
+    const prevB = b._prevPos || b.position;
+
+    const rx = prevA.x - prevB.x;
+    const ry = prevA.y - prevB.y;
+    const rz = prevA.z - prevB.z;
+
+    // Change in relative position over this step (displacement delta)
+    const dvx = (a.position.x - prevA.x) - (b.position.x - prevB.x);
+    const dvy = (a.position.y - prevA.y) - (b.position.y - prevB.y);
+    const dvz = (a.position.z - prevA.z) - (b.position.z - prevB.z);
+
+    const dvdv = dvx*dvx + dvy*dvy + dvz*dvz;
+    if (dvdv < 1e-24) return null; // essentially no relative motion
+
+    const rvdv = rx*dvx + ry*dvy + rz*dvz;
+    const rvrv = rx*rx  + ry*ry  + rz*rz;
+
+    // Parametric t ∈ [0,1] of closest approach
+    const t = Math.max(0, Math.min(1, -rvdv / dvdv));
+
+    // Squared distance at time t
+    const minDistSq = rvrv + 2*t*rvdv + t*t*dvdv;
+
+    if (minDistSq <= sumR * sumR) {
+      const minDist    = Math.sqrt(Math.max(0, minDistSq));
+      const impactParam = minDist / sumR; // 0 = head-on, 1 = grazing
+      return { t, impactParam };
+    }
+    return null;
+  }
+
+  /**
+   * Legacy merge fallback (used when CollisionSystem is disabled).
+   */
+  _legacyMerge(a, b) {
     if (!a.alive || !b.alive) return;
     const [big, small] = a.mass >= b.mass ? [a, b] : [b, a];
+    const totalMass = big.mass + small.mass;
 
     // Conservation of momentum
-    const totalMass = big.mass + small.mass;
     big.velocity.multiplyScalar(big.mass / totalMass);
     big.velocity.addScaledVector(small.velocity, small.mass / totalMass);
 
-    // Center of mass
+    // Center of mass position
     big.position.multiplyScalar(big.mass / totalMass);
     big.position.addScaledVector(small.position, small.mass / totalMass);
 
-    // Increase mass
     big.mass = totalMass;
-
-    // Log the event
-    big.logEvent({
-      type: 'collision',
-      message: `${big.name} absorbed ${small.name}!`,
-      absorbed: small.name,
-    });
-
-    // Destroy the smaller body
+    big.logEvent({ type: 'collision',
+      message: `${big.name} absorbed ${small.name}!`, absorbed: small.name });
     small.destroy();
+  }
+
+  /**
+   * Kept for backward compatibility — delegates to CCD version.
+   */
+  detectCollisions(bodies) {
+    this._detectCollisionsCCD(bodies, 0.005);
+  }
+
+  /**
+   * Kept for backward compatibility.
+   */
+  mergeBodies(a, b) {
+    this._legacyMerge(a, b);
   }
 
   /**

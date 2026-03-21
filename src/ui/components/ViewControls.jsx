@@ -49,6 +49,24 @@ const ViewControls = ({ sceneManager, getBodies }) => {
     }
   }, [sceneManager]);
 
+  useEffect(() => {
+    if (!sceneManager) return;
+
+    setViewScale(Math.max(0.1, Math.min(10, sceneManager.viewScale ?? 1)));
+    const prevHandler = sceneManager.onViewScaleChange;
+    const syncHandler = (scale) => {
+      setViewScale(Math.max(0.1, Math.min(10, scale)));
+      if (typeof prevHandler === 'function') prevHandler(scale);
+    };
+    sceneManager.onViewScaleChange = syncHandler;
+
+    return () => {
+      if (sceneManager.onViewScaleChange === syncHandler) {
+        sceneManager.onViewScaleChange = prevHandler || null;
+      }
+    };
+  }, [sceneManager]);
+
   const handleSliderChange = useCallback((e) => {
     const val = parseFloat(e.target.value) / 100;
     updateScale(sliderToScale(val));

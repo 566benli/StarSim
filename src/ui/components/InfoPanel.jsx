@@ -2,9 +2,10 @@
  * InfoPanel - Displays detailed information about a selected celestial body
  * Properties change dynamically based on the star's current evolutionary phase
  */
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useStore } from '../store';
 import { formatNumber, formatTime } from '@utils/math';
+import { getClosestNeighbors } from '@utils/gravityNeighbors';
 import { ELEMENTS } from '@data/elements';
 import HRDiagram from './HRDiagram';
 import './InfoPanel.css';
@@ -59,8 +60,8 @@ const PHASE_INFO = {
   },
 };
 
-const InfoPanel = ({ onExplore, onClose, getBodies }) => {
-  const { selectedBody } = useStore();
+const InfoPanel = ({ onExplore, onClose, onFocusBody, getBodies }) => {
+  const { selectedBody, simulationTime } = useStore();
   const [showHRDiagram, setShowHRDiagram] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState('');
@@ -93,7 +94,8 @@ const InfoPanel = ({ onExplore, onClose, getBodies }) => {
   const handleDragMove = useCallback((e) => {
     if (!dragging.current) return;
     const x = Math.max(0, Math.min(window.innerWidth - 100, e.clientX - dragOffset.current.x));
-    const y = Math.max(0, Math.min(window.innerHeight - 60, e.clientY - dragOffset.current.y));
+    // Keep panel top at least 90px above the timeline (72px) so it can never obscure it
+    const y = Math.max(0, Math.min(window.innerHeight - 72 - 90, e.clientY - dragOffset.current.y));
     setPanelPos({ x, y });
   }, []);
 
@@ -162,6 +164,12 @@ const InfoPanel = ({ onExplore, onClose, getBodies }) => {
 
   const phaseInfo = PHASE_INFO[selectedBody.phase] || {};
 
+  const neighbors = useMemo(() => {
+    if (!selectedBody || !getBodies) return [];
+    const all = getBodies() || [];
+    return getClosestNeighbors(selectedBody, all, 8);
+  }, [selectedBody, selectedBody?.id, simulationTime, getBodies]);
+
   const posStyle = panelPos
     ? { left: panelPos.x, top: panelPos.y, right: 'auto' }
     : {};
@@ -206,6 +214,15 @@ const InfoPanel = ({ onExplore, onClose, getBodies }) => {
               {props.name}
             </h2>
           )}
+          {onFocusBody && (
+            <button
+              className="info-focus-btn"
+              onClick={(e) => { e.stopPropagation(); onFocusBody(selectedBody.id); }}
+              title="Switch to body-centred view"
+            >
+              🎯
+            </button>
+          )}
           <button
             className={`info-label-toggle ${labelVisible ? '' : 'hidden'}`}
             onClick={handleToggleLabel}
@@ -233,6 +250,32 @@ const InfoPanel = ({ onExplore, onClose, getBodies }) => {
         <Row label="Temperature" value={renderValue(props.temperature)} />
         <Row label="Luminosity" value={renderValue(props.luminosity)} />
         <Row label="Age" value={formatTime(props.age?.value ?? selectedBody.age)} />
+      </div>
+
+      {/* ========== CLOSEST NEIGHBORS (N-body context) ========== */}
+      <div className="info-section">
+        <h3 className="section-title">Closest neighbors</h3>
+        {neighbors.length === 0 ? (
+          <p className="info-note">No other bodies in range.</p>
+        ) : (
+          <ul className="neighbor-list">
+            {neighbors.map((n) => (
+              <li key={n.id} className="neighbor-item">
+                <span className="neighbor-name">{n.name}</span>
+                <span className="neighbor-dist">
+                  {formatNumber(n.distanceAU)} AU
+                  {!n.sameSystem && <span className="neighbor-tag"> other system</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="info-note">
+          <strong>Gravity model:</strong> Full mutual N-body forces are computed <em>within each star system</em> (AU scale).
+          Separate galaxies use their own system physics; across millions of light-years the coupling to this system is
+          negligible and is not applied to these orbits. Nearby entries from other systems are shown by straight-line
+          separation only for reference.
+        </p>
       </div>
 
       {/* ========== POSITION & ORIENTATION (Universe Sandbox-style manual placement) ========== */}

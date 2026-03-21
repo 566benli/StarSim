@@ -1,0 +1,31 @@
+---
+description: Always sync local project from latest shared GitHub version before any bug-fix work
+alwaysApply: true
+---
+
+# StarSim: GitHub Latest-First Rule
+
+## Core rule
+
+Before fixing the current version, always update the local workspace from the latest shared GitHub version so edits happen on the newest baseline.
+
+## Mandatory pre-fix sequence
+
+1. **Resolve source of truth**
+   - Prefer latest GitHub Release asset / latest shared package.
+   - If release assets are not used, fetch latest default-branch state from remote.
+2. **Protect local work**
+   - If local uncommitted changes exist, do not overwrite silently.
+   - Ask user whether to back up or discard local changes before replacing files.
+3. **Replace local old version**
+   - Update local files to match the latest shared GitHub version.
+4. **Rehydrate and verify**
+   - Run `npm install`
+   - Run `npm run check-sync`
+5. **Only then start bug-fix edits**
+
+## Safety rules
+
+- Never assume local files are the newest if GitHub has a newer shared version.
+- Never proceed with bug fixes on a stale local baseline.
+- If GitHub access fails, stop and report blocker before editing code.

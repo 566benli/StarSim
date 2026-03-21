@@ -132,6 +132,9 @@ export default class Star extends CelestialBody {
       if (this.mass < 0.01) this.mass = 0.01;
     }
 
+    // Apply and decay temporary luminosity boost (merger flash, etc.)
+    this.tickLuminosityBoost(dt);
+
     // Always update spectral class (critical: this was missing before)
     this.spectralClass = this.calculateSpectralClass();
   }
@@ -372,31 +375,73 @@ export default class Star extends CelestialBody {
   }
 
   /**
-   * Trigger a supernova explosion
+   * Trigger a supernova explosion.
+   * Sets _pendingExplosion so SimEngine can propagate catastrophe effects
+   * and generate VFX events after this step completes.
    */
   triggerSupernova() {
+    const progenitorMass = this.mass;
+    const ejectaMass     = progenitorMass * 0.7;
+    const remnantCoreMass = progenitorMass * 0.3;
+
     this.logEvent({
       type: 'supernova',
-      message: `${this.name} has gone SUPERNOVA!`,
+      message: `${this.name} has gone SUPERNOVA! (${progenitorMass.toFixed(2)} M☉ progenitor)`,
       severity: 'catastrophic',
     });
 
-    // Determine remnant
-    const coreMass = this.mass * 0.3; // Simplified
-
-    if (coreMass < 3) {
+    // Transition the star to its compact remnant
+    if (remnantCoreMass < 3) {
       this.transitionTo(EVOLUTION_PHASES.NEUTRON_STAR);
     } else {
       this.transitionTo(EVOLUTION_PHASES.BLACK_HOLE);
     }
 
-    // Return supernova event data for visual effects
-    return {
+    // Store explosion payload — SimEngine reads and processes this each frame
+    this._pendingExplosion = {
       type: 'supernova',
+      sourceId: this.id,
+      progenitorMass,
+      ejectaMass,
+      // Kinetic energy of ejecta in sim units (M☉·(AU/yr)²)
+      // ~10⁴⁴ J ≈ 6.3 M☉·(AU/yr)² — we store a gameplay-scaled version
+      energy: progenitorMass * 6.3,
       position: this.position.clone(),
-      energy: this.mass * 1e46, // Approximate energy in joules
       remnantType: this.phase,
+      shockwaveRadius: 80 + progenitorMass * 5,
+      // Normalised radiation burst (higher → more damage to planets)
+      radiationBurst: progenitorMass * 5000,
+      duration: 8.0,
     };
+
+    return this._pendingExplosion;
+  }
+
+  /**
+   * Apply and decay temporary luminosity boost (e.g. after stellar merger flash).
+   * Stores the pre-boost base luminosity and restores it on expiry.
+   * @param {number} dt years
+   */
+  tickLuminosityBoost(dt) {
+    if (!this._luminosityBoost) return;
+    const b = this._luminosityBoost;
+
+    // First call: snapshot base luminosity
+    if (b.baseLuminosity === undefined) {
+      b.baseLuminosity = this.luminosity / b.factor;
+    }
+
+    // Decay factor
+    b.factor = 1.0 + (b.factor - 1.0) * Math.exp(-b.decayRate * dt);
+
+    if (b.factor < 1.001) {
+      // Restore base luminosity and remove boost
+      this.luminosity     = b.baseLuminosity;
+      this._luminosityBoost = null;
+    } else {
+      // Apply boosted luminosity from base
+      this.luminosity = b.baseLuminosity * b.factor;
+    }
   }
 
   /**

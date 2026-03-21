@@ -1,0 +1,38 @@
+---
+description: Pull before work, verify in terminal (build + check-sync), push after each change
+alwaysApply: true
+---
+
+# StarSim: GitHub sync + terminal verification (mandatory)
+
+## Before any new change or session
+
+1. **Sync from GitHub first** — treat `origin` as source of truth before editing:
+   - `git fetch origin`
+   - `git pull origin <current-branch>` (usually `master`)
+   - If local uncommitted work exists and pull would overwrite: **stop** and ask the user to stash/commit/resolve, per project safety rules.
+
+## After every code or config change (before saying “done”)
+
+1. **Run full verification in the terminal** (do not skip):
+   - `npm install` if dependencies or lockfile changed, or if unsure.
+   - `npm run build:all` — must complete successfully (web + exe + sync).
+   - `npm run check-sync` — must report versions synchronized.
+2. **Optional self-checks** when touching sim/UI: launch `dist-electron\StarSim.exe` or `npm run serve:web` if the task requires runtime proof.
+3. **Only then** consider the procedure complete.
+
+## After verification passes
+
+1. **Commit** with a clear message describing the change.
+2. **Push to GitHub**:
+   - `git push origin <current-branch>`
+3. If push fails (auth, conflicts): report the error and stop; do not claim completion.
+
+## What not to commit
+
+- Do not add `dist/`, `dist-electron/`, `node_modules/`, or large portable zip trees under `releases/` unless the project explicitly version-controls them (this repo ignores build outputs; keep `releases/` out of commits unless the user requests otherwise).
+
+## Integration with other rules
+
+- **github-latest-first**: aligns with “pull before change.”
+- **test-until-working / exe-shortcut-sync**: `build:all` + `check-sync` satisfy the minimum verification bar for build-related work.
