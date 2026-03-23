@@ -54,10 +54,21 @@ export const useStore = create((set, get) => ({
   // === Selection ===
   selectedBodyId: null,
   selectedBody: null,
-  setSelectedBody: (body) => set({
-    selectedBodyId: body?.id || null,
-    selectedBody: body,
-    showInfoPanel: body ? true : get().showInfoPanel,
+  setSelectedBody: (body) => set((state) => {
+    if (!body) {
+      return {
+        selectedBodyId: null,
+        selectedBody: null,
+        showInfoPanel: state.showInfoPanel,
+      };
+    }
+    // Always reopen the panel on body pick (even if the same body was already selected
+    // but the user had closed the panel).
+    return {
+      selectedBodyId: body.id,
+      selectedBody: body,
+      showInfoPanel: true,
+    };
   }),
   clearSelection: () => set({ selectedBodyId: null, selectedBody: null, showInfoPanel: false }),
 

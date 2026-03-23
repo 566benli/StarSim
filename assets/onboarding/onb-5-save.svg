@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" fill="none">
+  <rect width="320" height="200" rx="12" fill="#0c1028" stroke="#4a6ae0" stroke-opacity="0.35"/>
+  <rect x="40" y="36" width="240" height="128" rx="10" fill="#12183a" stroke="#5566aa" stroke-opacity="0.5"/>
+  <text x="160" y="58" text-anchor="middle" fill="#e8ecff" font-family="Segoe UI,Arial,sans-serif" font-size="12" font-weight="600">Saved slots</text>
+  <rect x="60" y="72" width="55" height="40" rx="6" fill="#1e2850"/>
+  <rect x="125" y="72" width="55" height="40" rx="6" fill="#264060"/>
+  <rect x="190" y="72" width="55" height="40" rx="6" fill="#1e2850"/>
+  <text x="87" y="96" text-anchor="middle" fill="#66cc88" font-family="Segoe UI,Arial,sans-serif" font-size="9">Slot 1</text>
+  <text x="152" y="96" text-anchor="middle" fill="#8899cc" font-family="Segoe UI,Arial,sans-serif" font-size="9">Slot 2</text>
+  <text x="217" y="96" text-anchor="middle" fill="#8899cc" font-family="Segoe UI,Arial,sans-serif" font-size="9">Slot 3</text>
+  <text x="160" y="178" text-anchor="middle" fill="#8899cc" font-family="Segoe UI,Arial,sans-serif" font-size="10">Toolbar =¾ or Ctrl+S</text>
+</svg>

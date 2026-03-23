@@ -52,7 +52,8 @@ export default class CelestialBody {
 
     // Trail (orbit visualization) — recent path fades out over time
     this.trail = [];
-    this.maxTrailLength = 300;
+    /** Longer trails read more like sandbox-style orbit arcs in system view */
+    this.maxTrailLength = 720;
 
     // Children (moons, etc.)
     this.children = [];

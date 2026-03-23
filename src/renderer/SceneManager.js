@@ -554,11 +554,39 @@ export default class SceneManager {
         group.visible = true;
       }
     });
-    this.trailLines.forEach(trail => {
-      if (level === VIEW_LEVEL.UNIVERSE || level === VIEW_LEVEL.BODY) {
+    // Orbit-trail visibility is set each frame in update() (_syncTrailVisibility)
+    // so Body view can show trails for the focused body and its satellites.
+  }
+
+  /**
+   * Universe: hide all trails. System: show all. Body: only focused subtree
+   * (selected body, explorer target, children, bodies orbiting the selection).
+   */
+  _syncTrailVisibility(bodies) {
+    if (!bodies || bodies.length === 0) {
+      this.trailLines.forEach((trail) => { trail.visible = false; });
+      return;
+    }
+    const lvl = this._viewLevel;
+    const sel = this.selectedBody;
+
+    const isFocusedBody = (b) => {
+      if (!b || !b.alive) return false;
+      if (b === sel || b === this._explorerTarget) return true;
+      if (sel && b.parentBody === sel) return true;
+      if (sel?.children?.includes(b)) return true;
+      return false;
+    };
+
+    this.trailLines.forEach((trail, id) => {
+      const b = bodies.find((x) => x.id === id);
+      if (!b || !b.alive) return;
+      if (lvl === VIEW_LEVEL.UNIVERSE) {
         trail.visible = false;
-      } else {
+      } else if (lvl === VIEW_LEVEL.SYSTEM) {
         trail.visible = true;
+      } else {
+        trail.visible = isFocusedBody(b);
       }
     });
   }
@@ -2075,6 +2103,8 @@ export default class SceneManager {
         trailColor.r = Math.min(trailColor.r * 1.6 + 0.15, 1);
         trailColor.g = Math.min(trailColor.g * 1.6 + 0.15, 1);
         trailColor.b = Math.min(trailColor.b * 1.6 + 0.15, 1);
+      } else if (body.type === 'black_hole') {
+        trailColor = new THREE.Color(0xcc99ff).multiplyScalar(1.15);
       } else {
         trailColor = new THREE.Color(0x9999bb);
       }
@@ -2095,8 +2125,8 @@ export default class SceneManager {
           varying float vAlpha;
           void main() {
             float a = vAlpha * vAlpha;
-            vec3 col = trailColor * (0.4 + a * 0.6);
-            gl_FragColor = vec4(col, a * 0.85);
+            vec3 col = trailColor * (0.45 + a * 0.65);
+            gl_FragColor = vec4(col, a * 0.92);
           }
         `,
         transparent: true,
@@ -2346,6 +2376,13 @@ export default class SceneManager {
         }
       }
 
+      // Orbit trails are for system/body context only — hide while in universe view
+      if (bodies) {
+        this._syncTrailVisibility(bodies);
+      } else {
+        this.trailLines.forEach((trail) => { trail.visible = false; });
+      }
+
       this.controls.update();
       this.composer.render();
       return;
@@ -2434,6 +2471,10 @@ export default class SceneManager {
           }
         }
       }
+    }
+
+    if (bodies) {
+      this._syncTrailVisibility(bodies);
     }
 
     this.bodyMeshes.forEach((group) => {

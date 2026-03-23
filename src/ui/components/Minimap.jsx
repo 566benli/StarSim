@@ -38,7 +38,16 @@ const clampPosition = (left, top) => {
   };
 };
 
-const Minimap = ({ getBodies, sceneManager, selectedBodyId, simState, onBodySelected, engine, onNavigateToCluster }) => {
+const Minimap = ({
+  getBodies,
+  sceneManager,
+  selectedBodyId,
+  simState,
+  onBodySelected,
+  engine,
+  onNavigateToCluster,
+  onNavigateToBody,
+}) => {
   const canvasRef = useRef(null);
   const isMapDragging = useRef(false);
   const isPanelDragging = useRef(false);
