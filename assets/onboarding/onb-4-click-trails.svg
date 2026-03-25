@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" fill="none">
+  <rect width="320" height="200" rx="12" fill="#060a1c" stroke="#4a6ae0" stroke-opacity="0.35"/>
+  <circle cx="165" cy="88" r="18" fill="#ffdd88"/>
+  <path d="M 70 95 Q 120 40 165 88 Q 210 130 265 100" stroke="#66aaff" stroke-width="2.5" stroke-opacity="0.75" fill="none" stroke-linecap="round"/>
+  <path d="M 200 75 Q 230 95 250 120" stroke="#88ffcc" stroke-width="2" stroke-opacity="0.65" fill="none" stroke-linecap="round"/>
+  <circle cx="250" cy="118" r="5" fill="#66ccff"/>
+  <rect x="188" y="12" width="120" height="72" rx="8" fill="#121830" stroke="#66aaff" stroke-opacity="0.55"/>
+  <text x="196" y="32" fill="#e8ecff" font-family="Segoe UI,Arial,sans-serif" font-size="10" font-weight="600">Info panel</text>
+  <text x="196" y="50" fill="#8899cc" font-family="Segoe UI,Arial,sans-serif" font-size="8">Mass · Orbit · <¯ Focus</text>
+  <path d="M 218 52 L 232 66" stroke="#ffaa44" stroke-width="2"/>
+  <circle cx="250" cy="118" r="10" stroke="#ffaa44" stroke-width="2" fill="none" opacity="0.9"/>
+  <text x="160" y="188" text-anchor="middle" fill="#8899cc" font-family="Segoe UI,Arial,sans-serif" font-size="10">Click body ’ panel · Curved lines = orbit trails</text>
+</svg>
