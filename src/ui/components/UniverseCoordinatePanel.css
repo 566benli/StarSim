@@ -1,0 +1,123 @@
+.universe-coordinate-panel {
+  position: fixed;
+  z-index: 1250;
+  width: 320px;
+  background: rgba(10, 12, 30, 0.97);
+  border: 1px solid rgba(90, 140, 255, 0.35);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55), 0 0 30px rgba(68, 136, 255, 0.12);
+  backdrop-filter: blur(10px);
+  padding: 14px;
+  animation: ucpFadeIn 0.18s ease-out;
+}
+
+@keyframes ucpFadeIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.ucp-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.ucp-title-block h3 {
+  margin: 0;
+  color: #e8eeff;
+  font-size: 16px;
+}
+
+.ucp-title-block span {
+  color: #7f92c6;
+  font-size: 11px;
+}
+
+.ucp-close {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #a0b4dd;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.ucp-close:hover {
+  background: rgba(255, 80, 80, 0.2);
+  color: #fff;
+}
+
+.ucp-grid {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.ucp-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid rgba(90, 120, 180, 0.16);
+  background: rgba(24, 28, 52, 0.7);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.ucp-key {
+  color: #78a8ff;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.ucp-val {
+  color: #d9e3ff;
+  font-family: Consolas, monospace;
+  font-size: 12px;
+}
+
+.ucp-copy {
+  margin: 0 0 12px;
+  color: #97a5c7;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.ucp-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ucp-btn {
+  flex: 1;
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-weight: 600;
+  border: 1px solid rgba(90, 120, 180, 0.2);
+  transition: all 0.15s ease;
+}
+
+.ucp-btn.primary {
+  background: linear-gradient(135deg, rgba(68, 136, 255, 0.6), rgba(0, 204, 255, 0.45));
+  color: #fff;
+}
+
+.ucp-btn.primary:hover {
+  border-color: rgba(120, 200, 255, 0.55);
+  box-shadow: 0 0 20px rgba(68, 136, 255, 0.24);
+}
+
+.ucp-btn.secondary {
+  background: rgba(26, 30, 54, 0.8);
+  color: #c8d6ff;
+}
+
+.ucp-btn.secondary:hover {
+  border-color: rgba(160, 180, 220, 0.35);
+  background: rgba(34, 38, 64, 0.92);
+}

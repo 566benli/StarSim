@@ -15,6 +15,7 @@ export default class SceneManager {
     this.container = container;
     this.bodyMeshes = new Map(); // body.id -> mesh group
     this.trailLines = new Map(); // body.id -> trail line
+    this.rogueMarkers = new Map(); // body.id -> universe-space marker for escaped bodies
     this.selectedBody = null;
     this.hoveredBody = null;
 
@@ -211,6 +212,12 @@ export default class SceneManager {
     });
     this.trailLines.clear();
 
+    this.rogueMarkers.forEach((group) => {
+      this.scene.remove(group);
+      this._disposeObject(group);
+    });
+    this.rogueMarkers.clear();
+
     this.bodyMeshes.forEach((group) => {
       this.scene.remove(group);
       this._disposeObject(group);
@@ -322,9 +329,11 @@ export default class SceneManager {
     let maxDist = 0;
 
     const aliveBodies = bodies.filter(b => b.alive);
-    if (aliveBodies.length === 0) return;
+    const metricBodies = aliveBodies.filter(b => !b.escapedSystem);
+    const basisBodies = metricBodies.length > 0 ? metricBodies : aliveBodies;
+    if (basisBodies.length === 0) return;
 
-    for (const body of aliveBodies) {
+    for (const body of basisBodies) {
       this._comTarget.addScaledVector(body.position, body.mass);
       totalMass += body.mass;
     }
@@ -334,7 +343,7 @@ export default class SceneManager {
     }
 
     // Compute extent: max distance from center of mass (getVisualScale already includes viewScale)
-    for (const body of aliveBodies) {
+    for (const body of basisBodies) {
       const d = body.position.distanceTo(this._comTarget);
       const vs = this.getVisualScale(body);
       if (d + vs > maxDist) maxDist = d + vs;
@@ -516,6 +525,9 @@ export default class SceneManager {
     }
 
     this._clusterMeshes.forEach(mesh => {
+      mesh.visible = (level === VIEW_LEVEL.UNIVERSE);
+    });
+    this.rogueMarkers.forEach((mesh) => {
       mesh.visible = (level === VIEW_LEVEL.UNIVERSE);
     });
 
@@ -764,6 +776,57 @@ export default class SceneManager {
     return group;
   }
 
+  updateRogueMarker(body) {
+    if (!body?.escapedSystem || !body.universePosition) return null;
+
+    let group = this.rogueMarkers.get(body.id);
+    if (!group) {
+      group = new THREE.Group();
+      group.userData.bodyId = body.id;
+
+      const markerGeom = new THREE.SphereGeometry(1.6, 16, 16);
+      const markerMat = new THREE.MeshBasicMaterial({
+        color: body.type === 'planet' ? 0x66ccff : body.type === 'black_hole' ? 0xcc99ff : 0xffcc66,
+        transparent: true,
+        opacity: 0.85,
+      });
+      const marker = new THREE.Mesh(markerGeom, markerMat);
+      group.add(marker);
+      group.userData.marker = marker;
+
+      const haloGeom = new THREE.SphereGeometry(2.8, 16, 16);
+      const haloMat = new THREE.MeshBasicMaterial({
+        color: markerMat.color,
+        transparent: true,
+        opacity: 0.16,
+        side: THREE.BackSide,
+      });
+      const halo = new THREE.Mesh(haloGeom, haloMat);
+      group.add(halo);
+      group.userData.halo = halo;
+
+      const label = this.createLabel(`${body.name} @ ${body.escapeOriginClusterId ? 'rogue' : 'deep space'}`);
+      label.position.y = 4;
+      label.scale.set(6, 1.5, 1);
+      group.add(label);
+      group.userData.label = label;
+
+      this.rogueMarkers.set(body.id, group);
+      this.scene.add(group);
+    }
+
+    const uScale = 0.4;
+    group.position.set(
+      body.universePosition.x * uScale,
+      body.universePosition.y * uScale,
+      body.universePosition.z * uScale,
+    );
+    if (group.userData.halo) {
+      group.userData.halo.material.opacity = 0.1 + 0.06 * Math.sin(this.elapsedTime * 2.5);
+    }
+    return group;
+  }
+
   /**
    * Show habitable zone ring around a star
    */
@@ -857,7 +920,7 @@ export default class SceneManager {
   /**
    * Transition to universe view
    */
-  transitionToUniverse() {
+  transitionToUniverse(focusTarget = null) {
     this._viewLevel = VIEW_LEVEL.UNIVERSE;
     this._focusedBody = null;
     this.selectedBody = null;
@@ -874,9 +937,16 @@ export default class SceneManager {
     if (this._universeBoundary) this._universeBoundary.visible = true;
     if (this._universeDisk) this._universeDisk.visible = true;
 
-    // Camera closer to see cluster visuals clearly
-    const endPos = new THREE.Vector3(0, 60, 90);
-    const endTarget = new THREE.Vector3(0, 0, 0);
+    const target = focusTarget
+      ? new THREE.Vector3(
+        (focusTarget.x || 0) * 0.4,
+        (focusTarget.y || 0) * 0.4,
+        (focusTarget.z || 0) * 0.4,
+      )
+      : new THREE.Vector3(0, 0, 0);
+    // Camera closer to the current universe focus for a smoother scale transition
+    const endPos = target.clone().add(new THREE.Vector3(0, 60, 90));
+    const endTarget = target;
     this.animateCamera(endPos, endTarget, 800);
   }
 
@@ -1158,6 +1228,8 @@ export default class SceneManager {
 
     // Update visual scale based on radius (includes viewScale)
     const visualScale = this.getVisualScale(body);
+    const cameraDistance = Math.max(0.001, this.camera.position.distanceTo(group.position));
+    const apparentSize = visualScale / cameraDistance;
     if (group.userData.mainMesh) {
       group.userData.mainMesh.scale.setScalar(visualScale);
     }
@@ -1177,8 +1249,9 @@ export default class SceneManager {
       group.userData.label.position.y = visualScale * 1.8 + 0.3;
       group.userData.label.scale.setScalar(Math.max(0.5, visualScale * 1.2));
 
-      // Visibility: hide label when body.showLabel is false
-      group.userData.label.visible = (body.showLabel !== false);
+      // Hide labels when the body becomes too small on screen; otherwise sprites dominate
+      // and the object reads as a square/text plate instead of a round body.
+      group.userData.label.visible = (body.showLabel !== false) && (body.selected || apparentSize > 0.0025);
 
       // Update label text if name or phase changed
       const phaseLabel = body.type === 'star' ? this.getPhaseDisplayName(body.phase) : null;
@@ -1215,7 +1288,7 @@ export default class SceneManager {
         ? 0.5 + 0.3 * Math.sin(this.elapsedTime * 3)
         : 0.4 + 0.2 * Math.sin(this.elapsedTime * 2);
       group.userData.locator.material.opacity = locPulse;
-      group.userData.locator.visible = (this._viewLevel === VIEW_LEVEL.SYSTEM);
+      group.userData.locator.visible = (this._viewLevel === VIEW_LEVEL.SYSTEM) && (body.selected || apparentSize > 0.0035);
     }
 
     return group;
@@ -2241,6 +2314,17 @@ export default class SceneManager {
           return;
         }
       }
+      const universePlaneHit = this.screenToWorldPlane(event.clientX, event.clientY);
+      if (universePlaneHit && this.onUniverseCoordinateSelected) {
+        this.onUniverseCoordinateSelected(
+          {
+            x: universePlaneHit.x / 0.4,
+            y: universePlaneHit.y / 0.4,
+            z: universePlaneHit.z / 0.4,
+          },
+          { x: event.clientX, y: event.clientY },
+        );
+      }
       return;
     }
 
@@ -2335,12 +2419,16 @@ export default class SceneManager {
   /**
    * Render universe-level cluster meshes
    */
-  renderUniverse(clusters) {
+  renderUniverse(clusters, allBodies) {
     if (!clusters) return;
     for (const cluster of clusters) {
       if (cluster.alive) {
         this.updateClusterVisual(cluster);
       }
+    }
+    const rogueBodies = (allBodies || []).filter((body) => body.alive && body.escapedSystem);
+    for (const body of rogueBodies) {
+      this.updateRogueMarker(body);
     }
     // Remove dead cluster meshes
     this._clusterMeshes.forEach((group, id) => {
@@ -2348,6 +2436,14 @@ export default class SceneManager {
       if (!cluster || !cluster.alive) {
         this.scene.remove(group);
         this._clusterMeshes.delete(id);
+      }
+    });
+    this.rogueMarkers.forEach((group, id) => {
+      const body = rogueBodies.find((b) => b.id === id);
+      if (!body || !body.alive) {
+        this.scene.remove(group);
+        this._disposeObject(group);
+        this.rogueMarkers.delete(id);
       }
     });
   }
@@ -2362,7 +2458,7 @@ export default class SceneManager {
 
     // Universe view: render clusters (but still keep body positions updated for smooth transitions)
     if (this._viewLevel === VIEW_LEVEL.UNIVERSE) {
-      this.renderUniverse(clusters || []);
+      this.renderUniverse(clusters || [], allBodies || bodies || []);
 
       // Silently update body positions so transition back to system is seamless
       if (bodies) {
@@ -2786,6 +2882,7 @@ export default class SceneManager {
   onBodyDeselected = null;
   onClusterSelected = null;
   onClusterHover = null;
+  onUniverseCoordinateSelected = null;
   onViewScaleChange = null;
   _hoveredClusterId = null;
 }

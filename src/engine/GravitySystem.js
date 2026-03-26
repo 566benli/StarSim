@@ -197,15 +197,19 @@ export default class GravitySystem {
     const R2 = R * R;
     for (const body of bodies) {
       if (!body.alive) continue;
+      if (body.escapedSystem) continue;
       const dx = body.position.x - com.x;
       const dy = body.position.y - com.y;
       const dz = body.position.z - com.z;
       const distSq = dx * dx + dy * dy + dz * dz;
 
       if (distSq > R2) {
-        body.logEvent({ type: 'boundary', message: `${body.name} crossed the simulation boundary and was destroyed.` });
-        body.destroy();
-        if (this.onBoundaryExceeded) this.onBoundaryExceeded(body);
+        body.logEvent({ type: 'boundary', message: `${body.name} crossed the system boundary and escaped into deep space.` });
+        if (this.onBoundaryExceeded) {
+          this.onBoundaryExceeded(body, {
+            centerOfMass: { x: com.x, y: com.y, z: com.z },
+          });
+        }
       } else if (distSq > Rw * Rw) {
         const dist = Math.sqrt(distSq);
         const fraction = (dist - Rw) / (R - Rw); // 0 at Rw, 1 at R

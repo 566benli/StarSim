@@ -101,17 +101,23 @@ const Minimap = ({
   const drawUniverse = useCallback((ctx, size) => {
     if (!engine?.universe) return;
     const clusters = engine.universe.clusters.filter(c => c.alive);
+    const rogueBodies = (engine.getBodies?.() || []).filter((b) => b.alive && b.escapedSystem);
     if (clusters.length === 0) {
       ctx.fillStyle = '#556';
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('Empty Universe', size / 2, size / 2);
-      return;
+      ctx.fillText(rogueBodies.length > 0 ? 'Rogue bodies tracked' : 'Empty Universe', size / 2, size / 2);
+      if (rogueBodies.length === 0) return;
     }
 
     let maxDist = 1;
     for (const c of clusters) {
       const d = c.position.length() * 0.4;
+      if (d > maxDist) maxDist = d;
+    }
+    for (const body of rogueBodies) {
+      const up = engine.getBodyUniversePosition?.(body);
+      const d = Math.hypot((up?.x || 0) * 0.4, (up?.z || 0) * 0.4);
       if (d > maxDist) maxDist = d;
     }
     const extent = maxDist * 1.3;
@@ -147,6 +153,26 @@ const Minimap = ({
       ctx.beginPath();
       ctx.arc(pos.x, pos.y, clusterSize, 0, Math.PI * 2);
       ctx.fill();
+    }
+
+    for (const body of rogueBodies) {
+      const up = engine.getBodyUniversePosition?.(body);
+      const pos = worldToMap(
+        (up?.x || 0) * 0.4,
+        (up?.z || 0) * 0.4,
+        { x: 0, z: 0 }, extent, size
+      );
+      ctx.fillStyle = body.type === 'planet'
+        ? 'rgba(110, 210, 255, 0.95)'
+        : body.type === 'black_hole'
+          ? 'rgba(210, 150, 255, 0.95)'
+          : 'rgba(255, 220, 120, 0.95)';
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
     }
   }, [engine, worldToMap]);
 
@@ -332,14 +358,22 @@ const Minimap = ({
 
       if (viewLevel === VIEW_LEVEL.UNIVERSE && engine?.universe) {
         const clusters = engine.universe.clusters.filter(c => c.alive);
+        const rogueBodies = (engine.getBodies?.() || []).filter((b) => b.alive && b.escapedSystem);
         let maxDist = 1;
         for (const c of clusters) {
           const d = c.position.length() * 0.4;
           if (d > maxDist) maxDist = d;
         }
+        for (const body of rogueBodies) {
+          const up = engine.getBodyUniversePosition?.(body);
+          const d = Math.hypot((up?.x || 0) * 0.4, (up?.z || 0) * 0.4);
+          if (d > maxDist) maxDist = d;
+        }
         const extent = maxDist * 1.3;
         let nearest = null;
         let nearestDist = 16;
+        let nearestRogue = null;
+        let nearestRogueDist = 12;
         for (const cluster of clusters) {
           const pos = worldToMap(
             cluster.position.x * 0.4,
@@ -352,7 +386,22 @@ const Minimap = ({
             nearest = cluster;
           }
         }
-        if (nearest && onNavigateToCluster) {
+        for (const body of rogueBodies) {
+          const up = engine.getBodyUniversePosition?.(body);
+          const pos = worldToMap(
+            (up?.x || 0) * 0.4,
+            (up?.z || 0) * 0.4,
+            { x: 0, z: 0 }, extent, size
+          );
+          const d = Math.hypot(mx - pos.x, my - pos.y);
+          if (d < nearestRogueDist) {
+            nearestRogueDist = d;
+            nearestRogue = body;
+          }
+        }
+        if (nearestRogue && onNavigateToBody) {
+          onNavigateToBody(nearestRogue.id);
+        } else if (nearest && onNavigateToCluster) {
           onNavigateToCluster(nearest.id);
         }
       } else if (viewLevel !== VIEW_LEVEL.UNIVERSE && getBodies && onBodySelected) {

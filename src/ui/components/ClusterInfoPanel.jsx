@@ -56,6 +56,13 @@ const ClusterInfoPanel = ({ cluster, systems, bodies, screenPos, onGoToSystem, o
 
       <div className="cip-stats">
         <div className="cip-stat-row">
+          <span className="cip-stat-icon">⌖</span>
+          <span className="cip-stat-label">Coordinate</span>
+          <span className="cip-stat-value">
+            {cluster.position.x.toFixed(2)}, {cluster.position.y.toFixed(2)}, {cluster.position.z.toFixed(2)} Mly
+          </span>
+        </div>
+        <div className="cip-stat-row">
           <span className="cip-stat-icon">&#x2B50;</span>
           <span className="cip-stat-label">Stars</span>
           <span className="cip-stat-value">{summary.stars.length}</span>

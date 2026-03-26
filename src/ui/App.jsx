@@ -22,6 +22,7 @@ import AuthModal from './components/AuthModal';
 import ObjectPalette from './components/ObjectPalette';
 import UniversePanel from './components/UniversePanel';
 import ClusterInfoPanel from './components/ClusterInfoPanel';
+import UniverseCoordinatePanel from './components/UniverseCoordinatePanel';
 import WelcomeFlow from './components/WelcomeFlow';
 import { ONBOARDING_DONE_KEY } from '@utils/onboardingKeys';
 import { getSaveSlots, saveSlot, loadSlot, deleteSlot } from '@services/saveService';
@@ -52,6 +53,7 @@ const App = () => {
 
   const [clusterPopup, setClusterPopup] = useState(null);
   const [clusterTooltip, setClusterTooltip] = useState(null);
+  const [universeCoordinatePopup, setUniverseCoordinatePopup] = useState(null);
 
   const [welcomeFlowOpen, setWelcomeFlowOpen] = useState(() => {
     try {
@@ -138,7 +140,7 @@ const App = () => {
 
     if (state.viewLevel === VIEW_LEVEL.SYSTEM && state.focusedSystemId) {
       const systemBodies = engine.getSystemBodies(state.focusedSystemId);
-      return systemBodies.length > 0 ? systemBodies : allBodies;
+      return systemBodies;
     }
 
     if (state.viewLevel === VIEW_LEVEL.BODY && state.focusedBodyId) {
@@ -197,17 +199,21 @@ const App = () => {
       addEvent(event);
     };
 
-    engine._boundaryHandler = (body) => {
+    engine._boundaryHandler = (body, info) => {
+      engine.markBodyEscaped(body, {
+        systemId: body.systemId,
+        com: info?.centerOfMass,
+      });
       addEvent({
         id: `boundary_${Date.now()}`,
-        name: 'Boundary',
+        name: 'System Escape',
         category: 'system',
         targetBody: body,
         time: engine.simulationTime,
         notification: {
-          title: 'Boundary exceeded',
-          body: `${body.name} crossed the system boundary and was destroyed.`,
-          severity: 'major',
+          title: 'Object Escaped',
+          body: `${body.name} left its star system and is now tracked in universe space.`,
+          severity: 'notable',
         },
         effects: {},
       });
@@ -228,6 +234,7 @@ const App = () => {
     };
 
     scene.onClusterSelected = (clusterId, screenPos) => {
+      setUniverseCoordinatePopup(null);
       const cluster = engine.universe.getCluster(clusterId);
       if (!cluster) return;
 
@@ -243,6 +250,14 @@ const App = () => {
         cluster,
         systems: clusterSystems,
         bodies: clusterBodies,
+        screenPos: screenPos || { x: window.innerWidth / 2, y: window.innerHeight / 2 },
+      });
+    };
+
+    scene.onUniverseCoordinateSelected = (coords, screenPos) => {
+      setClusterPopup(null);
+      setUniverseCoordinatePopup({
+        coords,
         screenPos: screenPos || { x: window.innerWidth / 2, y: window.innerHeight / 2 },
       });
     };
@@ -342,7 +357,6 @@ const App = () => {
       let bodiesToRender = allBodies;
       if (currentViewLevel === VIEW_LEVEL.SYSTEM && currentFocusedSystemId) {
         bodiesToRender = engine.getSystemBodies(currentFocusedSystemId);
-        if (bodiesToRender.length === 0) bodiesToRender = allBodies;
       } else if (currentViewLevel === VIEW_LEVEL.BODY && currentFocusedBodyId) {
         const focusedBody = engine.getBody(currentFocusedBodyId);
         if (focusedBody?.systemId) {
@@ -353,7 +367,13 @@ const App = () => {
         }
       }
 
-      scene.render(bodiesToRender, engine.universe.clusters, allBodies);
+      const cleanupBodies = (
+        currentViewLevel === VIEW_LEVEL.SYSTEM &&
+        currentFocusedSystemId &&
+        bodiesToRender.length === 0
+      ) ? [] : allBodies;
+
+      scene.render(bodiesToRender, engine.universe.clusters, cleanupBodies);
 
       animFrameRef.current = requestAnimationFrame(animate);
     };
@@ -501,14 +521,80 @@ const App = () => {
     scene.transitionToSystem(engine.getBodies());
   }, []);
 
+  const handleGoToUniverseCoordinate = useCallback((coords) => {
+    const engine = engineRef.current;
+    const scene = sceneRef.current;
+    if (!engine || !scene || !coords) return;
+
+    const aliveClusters = engine.universe.clusters.filter((c) => c.alive);
+    let nearestCluster = null;
+    let nearestDistance = Infinity;
+    for (const cluster of aliveClusters) {
+      const dx = cluster.position.x - coords.x;
+      const dy = cluster.position.y - coords.y;
+      const dz = cluster.position.z - coords.z;
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      if (dist < nearestDistance) {
+        nearestDistance = dist;
+        nearestCluster = cluster;
+      }
+    }
+
+    let cluster;
+    let system;
+    if (nearestCluster && nearestDistance < 20) {
+      cluster = nearestCluster;
+      system = engine.createStarSystem(cluster.id, {
+        name: `${cluster.name} System ${engine.universe.getSystemsForCluster(cluster.id).length + 1}`,
+        position: {
+          x: coords.x - cluster.position.x,
+          y: coords.y - cluster.position.y,
+          z: coords.z - cluster.position.z,
+        },
+      });
+    } else {
+      cluster = engine.createCluster({
+        name: `Galaxy ${engine.universe.clusters.length + 1}`,
+        type: 'spiral',
+        position: { x: coords.x, y: coords.y, z: coords.z },
+      });
+      system = engine.createStarSystem(cluster.id, {
+        name: `${cluster.name} Primary`,
+        position: { x: 0, y: 0, z: 0 },
+      });
+    }
+
+    setUniverseCoordinatePopup(null);
+    handleDeselectBody();
+    navigateTo(VIEW_LEVEL.SYSTEM, { clusterId: cluster.id, systemId: system.id });
+    scene.transitionToSystem([]);
+  }, [handleDeselectBody, navigateTo]);
+
   /**
    * Navigate to universe view
    */
   const handleNavigateToUniverse = useCallback(() => {
+    const engine = engineRef.current;
     const scene = sceneRef.current;
     setClusterPopup(null);
+    setUniverseCoordinatePopup(null);
     navigateTo(VIEW_LEVEL.UNIVERSE);
-    if (scene) scene.transitionToUniverse();
+    if (scene) {
+      let focusTarget = null;
+      const state = useStore.getState();
+      const focusedBody = state.selectedBodyId ? engine?.getBody(state.selectedBodyId) : null;
+      if (focusedBody) {
+        focusTarget = engine?.getBodyUniversePosition?.(focusedBody) || null;
+      } else if (state.focusedClusterId) {
+        const cluster = engine?.universe?.getCluster(state.focusedClusterId);
+        if (cluster) {
+          focusTarget = { x: cluster.position.x, y: cluster.position.y, z: cluster.position.z };
+        }
+      } else if (state.focusedSystemId) {
+        focusTarget = engine?.getSystemWorldPosition?.(state.focusedSystemId) || null;
+      }
+      scene.transitionToUniverse(focusTarget);
+    }
   }, []);
 
   /**
@@ -546,8 +632,7 @@ const App = () => {
 
     navigateTo(VIEW_LEVEL.SYSTEM, { clusterId: cluster.id, systemId: bestSystemId });
 
-    const allBodies = engine.getBodies();
-    const bodiesToShow = bestBodies.length > 0 ? bestBodies : allBodies;
+    const bodiesToShow = bestSystemId ? bestBodies.filter((b) => b.alive) : engine.getBodies();
     scene.transitionToSystem(bodiesToShow);
   }, []);
 
@@ -1071,6 +1156,15 @@ const App = () => {
         />
       )}
 
+      {universeCoordinatePopup && viewLevel === VIEW_LEVEL.UNIVERSE && (
+        <UniverseCoordinatePanel
+          coords={universeCoordinatePopup.coords}
+          screenPos={universeCoordinatePopup.screenPos}
+          onGoToCoordinate={handleGoToUniverseCoordinate}
+          onClose={() => setUniverseCoordinatePopup(null)}
+        />
+      )}
+
       {/* Object Palette (top panel - Universe Sandbox style) */}
       {simState !== 'setup' && showObjectPalette && (
         <ObjectPalette
@@ -1093,7 +1187,7 @@ const App = () => {
             if (!system) return;
             navigateTo(VIEW_LEVEL.SYSTEM, { systemId: sysId, clusterId: system.clusterId });
             const bodies = engine.getSystemBodies(sysId);
-            scene.transitionToSystem(bodies.length > 0 ? bodies : engine.getBodies());
+            scene.transitionToSystem(bodies);
           }}
           onNavigateToUniverse={handleNavigateToUniverse}
           onNavigateToBody={handleNavigateToBody}

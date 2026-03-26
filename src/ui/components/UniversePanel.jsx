@@ -73,6 +73,10 @@ const UniversePanel = ({
 
   const stats = universeStats || {};
   const composition = stats.composition || {};
+  const formatCoords = (coords) => {
+    if (!coords) return '0.00, 0.00, 0.00 Mly';
+    return `${(coords.x || 0).toFixed(2)}, ${(coords.y || 0).toFixed(2)}, ${(coords.z || 0).toFixed(2)} Mly`;
+  };
 
   // Breadcrumb navigation
   const renderBreadcrumbs = () => {
@@ -230,6 +234,7 @@ const UniversePanel = ({
                   </div>
                   <div className="up-cluster-info">
                     <span>{cluster.systemCount} systems</span>
+                    <span>{formatCoords(cluster.position)}</span>
                     {!cluster.alive && <span className="up-dead-badge">Destroyed</span>}
                   </div>
                 </div>
@@ -266,6 +271,9 @@ const UniversePanel = ({
                       {body.type === 'star' ? `${formatNumber(body.mass)} M\u2609 \u00B7 ${formatNumber(body.temperature)} K` :
                        body.type === 'planet' ? `${formatNumber(body.massEarth || body.mass * 333000)} M\u2295` :
                        `${formatNumber(body.mass)} M\u2609`}
+                    </span>
+                    <span className="up-body-detail">
+                      {formatCoords(engine?.getBodyUniversePosition?.(body))}
                     </span>
                   </div>
                   <span className="up-body-locate">🔍</span>

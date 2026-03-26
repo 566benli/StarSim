@@ -24,7 +24,7 @@ import { getApplicableEvents } from '@data/events';
 import { STAR_PRESETS } from '@data/starTypes';
 import { PLANET_PRESETS } from '@data/planetTypes';
 import { getDefaultComposition } from '@data/elements';
-import { SIM_TIME_SCALE, UNIVERSE_RADIUS_MLY, VIEW_LEVEL } from '@utils/constants';
+import { ARENA_RADIUS_AU, MLY_TO_AU, SIM_TIME_SCALE, UNIVERSE_RADIUS_MLY, VIEW_LEVEL } from '@utils/constants';
 
 export const SIM_STATE = {
   SETUP: 'setup',
@@ -77,6 +77,8 @@ export default class SimEngine {
     this._lastOrbitalCheck       = 0;
     this._radiationUpdateInterval = 0.1;
     this._lastRadiationUpdate    = 0;
+    this._escapeVisualScaleMly = 10;
+    this._escapeVisualVelocityMly = 2.5;
   }
 
   /** Get or create a GravitySystem for a given system id */
@@ -148,6 +150,88 @@ export default class SimEngine {
 
     this.getOrCreateGS(system.id);
     return system;
+  }
+
+  getClusterWorldPosition(clusterId) {
+    const cluster = clusterId ? this.universe.getCluster(clusterId) : null;
+    return cluster?.position?.clone?.() || { x: 0, y: 0, z: 0 };
+  }
+
+  getSystemWorldPosition(systemId) {
+    const system = systemId ? this.universe.getSystem(systemId) : null;
+    if (!system) return { x: 0, y: 0, z: 0 };
+    const clusterPos = this.getClusterWorldPosition(system.clusterId);
+    return {
+      x: clusterPos.x + system.position.x,
+      y: clusterPos.y + system.position.y,
+      z: clusterPos.z + system.position.z,
+    };
+  }
+
+  getBodyUniversePosition(body) {
+    if (!body) return { x: 0, y: 0, z: 0 };
+    if (body.escapedSystem) {
+      return {
+        x: body.universePosition.x,
+        y: body.universePosition.y,
+        z: body.universePosition.z,
+      };
+    }
+
+    const systemPos = this.getSystemWorldPosition(body.systemId);
+    return {
+      x: systemPos.x + (body.position.x / MLY_TO_AU),
+      y: systemPos.y + (body.position.y / MLY_TO_AU),
+      z: systemPos.z + (body.position.z / MLY_TO_AU),
+    };
+  }
+
+  markBodyEscaped(body, { systemId, com } = {}) {
+    if (!body?.alive || body.escapedSystem) return;
+
+    const system = systemId ? this.universe.getSystem(systemId) : null;
+    const clusterId = system?.clusterId || null;
+    const systemPos = this.getSystemWorldPosition(systemId);
+
+    const dx = body.position.x - (com?.x ?? 0);
+    const dy = body.position.y - (com?.y ?? 0);
+    const dz = body.position.z - (com?.z ?? 0);
+    const dist = Math.max(1e-6, Math.sqrt(dx * dx + dy * dy + dz * dz));
+    const nx = dx / dist;
+    const ny = dy / dist;
+    const nz = dz / dist;
+
+    const boundaryRatio = Math.max(1, dist / ARENA_RADIUS_AU);
+    const markerOffset = Math.min(24, this._escapeVisualScaleMly * boundaryRatio);
+    const speedRatio = Math.min(1.5, body.velocity.length() / 40);
+
+    body.escapedSystem = true;
+    body.escapeOriginSystemId = systemId || null;
+    body.escapeOriginClusterId = clusterId;
+    body.universePosition.set(
+      systemPos.x + nx * markerOffset,
+      systemPos.y + ny * markerOffset * 0.25,
+      systemPos.z + nz * markerOffset,
+    );
+    body.universeVelocity.set(
+      nx * this._escapeVisualVelocityMly * speedRatio,
+      ny * this._escapeVisualVelocityMly * speedRatio * 0.2,
+      nz * this._escapeVisualVelocityMly * speedRatio,
+    );
+    body.logEvent({
+      type: 'escaped_system',
+      message: `${body.name} escaped ${system?.name || 'its system'} and is now tracked in universe space.`,
+    });
+  }
+
+  updateEscapedBodies(dtYears) {
+    if (dtYears <= 0) return;
+    const dtMly = dtYears / 1e6;
+    const bodies = this.getBodies();
+    for (const body of bodies) {
+      if (!body.alive || !body.escapedSystem) continue;
+      body.universePosition.addScaledVector(body.universeVelocity, dtMly);
+    }
   }
 
   /**
@@ -426,6 +510,7 @@ export default class SimEngine {
     }
 
     // Universe-level composition and stats
+    this.updateEscapedBodies(fullSimDt);
     const aliveBodies = this.getBodies();
     this.universe.evolveComposition(fullSimDt, aliveBodies);
     this.universe.updateStats(aliveBodies);
@@ -770,7 +855,17 @@ export default class SimEngine {
         type: c.type,
         systemCount: c.systemIds.length,
         alive: c.alive,
+        position: { x: c.position.x, y: c.position.y, z: c.position.z },
       })),
+      rogueBodies: this.getBodies()
+        .filter((b) => b.alive && b.escapedSystem)
+        .map((b) => ({
+          id: b.id,
+          name: b.name,
+          type: b.type,
+          systemId: b.systemId,
+          universePosition: this.getBodyUniversePosition(b),
+        })),
     };
   }
 

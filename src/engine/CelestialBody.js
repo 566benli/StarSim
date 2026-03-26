@@ -68,6 +68,13 @@ export default class CelestialBody {
 
     // Universe hierarchy
     this.systemId = config.systemId || null;
+    this.escapedSystem = config.escapedSystem || false;
+    this.escapeOriginSystemId = config.escapeOriginSystemId || null;
+    this.escapeOriginClusterId = config.escapeOriginClusterId || null;
+    this.universePosition = new THREE.Vector3();
+    if (config.universePosition) this.universePosition.copy(config.universePosition);
+    this.universeVelocity = new THREE.Vector3();
+    if (config.universeVelocity) this.universeVelocity.copy(config.universeVelocity);
 
     // Chemical composition (mass fractions keyed by element symbol)
     this.composition = config.composition || getDefaultComposition(this.type, this.subtype, this.phase);
@@ -138,6 +145,12 @@ export default class CelestialBody {
         y: this.position.y.toFixed(4),
         z: this.position.z.toFixed(4),
         unit: 'AU',
+      },
+      universePosition: {
+        x: this.universePosition.x.toFixed(4),
+        y: this.universePosition.y.toFixed(4),
+        z: this.universePosition.z.toFixed(4),
+        unit: 'Mly',
       },
       velocity: {
         x: this.velocity.x.toFixed(4),
@@ -275,6 +288,19 @@ export default class CelestialBody {
       description: this.description,
       showLabel: this.showLabel,
       systemId: this.systemId,
+      escapedSystem: this.escapedSystem,
+      escapeOriginSystemId: this.escapeOriginSystemId,
+      escapeOriginClusterId: this.escapeOriginClusterId,
+      universePosition: {
+        x: this.universePosition.x,
+        y: this.universePosition.y,
+        z: this.universePosition.z,
+      },
+      universeVelocity: {
+        x: this.universeVelocity.x,
+        y: this.universeVelocity.y,
+        z: this.universeVelocity.z,
+      },
       composition: this.composition ? { ...this.composition } : null,
       coreTemperature: this.coreTemperature,
       // Extended physics
