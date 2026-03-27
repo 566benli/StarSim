@@ -647,6 +647,34 @@ const App = () => {
     }, 100);
   }, [navigateTo, setSimState, setTimeScale]);
 
+  const handleLaunchExample = useCallback((seedFn) => {
+    const engine = engineRef.current;
+    const scene = sceneRef.current;
+    if (!engine || !scene || typeof seedFn !== 'function') return;
+
+    engine.reset();
+    scene.clearSimulationVisuals({ clearClusters: true });
+    clearSelection();
+    const ids = seedFn(engine);
+    useStore.getState().clearCreatedBodies();
+    setTimeScale(engine.timeScale);
+    engine.start();
+    setSimState('running');
+    navigateTo(VIEW_LEVEL.SYSTEM, {
+      clusterId: ids?.clusterId ?? null,
+      systemId: ids?.systemId ?? null,
+    });
+    setTimeout(() => {
+      for (const gs of engine.gravitySystems.values()) {
+        gs.computeAccelerations(gs.getAliveBodies());
+      }
+      const sysId = ids?.systemId;
+      const alive = (b) => b.alive;
+      const bodies = sysId ? engine.getSystemBodies(sysId).filter(alive) : engine.getBodies().filter(alive);
+      scene.transitionToSystem(bodies.length ? bodies : engine.getBodies().filter(alive));
+    }, 100);
+  }, [clearSelection, navigateTo, setSimState, setTimeScale]);
+
   const handleReplayWelcome = useCallback(() => {
     try {
       localStorage.removeItem(ONBOARDING_DONE_KEY);
@@ -1378,6 +1406,7 @@ const App = () => {
           onSaveSimulation={showSaveDialogHandler}
           onDeleteSlot={handleDeleteSlot}
           onReplayWelcome={handleReplayWelcome}
+          onLaunchExample={handleLaunchExample}
         />
       )}
 
@@ -1447,8 +1476,8 @@ const App = () => {
         mode={saveDialogMode}
       />
 
-      {/* Toolbar – fixed bottom-right horizontal strip */}
-      <div className="toolbar">
+      {/* Toolbar – fixed bottom-right, lifted above TimeControl when sim is active */}
+      <div className={`toolbar${simState !== 'setup' ? ' toolbar--above-timebar' : ''}`}>
         {simState !== 'setup' && (
           <button
             className={`toolbar-btn hz-toggle-btn ${showHabitableZone ? 'active' : ''}`}
