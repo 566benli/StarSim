@@ -606,7 +606,12 @@ export default class SceneManager {
 
     this.trailLines.forEach((trail, id) => {
       const b = bodies.find((x) => x.id === id);
-      if (!b || !b.alive) return;
+      // Body not in the current render list (different galaxy system, or dead) → hide.
+      // Previously this early-returned, leaving stale trails visible from other systems.
+      if (!b || !b.alive) {
+        trail.visible = false;
+        return;
+      }
       if (lvl === VIEW_LEVEL.UNIVERSE) {
         trail.visible = false;
       } else if (lvl === VIEW_LEVEL.SYSTEM) {
@@ -2694,6 +2699,15 @@ export default class SceneManager {
     }
 
     if (bodies) {
+      // Build a fast-lookup set of the body IDs that belong to THIS render pass.
+      // Any mesh / trail whose ID is absent must be hidden — it belongs to a
+      // different galaxy system that is alive but not currently focused.
+      // This prevents galaxy-1 bodies from bleeding into galaxy-2's viewport.
+      const renderedBodyIds = new Set();
+      for (const body of bodies) {
+        if (body.alive) renderedBodyIds.add(body.id);
+      }
+
       for (const body of bodies) {
         if (body.alive) {
           // In body view, only show the focused body (and maybe its children)
@@ -2709,11 +2723,24 @@ export default class SceneManager {
               this.updateTrail(body);
             }
           } else {
+            // Explicitly show, then update — ensures meshes hidden by a previous
+            // cross-system pass become visible again when their system is focused.
+            const group = this.bodyMeshes.get(body.id);
+            if (group) group.visible = true;
             this.updateBodyVisual(body);
             this.updateTrail(body);
           }
         }
       }
+
+      // ── Cross-system leak fix ────────────────────────────────────────────
+      // Hide every mesh and trail whose body is alive but belongs to a
+      // different galaxy system (not in this frame's render list).
+      this.bodyMeshes.forEach((group, id) => {
+        if (!renderedBodyIds.has(id)) {
+          group.visible = false;
+        }
+      });
     }
 
     if (bodies) {
