@@ -92,6 +92,10 @@ export const LIFE_CONFIG_PRESETS = {
 
 export const DEFAULT_LIFE_PRESET = 'gameplay';
 
+export function cloneLifeConfig(config) {
+  return JSON.parse(JSON.stringify(config));
+}
+
 export function getLifeConfig(preset = DEFAULT_LIFE_PRESET) {
-  return LIFE_CONFIG_PRESETS[preset] || LIFE_CONFIG_PRESETS[DEFAULT_LIFE_PRESET];
+  return cloneLifeConfig(LIFE_CONFIG_PRESETS[preset] || LIFE_CONFIG_PRESETS[DEFAULT_LIFE_PRESET]);
 }

@@ -124,6 +124,25 @@ export default class SimEngine {
     return 1e9;
   }
 
+  getLifeTuning() {
+    return this.lifeEvolutionSystem.getTuningState();
+  }
+
+  setLifePreset(preset) {
+    this.lifeEvolutionSystem.setPreset(preset);
+    return this.getLifeTuning();
+  }
+
+  updateLifeTuning(updates = {}) {
+    this.lifeEvolutionSystem.updateTuning(updates);
+    return this.getLifeTuning();
+  }
+
+  resetLifeTuning(preset) {
+    this.lifeEvolutionSystem.resetToPreset(preset);
+    return this.getLifeTuning();
+  }
+
   // === Universe Management ===
 
   createCluster(config = {}) {

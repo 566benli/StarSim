@@ -42,6 +42,7 @@ const App = () => {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveDialogMode, setSaveDialogMode] = useState('save');
   const [universeStats, setUniverseStats] = useState({});
+  const [lifeTuning, setLifeTuning] = useState(null);
 
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [cloudUser, setCloudUser] = useState(null);
@@ -311,6 +312,7 @@ const App = () => {
         setSimulationTime(engine.simulationTime);
         setStats(engine.getStats());
         setUniverseStats(engine.getUniverseStats());
+        setLifeTuning(engine.getLifeTuning());
       }
 
       if (engine.state === SIM_STATE.RUNNING) {
@@ -387,6 +389,168 @@ const App = () => {
       explorer.disable();
     };
   }, []);
+
+  const syncRuntimePanels = useCallback(() => {
+    const engine = engineRef.current;
+    if (!engine) return null;
+
+    const stats = engine.getStats();
+    const bodies = getBodiesForView();
+    const universe = engine.getUniverseStats();
+    setSimulationTime(engine.simulationTime);
+    setTimeScale(engine.timeScale);
+    setStats(stats);
+    setBodies(bodies);
+    setUniverseStats(universe);
+    setStoreUniverseStats(universe);
+    setLifeTuning(engine.getLifeTuning());
+    return {
+      stats,
+      universe,
+      bodyCount: bodies.length,
+    };
+  }, [getBodiesForView, setBodies, setSimulationTime, setStats, setStoreUniverseStats, setTimeScale]);
+
+  const handleSetLifePreset = useCallback((preset) => {
+    const engine = engineRef.current;
+    if (!engine) return null;
+    const next = engine.setLifePreset(preset);
+    setLifeTuning(next);
+    syncRuntimePanels();
+    return next;
+  }, [syncRuntimePanels]);
+
+  const handleUpdateLifeTuning = useCallback((updates) => {
+    const engine = engineRef.current;
+    if (!engine) return null;
+    const next = engine.updateLifeTuning(updates);
+    setLifeTuning(next);
+    syncRuntimePanels();
+    return next;
+  }, [syncRuntimePanels]);
+
+  const handleResetLifeTuning = useCallback((preset) => {
+    const engine = engineRef.current;
+    if (!engine) return null;
+    const next = engine.resetLifeTuning(preset);
+    setLifeTuning(next);
+    syncRuntimePanels();
+    return next;
+  }, [syncRuntimePanels]);
+
+  useEffect(() => {
+    const debugApi = {
+      getEngine: () => engineRef.current,
+      getStoreState: () => useStore.getState(),
+      syncRuntimePanels,
+      setLifePreset: handleSetLifePreset,
+      updateLifeTuning: handleUpdateLifeTuning,
+      resetLifeTuning: handleResetLifeTuning,
+      seedLifeScenario: (config = {}) => {
+        const engine = engineRef.current;
+        const scene = sceneRef.current;
+        if (!engine || !scene) return null;
+
+        engine.reset();
+        scene.clearSimulationVisuals({ clearClusters: true });
+        clearSelection();
+
+        const cluster = engine.createCluster({
+          name: config.clusterName || 'Debug Cluster',
+          type: config.clusterType || 'spiral',
+          position: config.clusterPosition || { x: 0, y: 0, z: 0 },
+        });
+        const system = engine.createStarSystem(cluster.id, {
+          name: config.systemName || 'Debug System',
+          position: config.systemPosition || { x: 0, y: 0, z: 0 },
+        });
+        const star = engine.createStar(config.starPresetId || 'sun_like', {
+          name: config.starName || 'Debug Star',
+          systemId: system.id,
+          position: { x: 0, y: 0, z: 0 },
+          ...(config.starOverrides || {}),
+        });
+
+        for (const planetConfig of (config.planets || [])) {
+          engine.createPlanet(planetConfig.presetId || 'earth_like', star, {
+            name: planetConfig.name,
+            systemId: system.id,
+            ...(planetConfig.overrides || {}),
+          });
+        }
+
+        if (config.lifePreset) engine.setLifePreset(config.lifePreset);
+        if (config.lifeTuning) engine.updateLifeTuning(config.lifeTuning);
+        if (config.timeScale) engine.setTimeScale(config.timeScale);
+
+        engine.start();
+        setSimState('running');
+        navigateTo(VIEW_LEVEL.SYSTEM, { clusterId: cluster.id, systemId: system.id });
+        const systemBodies = engine.getSystemBodies(system.id).filter((b) => b.alive);
+        scene.transitionToSystem(systemBodies);
+        syncRuntimePanels();
+
+        return {
+          clusterId: cluster.id,
+          systemId: system.id,
+          starId: star.id,
+          planetIds: systemBodies.filter((b) => b.type === 'planet').map((b) => b.id),
+        };
+      },
+      simulateYears: ({ years, stepYears = 1e5 } = {}) => {
+        const engine = engineRef.current;
+        if (!engine || !years || years <= 0) return null;
+
+        const realDelta = 0.05;
+        let remaining = years;
+        if (engine.state !== SIM_STATE.RUNNING) engine.resume();
+
+        while (remaining > 0) {
+          const currentStep = Math.min(stepYears, remaining);
+          engine.setTimeScale(currentStep / realDelta);
+          engine.update(realDelta);
+          remaining -= currentStep;
+        }
+
+        return syncRuntimePanels();
+      },
+      snapshotPlanets: () => {
+        const engine = engineRef.current;
+        if (!engine) return [];
+        return engine.getBodies()
+          .filter((b) => b.alive && b.type === 'planet')
+          .map((b) => ({
+            id: b.id,
+            name: b.name,
+            lifeStage: b.lifeStage,
+            hasLife: b.hasLife,
+            habitabilityScore: b.habitabilityScore,
+            biosphereHealth: b.biosphereHealth,
+            biodiversity: b.biodiversity,
+            complexityScore: b.complexityScore,
+            intelligencePotential: b.intelligencePotential,
+            mutationPressure: b.mutationPressure,
+            extinctionPressure: b.extinctionPressure,
+          }));
+      },
+    };
+
+    window.__STAR_SIM_DEBUG__ = debugApi;
+    return () => {
+      if (window.__STAR_SIM_DEBUG__ === debugApi) {
+        delete window.__STAR_SIM_DEBUG__;
+      }
+    };
+  }, [
+    clearSelection,
+    handleResetLifeTuning,
+    handleSetLifePreset,
+    handleUpdateLifeTuning,
+    navigateTo,
+    setBodies,
+    setSimState,
+    syncRuntimePanels,
+  ]);
 
   /**
    * Handle starting the simulation from creation panel.
@@ -1178,6 +1342,7 @@ const App = () => {
         <UniversePanel
           universeStats={universeStats}
           engine={engineRef.current}
+          lifeTuning={lifeTuning}
           onNavigateToCluster={handleNavigateToCluster}
           onNavigateToSystem={(sysId) => {
             const engine = engineRef.current;
@@ -1191,6 +1356,9 @@ const App = () => {
           }}
           onNavigateToUniverse={handleNavigateToUniverse}
           onNavigateToBody={handleNavigateToBody}
+          onSetLifePreset={handleSetLifePreset}
+          onUpdateLifeTuning={handleUpdateLifeTuning}
+          onResetLifeTuning={handleResetLifeTuning}
         />
       )}
 

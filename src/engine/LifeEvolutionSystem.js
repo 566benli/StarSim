@@ -39,6 +39,43 @@ export default class LifeEvolutionSystem {
     this.config = getLifeConfig(preset);
   }
 
+  resetToPreset(preset = this.preset) {
+    this.setPreset(preset);
+  }
+
+  updateTuning(updates = {}) {
+    for (const [key, value] of Object.entries(updates)) {
+      if (value && typeof value === 'object' && !Array.isArray(value) && this.config[key]) {
+        this.config[key] = {
+          ...this.config[key],
+          ...value,
+        };
+      } else {
+        this.config[key] = value;
+      }
+    }
+  }
+
+  getTuningState() {
+    const cfg = this.config;
+    return {
+      preset: this.preset,
+      enabled: cfg.enabled,
+      lifeRateMultiplier: cfg.lifeRateMultiplier,
+      adaptationRateMultiplier: cfg.adaptationRateMultiplier,
+      extinctionRateMultiplier: cfg.extinctionRateMultiplier,
+      radiationImpactMultiplier: cfg.radiationImpactMultiplier,
+      intelligenceRateMultiplier: cfg.intelligenceRateMultiplier,
+      abiogenesisBaseRate: cfg.emergence.abiogenesisBaseRate,
+      mutationScale: cfg.evolution.mutationScale,
+      candidateCount: cfg.evolution.candidateCount,
+      lethalRadiationFlux: cfg.environment.lethalRadiationFlux,
+      simpleThreshold: cfg.stages.simpleThreshold,
+      complexThreshold: cfg.stages.complexThreshold,
+      intelligentThreshold: cfg.stages.intelligentThreshold,
+    };
+  }
+
   update(bodies, dtYears, simulationTime = 0) {
     if (!this.config.enabled || dtYears <= 0) return;
 
@@ -91,21 +128,25 @@ export default class LifeEvolutionSystem {
       log10Safe(radiationFlux + 1) / log10Safe(cfg.environment.lethalRadiationFlux + 1)
     );
 
-    const temperatureSuitability = gaussianScore(
+    const withinTempBounds = temp >= cfg.environment.minTemperature && temp <= cfg.environment.maxTemperature;
+    const withinPressureBounds = pressure >= cfg.environment.minimumPressureAtm;
+    const belowLethalRadiation = radiationFlux <= cfg.environment.lethalRadiationFlux;
+
+    const temperatureSuitability = withinTempBounds ? gaussianScore(
       log10Safe(temp),
       log10Safe(cfg.environment.optimalTemperature),
       cfg.environment.temperatureSpread
-    );
-    const pressureSuitability = gaussianScore(
+    ) : 0;
+    const pressureSuitability = withinPressureBounds ? gaussianScore(
       log10Safe(pressure),
       log10Safe(cfg.environment.pressureMidpointAtm),
       cfg.environment.pressureLogSpread
-    );
-    const radiationSuitability = gaussianScore(
+    ) : 0;
+    const radiationSuitability = belowLethalRadiation ? gaussianScore(
       log10Safe(radiationFlux + 0.1),
       log10Safe(cfg.environment.idealRadiationFlux + 0.1),
       cfg.environment.radiationSpread
-    );
+    ) : 0;
 
     const chemistryPotential = clamp01(
       0.45
@@ -115,11 +156,17 @@ export default class LifeEvolutionSystem {
       - Math.max(0, radiationFlux - cfg.environment.lethalRadiationFlux) * 0.0008
     );
 
-    const habitabilityScore = clamp01(
+    const weightedSuitability = clamp01(
       (temperatureSuitability * 0.34)
       + (pressureSuitability * 0.28)
       + (radiationSuitability * 0.24)
       + (chemistryPotential * 0.14)
+    );
+    const essentialSuitability = Math.sqrt(
+      Math.max(0, temperatureSuitability) * Math.max(0, pressureSuitability)
+    );
+    const habitabilityScore = clamp01(
+      weightedSuitability * essentialSuitability * (belowLethalRadiation ? 1 : 0)
     );
 
     body.habitabilityScore = habitabilityScore;

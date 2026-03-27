@@ -13,6 +13,7 @@
     "setup": "powershell -ExecutionPolicy Bypass -File build/setup-dependencies.ps1",
     "diagnose": "powershell -ExecutionPolicy Bypass -File build/diagnose.ps1",
     "test-launch": "powershell -ExecutionPolicy Bypass -File build/test-launch.ps1",
+    "test:life": "node scripts/life-terminal-check.js",
     "ensure-exe": "powershell -ExecutionPolicy Bypass -File build/ensure-exe-placement.ps1",
     "shortcut": "powershell -ExecutionPolicy Bypass -File build/create-desktop-shortcut.ps1",
     "serve:web": "npx serve dist -l 8080 --cors",

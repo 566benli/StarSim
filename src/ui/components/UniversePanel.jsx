@@ -14,10 +14,14 @@ const PANEL_STORAGE_KEY = 'starsim-universepanel-position';
 const UniversePanel = ({
   universeStats,
   engine,
+  lifeTuning,
   onNavigateToCluster,
   onNavigateToSystem,
   onNavigateToUniverse,
   onNavigateToBody,
+  onSetLifePreset,
+  onUpdateLifeTuning,
+  onResetLifeTuning,
 }) => {
   const { viewLevel, focusedClusterId, focusedSystemId } = useStore();
   const [collapsed, setCollapsed] = useState(false);
@@ -154,6 +158,12 @@ const UniversePanel = ({
           onClick={() => setActiveTab('composition')}
         >
           Elements
+        </button>
+        <button
+          className={`up-tab ${activeTab === 'life' ? 'active' : ''}`}
+          onClick={() => setActiveTab('life')}
+        >
+          Life
         </button>
       </div>
 
@@ -338,6 +348,93 @@ const UniversePanel = ({
                   </div>
                 ))}
             </div>
+          </div>
+        )}
+
+        {activeTab === 'life' && (
+          <div className="up-life-controls">
+            {!lifeTuning ? (
+              <div className="up-empty">Life controls will appear once the simulation runtime is available.</div>
+            ) : (
+              <>
+                <div className="up-life-row">
+                  <label className="up-life-label" htmlFor="life-preset-select">Preset</label>
+                  <select
+                    id="life-preset-select"
+                    className="up-life-select"
+                    value={lifeTuning.preset || 'gameplay'}
+                    onChange={(e) => onSetLifePreset?.(e.target.value)}
+                  >
+                    <option value="realistic">Realistic</option>
+                    <option value="gameplay">Gameplay</option>
+                    <option value="chaotic">Chaotic</option>
+                  </select>
+                </div>
+
+                <label className="up-life-toggle">
+                  <input
+                    type="checkbox"
+                    checked={!!lifeTuning.enabled}
+                    onChange={(e) => onUpdateLifeTuning?.({ enabled: e.target.checked })}
+                  />
+                  <span>Enable life simulation</span>
+                </label>
+
+                {[
+                  ['lifeRateMultiplier', 'Life Rate', 0.1, 20, 0.1],
+                  ['adaptationRateMultiplier', 'Adaptation', 0.1, 10, 0.1],
+                  ['extinctionRateMultiplier', 'Extinction', 0.1, 10, 0.1],
+                  ['radiationImpactMultiplier', 'Radiation', 0.1, 10, 0.1],
+                  ['intelligenceRateMultiplier', 'Intelligence', 0.1, 20, 0.1],
+                ].map(([key, label, min, max, step]) => (
+                  <div key={key} className="up-life-slider">
+                    <div className="up-life-slider-head">
+                      <span>{label}</span>
+                      <span>{Number(lifeTuning[key]).toFixed(1)}x</span>
+                    </div>
+                    <input
+                      className="up-life-range"
+                      data-life-key={key}
+                      type="range"
+                      min={min}
+                      max={max}
+                      step={step}
+                      value={lifeTuning[key]}
+                      onChange={(e) => onUpdateLifeTuning?.({ [key]: Number(e.target.value) })}
+                    />
+                  </div>
+                ))}
+
+                <div className="up-life-mini-grid">
+                  <div className="up-life-mini">
+                    <span>Abiogenesis</span>
+                    <strong>{Number(lifeTuning.abiogenesisBaseRate || 0).toExponential(1)}</strong>
+                  </div>
+                  <div className="up-life-mini">
+                    <span>Mutation Scale</span>
+                    <strong>{Number(lifeTuning.mutationScale || 0).toFixed(2)}</strong>
+                  </div>
+                  <div className="up-life-mini">
+                    <span>Candidates</span>
+                    <strong>{lifeTuning.candidateCount || 0}</strong>
+                  </div>
+                  <div className="up-life-mini">
+                    <span>Lethal Flux</span>
+                    <strong>{Number(lifeTuning.lethalRadiationFlux || 0).toFixed(0)}</strong>
+                  </div>
+                </div>
+
+                <div className="up-life-actions">
+                  <button
+                    type="button"
+                    className="up-life-btn"
+                    onClick={() => onResetLifeTuning?.(lifeTuning.preset || 'gameplay')}
+                  >
+                    Reset Preset
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

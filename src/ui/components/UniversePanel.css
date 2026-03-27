@@ -308,3 +308,102 @@
   flex-shrink: 0;
 }
 .up-body-card:hover .up-body-locate { opacity: 0.8; }
+
+/* Life controls */
+.up-life-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.up-life-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.up-life-label {
+  font-size: 10px;
+  color: #8899bb;
+}
+
+.up-life-select,
+.up-life-range {
+  width: 100%;
+}
+
+.up-life-select {
+  background: rgba(20, 20, 60, 0.75);
+  color: #dde7ff;
+  border: 1px solid rgba(68, 136, 255, 0.2);
+  border-radius: 6px;
+  padding: 5px 6px;
+  font-size: 11px;
+}
+
+.up-life-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #ccddff;
+}
+
+.up-life-slider {
+  background: rgba(20, 20, 60, 0.5);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.up-life-slider-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #aabbdd;
+  margin-bottom: 4px;
+}
+
+.up-life-range {
+  accent-color: #55d88b;
+}
+
+.up-life-mini-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.up-life-mini {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  border-radius: 6px;
+  background: rgba(20, 20, 60, 0.45);
+  font-size: 9px;
+  color: #8899bb;
+}
+
+.up-life-mini strong {
+  color: #eef5ff;
+  font-size: 11px;
+}
+
+.up-life-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.up-life-btn {
+  background: rgba(85, 216, 139, 0.14);
+  color: #cfeedd;
+  border: 1px solid rgba(85, 216, 139, 0.4);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.up-life-btn:hover {
+  background: rgba(85, 216, 139, 0.22);
+}
