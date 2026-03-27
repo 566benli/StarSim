@@ -218,6 +218,20 @@ export default class SceneManager {
     });
     this.rogueMarkers.clear();
 
+    // Clean up system envelope ring
+    if (this._systemEnvelopeRing) {
+      this.scene.remove(this._systemEnvelopeRing);
+      this._systemEnvelopeRing.geometry?.dispose();
+      this._systemEnvelopeRing.material?.dispose();
+      this._systemEnvelopeRing = null;
+    }
+    if (this._systemEnvelopeHalo) {
+      this.scene.remove(this._systemEnvelopeHalo);
+      this._systemEnvelopeHalo.geometry?.dispose();
+      this._systemEnvelopeHalo.material?.dispose();
+      this._systemEnvelopeHalo = null;
+    }
+
     this.bodyMeshes.forEach((group) => {
       this.scene.remove(group);
       this._disposeObject(group);
@@ -1230,28 +1244,60 @@ export default class SceneManager {
     const visualScale = this.getVisualScale(body);
     const cameraDistance = Math.max(0.001, this.camera.position.distanceTo(group.position));
     const apparentSize = visualScale / cameraDistance;
+
+    // ── Scale floor ──────────────────────────────────────────────────────────
+    // Never let bodies vanish into sub-pixel noise. When the camera pulls back
+    // far enough that a body would appear smaller than MIN_APPARENT_SIZE (≈2px
+    // on a 1080p screen with a 60° FOV), clamp its rendered size to that floor
+    // so it always reads as a small but findable dot.
+    const MIN_APPARENT_SIZE = 0.0022;
+    const isScaleFloored = apparentSize < MIN_APPARENT_SIZE;
+    const effectiveScale = isScaleFloored
+      ? Math.max(visualScale, MIN_APPARENT_SIZE * cameraDistance)
+      : visualScale;
+    // Factor by which the mesh had to be scaled up to hit the floor (1 = no boost)
+    const scaleBoost = effectiveScale / Math.max(visualScale, 1e-9);
+
     if (group.userData.mainMesh) {
-      group.userData.mainMesh.scale.setScalar(visualScale);
+      group.userData.mainMesh.scale.setScalar(effectiveScale);
     }
 
     // Scale hit-proxy for planets (2x hit area for easier clicking)
     if (group.userData.hitProxy) {
-      group.userData.hitProxy.scale.setScalar(visualScale);
+      group.userData.hitProxy.scale.setScalar(effectiveScale);
     }
 
-    // Scale glow with body (corona should be slightly larger)
+    // Scale glow with body (corona should be slightly larger).
+    // When the scale floor is active, additionally boost glow radius + opacity
+    // so stars read as glowing beacons rather than invisible points.
     if (group.userData.glow) {
-      group.userData.glow.scale.setScalar(visualScale);
+      const glowBoost = isScaleFloored ? Math.min(5.0, scaleBoost * 1.4) : 1.0;
+      group.userData.glow.scale.setScalar(effectiveScale * glowBoost);
+      if (isScaleFloored && body.type === 'star') {
+        const baseOp = body.phase === 'red_giant' || body.phase === 'red_supergiant'
+          ? 0.08
+          : body.phase === 'white_dwarf' ? 0.3 : 0.15;
+        group.userData.glow.material.opacity = Math.min(0.65, baseOp * glowBoost * 0.75);
+      }
     }
 
     // Scale label position to always be above the body
     if (group.userData.label) {
-      group.userData.label.position.y = visualScale * 1.8 + 0.3;
-      group.userData.label.scale.setScalar(Math.max(0.5, visualScale * 1.2));
+      group.userData.label.position.y = effectiveScale * 1.8 + 0.3;
+      group.userData.label.scale.setScalar(Math.max(0.5, effectiveScale * 1.2));
 
-      // Hide labels when the body becomes too small on screen; otherwise sprites dominate
-      // and the object reads as a square/text plate instead of a round body.
-      group.userData.label.visible = (body.showLabel !== false) && (body.selected || apparentSize > 0.0025);
+      // Smooth label opacity cross-fade: fully opaque when close, fades out as body
+      // shrinks, fades back in at the scale-floor threshold so names remain readable
+      // even at extreme zoom-out.  Selected bodies always show their label.
+      const LABEL_FADE_IN  = 0.0018; // apparent size below which label starts fading
+      const LABEL_FADE_OUT = 0.0045; // apparent size above which label is fully on
+      const rawAlpha = (apparentSize - LABEL_FADE_IN) / (LABEL_FADE_OUT - LABEL_FADE_IN);
+      const labelAlpha = body.selected ? 1.0 : Math.max(0, Math.min(1, rawAlpha));
+      const labelVisible = (body.showLabel !== false) && (body.selected || labelAlpha > 0.05);
+      group.userData.label.visible = labelVisible;
+      if (group.userData.label.material && labelVisible) {
+        group.userData.label.material.opacity = labelAlpha;
+      }
 
       // Update label text if name or phase changed
       const phaseLabel = body.type === 'star' ? this.getPhaseDisplayName(body.phase) : null;
@@ -1283,12 +1329,20 @@ export default class SceneManager {
       group.userData.beacon.visible = false;
     }
     if (group.userData.locator) {
+      // Locator badge: a small fixed-screen-size icon that's shown at mid-range
+      // (close enough that the flat sprite doesn't dominate the sphere mesh).
+      // At far range the scale-floor keeps the body visible, so the locator is
+      // hidden to avoid the "square marker smothering a round body" artifact.
       const isStarBeacon = body.type === 'star';
       const locPulse = isStarBeacon
         ? 0.5 + 0.3 * Math.sin(this.elapsedTime * 3)
         : 0.4 + 0.2 * Math.sin(this.elapsedTime * 2);
       group.userData.locator.material.opacity = locPulse;
-      group.userData.locator.visible = (this._viewLevel === VIEW_LEVEL.SYSTEM) && (body.selected || apparentSize > 0.0035);
+      // Show only in a mid-range band: small enough that the mesh might be hard to
+      // see, but not so small that the flat sprite looks bigger than the sphere.
+      const locVisible = (this._viewLevel === VIEW_LEVEL.SYSTEM) &&
+        (body.selected || (apparentSize > 0.0020 && apparentSize < 0.012));
+      group.userData.locator.visible = locVisible;
     }
 
     return group;
@@ -2098,6 +2152,99 @@ export default class SceneManager {
   }
 
   /**
+   * Draw (or update) the system envelope ring that encircles the full orbital
+   * extent of the current system.  The ring becomes visible when the camera has
+   * pulled back far enough that individual bodies would be hard to find without
+   * it, and fades out again as the user zooms back in.
+   *
+   * Visibility trigger: when the system's orbital extent subtends less than
+   * ~20 % of the camera distance (i.e. the whole system fits in a small patch
+   * of screen), the ring fades in.
+   */
+  _updateSystemEnvelopeRing(bodies) {
+    // Only in system view with at least some bodies
+    if (this._viewLevel !== VIEW_LEVEL.SYSTEM || !bodies || bodies.length === 0) {
+      if (this._systemEnvelopeRing) this._systemEnvelopeRing.visible = false;
+      return;
+    }
+
+    // Lazy-create the ring mesh once
+    if (!this._systemEnvelopeRing) {
+      const ringGeom = new THREE.RingGeometry(0.96, 1.03, 192);
+      ringGeom.rotateX(-Math.PI / 2); // lie flat in the orbital plane
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: 0x4499ff,
+        transparent: true,
+        opacity: 0,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      });
+      const ring = new THREE.Mesh(ringGeom, ringMat);
+      ring.renderOrder = 50;
+      ring.visible = false;
+      this.scene.add(ring);
+      this._systemEnvelopeRing = ring;
+
+      // Second, slightly-larger halo ring for depth
+      const haloGeom = new THREE.RingGeometry(1.04, 1.18, 192);
+      haloGeom.rotateX(-Math.PI / 2);
+      const haloMat = new THREE.MeshBasicMaterial({
+        color: 0x2266cc,
+        transparent: true,
+        opacity: 0,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      });
+      const halo = new THREE.Mesh(haloGeom, haloMat);
+      halo.renderOrder = 49;
+      halo.visible = false;
+      this.scene.add(halo);
+      this._systemEnvelopeHalo = halo;
+    }
+
+    const com  = this._comTarget;
+    const extent = Math.max(this._systemExtent || 1, 0.5);
+    const cameraDist = this.camera.position.distanceTo(com);
+
+    // Fraction of camera distance that the system extent spans.
+    // High values = zoomed in (system fills screen).
+    // Low values  = zoomed out (system is tiny relative to view).
+    const systemFraction = extent / cameraDist;
+
+    // Envelope appears when system fills < 20 % of the view depth and
+    // the camera is beyond 5× the system's orbital radius.
+    const SHOW_THRESHOLD = 0.20;
+    const FULL_THRESHOLD = 0.08; // fraction at which the ring is at max opacity
+
+    if (systemFraction > SHOW_THRESHOLD) {
+      this._systemEnvelopeRing.visible = false;
+      if (this._systemEnvelopeHalo) this._systemEnvelopeHalo.visible = false;
+      return;
+    }
+
+    // Smooth fade from 0 at SHOW_THRESHOLD → 1 at FULL_THRESHOLD
+    const t = Math.max(0, Math.min(1,
+      (SHOW_THRESHOLD - systemFraction) / (SHOW_THRESHOLD - FULL_THRESHOLD)
+    ));
+    const pulse = 0.7 + 0.3 * Math.sin(this.elapsedTime * 1.8);
+    const ringOpacity  = t * 0.45 * pulse;
+    const haloOpacity  = t * 0.18 * pulse;
+
+    const ring = this._systemEnvelopeRing;
+    ring.visible = true;
+    ring.position.copy(com);
+    ring.scale.setScalar(extent);
+    ring.material.opacity = ringOpacity;
+
+    if (this._systemEnvelopeHalo) {
+      this._systemEnvelopeHalo.visible = true;
+      this._systemEnvelopeHalo.position.copy(com);
+      this._systemEnvelopeHalo.scale.setScalar(extent);
+      this._systemEnvelopeHalo.material.opacity = haloOpacity;
+    }
+  }
+
+  /**
    * Get BASE visual scale for a body (log scale for huge range)
    * Returns a visual radius in scene units (AU-scale)
    * Does NOT include viewScale - that's applied in updateBodyVisual
@@ -2572,6 +2719,10 @@ export default class SceneManager {
     if (bodies) {
       this._syncTrailVisibility(bodies);
     }
+
+    // System envelope ring — a pulsing halo drawn around the system's orbital
+    // boundary so the user can find it when deeply zoomed out.
+    this._updateSystemEnvelopeRing(bodies);
 
     this.bodyMeshes.forEach((group) => {
       if (group.userData.diskMaterial?.uniforms) {
