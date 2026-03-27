@@ -6,11 +6,19 @@
 import React, { useState, useEffect } from 'react';
 import { STAR_PRESETS, STAR_CATEGORIES } from '@data/starTypes';
 import { PLANET_PRESETS, PLANET_CATEGORIES } from '@data/planetTypes';
+import { EXAMPLE_UNIVERSES } from '@data/exampleUniverses';
 import { useStore } from '../store';
 import ParameterSlider from './ParameterSlider';
 import './CreationPanel.css';
 
-const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, onSaveSimulation, onDeleteSlot, onReplayWelcome }) => {
+const TAG_LABELS = {
+  classic: 'Classic',
+  dynamics: 'Dynamics',
+  exoplanet: 'Exoplanet',
+  life: 'Life',
+};
+
+const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, onSaveSimulation, onDeleteSlot, onReplayWelcome, onLaunchExample }) => {
   const {
     creationStep, setCreationStep,
     creationTarget, setCreationTarget,
@@ -261,6 +269,42 @@ const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, on
             📁 Load Saved Universe
           </button>
           <div className="section-spacer"></div>
+        </div>
+
+        {/* Example Systems */}
+        {onLaunchExample && (
+          <div className="example-systems-section">
+            <h3 className="section-title">🚀 Example Systems</h3>
+            <p className="example-systems-hint">
+              Jump straight into a pre-built planetary system. Each one is fully editable after launch.
+            </p>
+            <div className="example-grid">
+              {EXAMPLE_UNIVERSES.map((ex) => (
+                <button
+                  key={ex.id}
+                  type="button"
+                  className="example-card"
+                  onClick={() => onLaunchExample(ex.seed)}
+                >
+                  <span className="example-card-icon">{ex.icon}</span>
+                  <div className="example-card-body">
+                    <span className="example-card-title">{ex.title}</span>
+                    <span className="example-card-blurb">{ex.blurb}</span>
+                  </div>
+                  {ex.tag && (
+                    <span className={`example-card-tag tag-${ex.tag}`}>
+                      {TAG_LABELS[ex.tag] || ex.tag}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Divider before manual creation */}
+        <div className="section-divider">
+          <span className="section-divider-label">or build from scratch</span>
         </div>
 
         {/* Tab Switcher */}
