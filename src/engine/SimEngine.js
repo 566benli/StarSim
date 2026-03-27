@@ -20,6 +20,7 @@ import BlackHole from './BlackHole';
 import RadiationSystem from './RadiationSystem';
 import CatastropheSystem from './CatastropheSystem';
 import OrbitalAnalysisSystem from './OrbitalAnalysisSystem';
+import LifeEvolutionSystem from './LifeEvolutionSystem';
 import { getApplicableEvents } from '@data/events';
 import { STAR_PRESETS } from '@data/starTypes';
 import { PLANET_PRESETS } from '@data/planetTypes';
@@ -71,12 +72,15 @@ export default class SimEngine {
     this.radiationSystem    = new RadiationSystem();
     this.catastropheSystem  = new CatastropheSystem();
     this.orbitalAnalysis    = new OrbitalAnalysisSystem();
+    this.lifeEvolutionSystem = new LifeEvolutionSystem();
 
     // How often (in sim years) to run orbital analysis (expensive for many bodies)
     this._orbitalCheckInterval   = 1.0;
     this._lastOrbitalCheck       = 0;
     this._radiationUpdateInterval = 0.1;
     this._lastRadiationUpdate    = 0;
+    this._lifeUpdateInterval     = 10;
+    this._lastLifeUpdate         = 0;
     this._escapeVisualScaleMly = 10;
     this._escapeVisualVelocityMly = 2.5;
   }
@@ -501,7 +505,23 @@ export default class SimEngine {
       this._lastOrbitalCheck = this.simulationTime;
     }
 
-    this.simulationTime += fullSimDt;
+    const nextSimulationTime = this.simulationTime + fullSimDt;
+    if (nextSimulationTime - this._lastLifeUpdate >= this._lifeUpdateInterval) {
+      const lifeDt = nextSimulationTime - this._lastLifeUpdate;
+      for (const gs of this.gravitySystems.values()) {
+        this.lifeEvolutionSystem.update(gs.getAliveBodies(), lifeDt, nextSimulationTime);
+      }
+      this._lastLifeUpdate = nextSimulationTime;
+    }
+
+    this.simulationTime = nextSimulationTime;
+    const lifeEvents = this.lifeEvolutionSystem.consumePendingEvents();
+    for (const event of lifeEvents) {
+      this.eventHistory.push(event);
+      this.pendingEvents.push(event);
+      if (this.onEvent) this.onEvent(event);
+    }
+
     this.checkPhaseChanges();
 
     if (this.simulationTime - this.lastEventCheck >= this.eventCheckInterval) {
@@ -821,6 +841,13 @@ export default class SimEngine {
     }
 
     const unstableOrbits = bodies.filter(b => !b.orbitStable && b.type === 'planet').length;
+    const livingWorlds = bodies.filter((b) => b.type === 'planet' && b.hasLife).length;
+    const complexWorlds = bodies.filter(
+      (b) => b.type === 'planet' && (b.lifeStage === 'complex' || b.lifeStage === 'intelligent')
+    ).length;
+    const intelligentWorlds = bodies.filter(
+      (b) => b.type === 'planet' && b.lifeStage === 'intelligent'
+    ).length;
 
     return {
       bodyCount: bodies.length,
@@ -837,6 +864,9 @@ export default class SimEngine {
       clusters: this.universe.stats.clusterCount,
       systems: this.universe.stats.systemCount,
       unstableOrbits,
+      livingWorlds,
+      complexWorlds,
+      intelligentWorlds,
       fastForward: this.fastForward,
     };
   }
@@ -953,5 +983,6 @@ export default class SimEngine {
     this.pendingEvents = [];
     this.eventHistory = [];
     this.lastEventCheck = 0;
+    this._lastLifeUpdate = 0;
   }
 }

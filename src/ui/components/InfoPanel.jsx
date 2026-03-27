@@ -494,24 +494,59 @@ const InfoPanel = ({ onExplore, onClose, onFocusBody, getBodies }) => {
 
       {/* ========== PLANET PROPERTIES ========== */}
       {selectedBody.type === 'planet' && (
-        <div className="info-section">
-          <h3 className="section-title">Planetary Properties</h3>
-          {props.massEarth && <Row label="Mass" value={renderValue(props.massEarth)} />}
-          {props.radiusEarth && <Row label="Radius" value={renderValue(props.radiusEarth)} />}
-          {props.surfaceGravity && <Row label="Surface Gravity" value={renderValue(props.surfaceGravity)} />}
-          <Row label="Surface Type" value={props.surfaceType || 'rocky'} />
-          {props.atmosphere && (
-            <Row label="Atmosphere" value={renderValue(props.atmosphere.pressure)} />
-          )}
-          <Row label="Has Water" value={renderValue(props.hasWater)} />
-          <Row
-            label="Has Life"
-            value={renderValue(props.hasLife)}
-            highlight={props.hasLife ? 'highlight-green' : ''}
-          />
-          <Row label="In Habitable Zone" value={props.habitableZone} />
-          <Row label="Magnetic Field" value={renderValue(props.magneticField)} />
-        </div>
+        <>
+          <div className="info-section">
+            <h3 className="section-title">Planetary Properties</h3>
+            {props.massEarth && <Row label="Mass" value={renderValue(props.massEarth)} />}
+            {props.radiusEarth && <Row label="Radius" value={renderValue(props.radiusEarth)} />}
+            {props.surfaceGravity && <Row label="Surface Gravity" value={renderValue(props.surfaceGravity)} />}
+            <Row label="Surface Type" value={props.surfaceType || 'rocky'} />
+            {props.atmosphere && (
+              <Row label="Atmosphere" value={renderValue(props.atmosphere.pressure)} />
+            )}
+            <Row label="Has Water" value={renderValue(props.hasWater)} />
+            <Row
+              label="Has Life"
+              value={renderValue(props.hasLife)}
+              highlight={props.hasLife ? 'highlight-green' : ''}
+            />
+            <Row label="In Habitable Zone" value={props.habitableZone} />
+            <Row label="Magnetic Field" value={renderValue(props.magneticField)} />
+          </div>
+
+          <div className="info-section">
+            <h3 className="section-title">Life & Evolution</h3>
+            <Row label="Life Stage" value={props.lifeStage || 'none'} />
+            <Row label="Life Origin" value={props.lifeOrigin || 'None yet'} />
+            <Row
+              label="Environmental Fitness"
+              value={renderValue(props.habitabilityScore)}
+              highlight={props.habitabilityScore > 0.6 ? 'highlight-green' : ''}
+            />
+            <Row label="Stability" value={renderValue(props.environmentalStability)} />
+            <Row label="Prebiotic Chemistry" value={renderValue(props.prebioticChemistry)} />
+            <Row
+              label="Biosphere Health"
+              value={renderValue(props.biosphereHealth)}
+              highlight={props.biosphereHealth > 0.55 ? 'highlight-green' : ''}
+            />
+            <Row label="Selection Fitness" value={renderValue(props.biosphereFitness)} />
+            <Row label="Biodiversity" value={renderValue(props.biodiversity)} />
+            <Row label="Complexity" value={renderValue(props.complexityScore)} />
+            <Row label="Intelligence Potential" value={renderValue(props.intelligencePotential)} />
+            <Row label="Mutation Pressure" value={renderValue(props.mutationPressure)} />
+            <Row label="Extinction Pressure" value={renderValue(props.extinctionPressure)} />
+            {props.speciesProfile && (
+              <>
+                <Row label="Thermal Preference" value={renderValue(props.speciesProfile.temperaturePreference)} />
+                <Row label="Pressure Preference" value={renderValue(props.speciesProfile.pressurePreference)} />
+                <Row label="Radiation Tolerance" value={renderValue(props.speciesProfile.radiationTolerance)} />
+                <Row label="Resilience" value={renderValue(props.speciesProfile.resilience)} />
+                <Row label="Adaptability" value={renderValue(props.speciesProfile.adaptability)} />
+              </>
+            )}
+          </div>
+        </>
       )}
 
       {/* ========== BLACK HOLE PROPERTIES ========== */}

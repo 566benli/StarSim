@@ -31,7 +31,23 @@ export default class Planet extends CelestialBody {
     this.albedo = config.albedo || 0.3;
     this.hasWater = config.hasWater || false;
     this.waterCoverage = config.waterCoverage || 0; // 0 to 1
-    this.hasLife = false;
+    this.lifeStage = config.lifeStage || 'none';
+    this.lifeOrigin = config.lifeOrigin || null;
+    this.hasLife = config.hasLife ?? ['simple', 'complex', 'intelligent'].includes(this.lifeStage);
+    this.habitabilityScore = config.habitabilityScore ?? 0;
+    this.environmentalStability = config.environmentalStability ?? 0.5;
+    this.biosphereHealth = config.biosphereHealth ?? 0;
+    this.prebioticChemistry = config.prebioticChemistry ?? 0;
+    this.biodiversity = config.biodiversity ?? 0;
+    this.complexityScore = config.complexityScore ?? 0;
+    this.intelligencePotential = config.intelligencePotential ?? 0;
+    this.mutationPressure = config.mutationPressure ?? 0;
+    this.extinctionPressure = config.extinctionPressure ?? 0;
+    this.biosphereFitness = config.biosphereFitness ?? 0;
+    this.lastLifeStageChangeTime = config.lastLifeStageChangeTime ?? null;
+    this.speciesProfile = config.speciesProfile ? { ...config.speciesProfile } : null;
+    this.environmentProfile = config.environmentProfile ? { ...config.environmentProfile } : null;
+    this.lifeSignature = config.lifeSignature || null;
 
     // Rings
     this.hasRings = config.hasRings || false;
@@ -195,34 +211,9 @@ export default class Planet extends CelestialBody {
    * Check and update habitability conditions
    */
   updateHabitability(dt) {
-    const T = this.temperature;
-    const habitable = T > 200 && T < 350
-      && this.hasAtmosphere
-      && this.atmospherePressure > 0.1
-      && this.magneticField > 0.1;
-
-    // Very simplified abiogenesis probability (Poisson process, stable at any dt)
-    if (habitable && this.hasWater && !this.hasLife) {
-      const rate = 1e-12; // per year
-      if (Math.random() < 1 - Math.exp(-rate * dt)) {
-        this.hasLife = true;
-        this.logEvent({
-          type: 'life',
-          message: `Life has emerged on ${this.name}!`,
-          severity: 'historic',
-        });
-      }
-    }
-
-    // Life extinction
-    if (this.hasLife && !habitable) {
-      this.hasLife = false;
-      this.logEvent({
-        type: 'extinction',
-        message: `Life on ${this.name} has gone extinct!`,
-        severity: 'major',
-      });
-    }
+    // Detailed biosphere simulation now lives in LifeEvolutionSystem.
+    // Keep a compatibility flag for existing UI and event checks.
+    this.hasLife = ['simple', 'complex', 'intelligent'].includes(this.lifeStage);
   }
 
   /**
@@ -244,6 +235,19 @@ export default class Planet extends CelestialBody {
       albedo: this.albedo,
       hasWater: this.hasWater,
       hasLife: this.hasLife,
+      lifeStage: this.lifeStage,
+      lifeOrigin: this.lifeOrigin || 'None yet',
+      habitabilityScore: this.habitabilityScore,
+      environmentalStability: this.environmentalStability,
+      biosphereHealth: this.biosphereHealth,
+      prebioticChemistry: this.prebioticChemistry,
+      biodiversity: this.biodiversity,
+      complexityScore: this.complexityScore,
+      intelligencePotential: this.intelligencePotential,
+      mutationPressure: this.mutationPressure,
+      extinctionPressure: this.extinctionPressure,
+      biosphereFitness: this.biosphereFitness,
+      speciesProfile: this.speciesProfile,
       habitableZone: this.parentBody
         ? (this.isHabitable(this.parentBody.luminosity) ? 'Yes ✓' : 'No ✗')
         : 'N/A',
@@ -253,6 +257,49 @@ export default class Planet extends CelestialBody {
       moons: this.moonCount,
       hasRings: this.hasRings,
       magneticField: { value: this.magneticField, unit: 'Earth = 1' },
+    };
+  }
+
+  toJSON() {
+    return {
+      ...super.toJSON(),
+      massEarth: this.massEarth,
+      radiusEarth: this.radiusEarth,
+      atmosphere: this.atmospherePressure,
+      atmosphereComposition: this.atmosphereComposition,
+      atmosphereColor: this.atmosphereColor,
+      surfaceType: this.surfaceType,
+      albedo: this.albedo,
+      hasWater: this.hasWater,
+      waterCoverage: this.waterCoverage,
+      hasRings: this.hasRings,
+      ringInnerRadius: this.ringInnerRadius,
+      ringOuterRadius: this.ringOuterRadius,
+      ringColor: this.ringColor,
+      moons: this.moonCount,
+      orbitalPeriod: this.orbitalPeriod,
+      trueAnomaly: this.trueAnomaly,
+      greenhouseEffect: this.greenhouseEffect,
+      magneticField: this.magneticField,
+      color: this.color,
+      bandColors: this.bandColors,
+      lifeStage: this.lifeStage,
+      lifeOrigin: this.lifeOrigin,
+      hasLife: this.hasLife,
+      habitabilityScore: this.habitabilityScore,
+      environmentalStability: this.environmentalStability,
+      biosphereHealth: this.biosphereHealth,
+      prebioticChemistry: this.prebioticChemistry,
+      biodiversity: this.biodiversity,
+      complexityScore: this.complexityScore,
+      intelligencePotential: this.intelligencePotential,
+      mutationPressure: this.mutationPressure,
+      extinctionPressure: this.extinctionPressure,
+      biosphereFitness: this.biosphereFitness,
+      lastLifeStageChangeTime: this.lastLifeStageChangeTime,
+      speciesProfile: this.speciesProfile ? { ...this.speciesProfile } : null,
+      environmentProfile: this.environmentProfile ? { ...this.environmentProfile } : null,
+      lifeSignature: this.lifeSignature,
     };
   }
 }
