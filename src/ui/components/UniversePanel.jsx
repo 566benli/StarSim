@@ -189,6 +189,27 @@ const UniversePanel = ({
                   <span className="up-stat-label">Black Holes</span>
                 </div>
               </div>
+              <div className="up-stat">
+                <span className="up-stat-icon">&#x1F9EC;</span>
+                <div className="up-stat-info">
+                  <span className="up-stat-value">{stats.livingWorlds || 0}</span>
+                  <span className="up-stat-label">Living Worlds</span>
+                </div>
+              </div>
+              <div className="up-stat">
+                <span className="up-stat-icon">&#x1F98E;</span>
+                <div className="up-stat-info">
+                  <span className="up-stat-value">{stats.complexWorlds || 0}</span>
+                  <span className="up-stat-label">Complex Biospheres</span>
+                </div>
+              </div>
+              <div className="up-stat">
+                <span className="up-stat-icon">&#x1F9E0;</span>
+                <div className="up-stat-info">
+                  <span className="up-stat-value">{stats.intelligentWorlds || 0}</span>
+                  <span className="up-stat-label">Intelligent Worlds</span>
+                </div>
+              </div>
             </div>
 
             <div className="up-detail-rows">
@@ -269,7 +290,9 @@ const UniversePanel = ({
                     <span className="up-body-name">{body.name}</span>
                     <span className="up-body-detail">
                       {body.type === 'star' ? `${formatNumber(body.mass)} M\u2609 \u00B7 ${formatNumber(body.temperature)} K` :
-                       body.type === 'planet' ? `${formatNumber(body.massEarth || body.mass * 333000)} M\u2295` :
+                       body.type === 'planet'
+                         ? `${formatNumber(body.massEarth || body.mass * 333000)} M\u2295 \u00B7 ${body.lifeStage || 'none'} life`
+                         : 
                        `${formatNumber(body.mass)} M\u2609`}
                     </span>
                     <span className="up-body-detail">

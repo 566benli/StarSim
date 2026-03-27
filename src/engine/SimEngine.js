@@ -872,12 +872,24 @@ export default class SimEngine {
   }
 
   getUniverseStats() {
-    this.universe.updateStats(this.getBodies());
+    const bodies = this.getBodies();
+    this.universe.updateStats(bodies);
+    const livingWorlds = bodies.filter((b) => b.type === 'planet' && b.hasLife).length;
+    const complexWorlds = bodies.filter(
+      (b) => b.type === 'planet' && (b.lifeStage === 'complex' || b.lifeStage === 'intelligent')
+    ).length;
+    const intelligentWorlds = bodies.filter(
+      (b) => b.type === 'planet' && b.lifeStage === 'intelligent'
+    ).length;
+
     return {
       ...this.universe.stats,
       age: this.universe.age,
       boundaryRadius: this.universe.boundaryRadius,
       totalMass: this.universe.totalMass,
+      livingWorlds,
+      complexWorlds,
+      intelligentWorlds,
       composition: this.universe.composition,
       clusters: this.universe.clusters.map(c => ({
         id: c.id,
@@ -887,7 +899,7 @@ export default class SimEngine {
         alive: c.alive,
         position: { x: c.position.x, y: c.position.y, z: c.position.z },
       })),
-      rogueBodies: this.getBodies()
+      rogueBodies: bodies
         .filter((b) => b.alive && b.escapedSystem)
         .map((b) => ({
           id: b.id,

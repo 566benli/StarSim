@@ -43,11 +43,16 @@ const EventToast = ({ event, onDismiss }) => {
 
   const notification = event.notification || {};
   const isEvolution = event.category === 'evolution';
-  const borderColor = isEvolution ? '#ffc107' : (notification.color || '#4488ff');
+  const isLife = event.category === 'life';
+  const borderColor = isEvolution
+    ? '#ffc107'
+    : isLife
+      ? '#55d88b'
+      : (notification.color || '#4488ff');
 
   return (
     <div
-      className={`event-toast ${visible ? 'visible' : ''} ${exiting ? 'exiting' : ''} ${isEvolution ? 'evolution' : ''}`}
+      className={`event-toast ${visible ? 'visible' : ''} ${exiting ? 'exiting' : ''} ${isEvolution ? 'evolution' : ''} ${isLife ? 'life' : ''}`}
       style={{ borderLeftColor: borderColor }}
       onClick={() => {
         setExiting(true);

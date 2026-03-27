@@ -61,10 +61,14 @@ export default class AIAgent {
 
     const bodyDescriptions = bodies.map(b => {
       const props = b.getProperties();
+      const lifeSummary = props.type === 'planet'
+        ? `, LifeStage=${props.lifeStage || 'none'}, Fitness=${props.habitabilityScore ?? 0}, Biosphere=${props.biosphereHealth ?? 0}`
+        : '';
       return `- ${props.name} (${props.type}/${props.subtype || props.phase}): ` +
         `Mass=${typeof props.mass === 'object' ? props.mass.value + ' ' + props.mass.unit : props.mass}, ` +
         `Temp=${typeof props.temperature === 'object' ? props.temperature.value + ' K' : props.temperature + ' K'}, ` +
-        `Radius=${typeof props.radius === 'object' ? props.radius.value + ' ' + props.radius.unit : props.radius}`;
+        `Radius=${typeof props.radius === 'object' ? props.radius.value + ' ' + props.radius.unit : props.radius}` +
+        lifeSummary;
     }).join('\n');
 
     return buildContextPrompt(stats, bodyDescriptions);
@@ -209,7 +213,7 @@ export default class AIAgent {
     } else if (lower.includes('black hole')) {
       response = `Black holes are regions where spacetime is so extremely curved that nothing — not even light — can escape once it crosses the event horizon.\n\nIn StarSim, you can create black holes and watch them interact with nearby stars and planets. Try creating one near a star to see tidal disruption! The accretion disk you see is superheated matter spiraling inward.`;
     } else if (lower.includes('habitable') || lower.includes('life')) {
-      response = `The habitable zone (sometimes called the "Goldilocks zone") is the region around a star where conditions might be right for liquid water on a planet's surface.\n\nIn your simulation, Earth-like planets in the habitable zone have a tiny chance of developing life! Look for the green "Has Life" indicator in the planet info panel. But watch out — events like asteroid impacts or atmosphere stripping can cause extinction!`;
+      response = `In StarSim, life is no longer limited to Earth-like oxygen-water biology. A planet can develop native life if its local pressure, temperature, chemistry, radiation level, and long-term stability support a self-sustaining biosphere.\n\nAll biospheres still follow the same natural-selection rule: populations mutate, selection favors the better-adapted variants, and stable worlds can progress from prebiotic chemistry to simple, complex, and eventually intelligent life. Check the Life & Evolution section in the info panel to see the current stage, fitness, mutation pressure, and extinction pressure.`;
     } else if (lower.includes('help') || lower.includes('how')) {
       response = `Here's what you can do in StarSim:\n\n🌟 **Create** — Add stars, planets, and black holes with custom parameters\n⏩ **Time Control** — Speed up or slow down time to watch evolution\n🔭 **Explorer Mode** — Click any body → Enter Explorer to fly through and even dive inside!\n🎲 **Random Events** — Supernovae, solar flares, and asteroid impacts happen randomly\n💬 **AI Chat** — Ask me anything about astronomy or the simulation!\n\nTip: To set up an API key for smarter AI responses, go to Settings.`;
     } else if (lower.includes('supernova') || lower.includes('explode')) {
