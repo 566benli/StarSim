@@ -48,6 +48,7 @@ export default class Planet extends CelestialBody {
     this.speciesProfile = config.speciesProfile ? { ...config.speciesProfile } : null;
     this.environmentProfile = config.environmentProfile ? { ...config.environmentProfile } : null;
     this.lifeSignature = config.lifeSignature || null;
+    this.evolutionTree = Array.isArray(config.evolutionTree) ? config.evolutionTree.map(n => ({ ...n, traits: n.traits ? { ...n.traits } : null })) : [];
 
     // Rings
     this.hasRings = config.hasRings || false;
@@ -248,6 +249,7 @@ export default class Planet extends CelestialBody {
       extinctionPressure: this.extinctionPressure,
       biosphereFitness: this.biosphereFitness,
       speciesProfile: this.speciesProfile,
+      evolutionTree: this.evolutionTree,
       habitableZone: this.parentBody
         ? (this.isHabitable(this.parentBody.luminosity) ? 'Yes ✓' : 'No ✗')
         : 'N/A',
@@ -300,6 +302,7 @@ export default class Planet extends CelestialBody {
       speciesProfile: this.speciesProfile ? { ...this.speciesProfile } : null,
       environmentProfile: this.environmentProfile ? { ...this.environmentProfile } : null,
       lifeSignature: this.lifeSignature,
+      evolutionTree: this.evolutionTree.map(n => ({ ...n, traits: n.traits ? { ...n.traits } : null })),
     };
   }
 }

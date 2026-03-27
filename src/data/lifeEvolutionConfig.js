@@ -40,6 +40,11 @@ const BASE_CONFIG = {
     biodiversityDecay: 0.015,
     complexityGrowth: 0.018,
     intelligenceGrowth: 0.004,
+    speciationInterval: 3e5,
+    speciationChance: 0.35,
+    speciationBiodiversityMin: 0.15,
+    maxSpeciesAlive: 12,
+    extinctionSpeciesChance: 0.08,
   },
   stages: {
     simpleThreshold: 0.18,

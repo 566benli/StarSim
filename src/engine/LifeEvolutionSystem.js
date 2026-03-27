@@ -1,4 +1,5 @@
 import { DEFAULT_LIFE_PRESET, getLifeConfig } from '@data/lifeEvolutionConfig';
+import { generateSpecies } from './SpeciesGenerator';
 
 const LIFE_STAGES = {
   NONE: 'none',
@@ -104,6 +105,8 @@ export default class LifeEvolutionSystem {
 
     this.runNaturalSelection(body, env, dtYears);
     this.updateBiosphere(body, env, dtYears);
+    this.trySpeciation(body, env, dtYears, simulationTime);
+    this.trySpeciesExtinction(body, env, dtYears, simulationTime);
     this.updateStageProgression(body, dtYears, simulationTime);
     this.applyExtinction(body, env, simulationTime);
   }
@@ -258,6 +261,13 @@ export default class LifeEvolutionSystem {
     body.intelligencePotential = body.intelligencePotential || 0;
     body.speciesProfile = this.seedSpeciesProfile(env);
     body.lifeSignature = `adaptive-${Math.random().toString(36).slice(2, 7)}`;
+
+    if (!Array.isArray(body.evolutionTree)) body.evolutionTree = [];
+    const rootSpecies = generateSpecies({
+      env, body, stage: 'simple', parentId: null, simulationTime,
+    });
+    body.evolutionTree.push(rootSpecies);
+    body._lastSpeciationTime = simulationTime;
 
     body.logEvent({
       type: 'abiogenesis',
@@ -488,6 +498,78 @@ export default class LifeEvolutionSystem {
     }
   }
 
+  trySpeciation(body, env, dtYears, simulationTime) {
+    const cfg = this.config;
+    const evo = cfg.evolution;
+    if (!Array.isArray(body.evolutionTree)) body.evolutionTree = [];
+
+    const aliveSpecies = body.evolutionTree.filter(s => s.extinctAt === null);
+    if (aliveSpecies.length >= evo.maxSpeciesAlive) return;
+    if (body.biodiversity < evo.speciationBiodiversityMin) return;
+
+    const timeSinceLast = simulationTime - (body._lastSpeciationTime || 0);
+    if (timeSinceLast < evo.speciationInterval * 0.5) return;
+
+    const speciationProb = 1 - Math.exp(
+      -dtYears / evo.speciationInterval * evo.speciationChance
+      * (0.5 + body.biodiversity)
+      * cfg.lifeRateMultiplier
+    );
+    if (Math.random() >= speciationProb) return;
+
+    const parent = aliveSpecies.length > 0
+      ? aliveSpecies[Math.floor(Math.random() * aliveSpecies.length)]
+      : null;
+
+    const newSpecies = generateSpecies({
+      env,
+      body,
+      stage: body.lifeStage,
+      parentId: parent?.id ?? null,
+      simulationTime,
+      parentTraits: parent?.traits ?? null,
+    });
+    body.evolutionTree.push(newSpecies);
+    body._lastSpeciationTime = simulationTime;
+
+    this.queueLifeEvent(body, simulationTime, {
+      name: 'Speciation',
+      title: 'New Species',
+      body: `${newSpecies.name} evolved on ${body.name}${parent ? ` from ${parent.name}` : ''}.`,
+      severity: 'notable',
+    });
+  }
+
+  trySpeciesExtinction(body, env, dtYears, simulationTime) {
+    const cfg = this.config;
+    const evo = cfg.evolution;
+    if (!Array.isArray(body.evolutionTree)) return;
+
+    const aliveSpecies = body.evolutionTree.filter(s => s.extinctAt === null);
+    if (aliveSpecies.length <= 1) return;
+
+    for (const species of aliveSpecies) {
+      const extChance = evo.extinctionSpeciesChance
+        * cfg.extinctionRateMultiplier
+        * (1 - species.fitness * 0.6)
+        * body.extinctionPressure;
+      const prob = 1 - Math.exp(-dtYears / 1e5 * extChance);
+      if (Math.random() < prob) {
+        species.extinctAt = simulationTime;
+        species.extinctReason = body.extinctionPressure > 0.7
+          ? 'Environmental collapse'
+          : 'Outcompeted';
+
+        this.queueLifeEvent(body, simulationTime, {
+          name: 'Species Extinction',
+          title: 'Species Extinct',
+          body: `${species.name} went extinct on ${body.name}: ${species.extinctReason}.`,
+          severity: 'notable',
+        });
+      }
+    }
+  }
+
   transitionLifeStage(body, nextStage, simulationTime, notification) {
     if (body.lifeStage === nextStage) return;
     const previousStage = body.lifeStage;
@@ -507,6 +589,35 @@ export default class LifeEvolutionSystem {
       body: notification.body,
       severity: notification.severity || 'notable',
     });
+
+    if (!Array.isArray(body.evolutionTree)) body.evolutionTree = [];
+
+    if (['complex', 'intelligent'].includes(nextStage)) {
+      const aliveSpecies = body.evolutionTree.filter(s => s.extinctAt === null);
+      const dominant = aliveSpecies.length > 0
+        ? aliveSpecies.reduce((a, b) => (a.fitness >= b.fitness ? a : b))
+        : null;
+      const env = this.buildEnvironment(body);
+      const evolved = generateSpecies({
+        env,
+        body,
+        stage: nextStage,
+        parentId: dominant?.id ?? null,
+        simulationTime,
+        parentTraits: dominant?.traits ?? null,
+      });
+      body.evolutionTree.push(evolved);
+    }
+
+    if (nextStage === LIFE_STAGES.NONE || nextStage === LIFE_STAGES.PREBIOTIC) {
+      for (const sp of body.evolutionTree) {
+        if (sp.extinctAt === null) {
+          sp.extinctAt = simulationTime;
+          sp.extinctReason = nextStage === LIFE_STAGES.NONE
+            ? 'Mass extinction' : 'Biosphere collapse';
+        }
+      }
+    }
   }
 
   queueLifeEvent(body, simulationTime, notification) {

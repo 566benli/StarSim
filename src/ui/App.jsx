@@ -531,6 +531,7 @@ const App = () => {
             intelligencePotential: b.intelligencePotential,
             mutationPressure: b.mutationPressure,
             extinctionPressure: b.extinctionPressure,
+            evolutionTree: (b.evolutionTree || []).map(s => ({ ...s })),
           }));
       },
     };

@@ -1,0 +1,299 @@
+/* ── Evolution Tree Container ──────────────────────────────────────────── */
+
+.evo-tree-container {
+  padding: 6px 0 2px;
+}
+
+.evo-tree-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ddd;
+  margin: 0 0 8px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.evo-tree-counts {
+  font-size: 10.5px;
+  font-weight: 400;
+  color: #888;
+}
+
+/* ── Empty state ──────────────────────────────────────────────────────── */
+
+.evo-tree-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 8px;
+  color: #777;
+  text-align: center;
+  gap: 6px;
+}
+
+.evo-empty-icon {
+  font-size: 28px;
+  opacity: 0.5;
+}
+
+.evo-tree-empty p {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+/* ── Tree graph layout ────────────────────────────────────────────────── */
+
+.evo-tree-graph {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-height: 280px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 0;
+  scrollbar-width: thin;
+  scrollbar-color: #444 transparent;
+}
+
+/* ── Branch (recursive) ───────────────────────────────────────────────── */
+
+.evo-branch {
+  position: relative;
+  padding-left: 18px;
+}
+
+.evo-branch[data-depth="0"] {
+  padding-left: 0;
+}
+
+.evo-branch::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 0;
+  bottom: 0;
+  width: 1.5px;
+  background: #3a3a4a;
+}
+
+.evo-branch[data-depth="0"]::before {
+  display: none;
+}
+
+.evo-branch::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 13px;
+  width: 10px;
+  height: 1.5px;
+  background: #3a3a4a;
+}
+
+.evo-branch[data-depth="0"]::after {
+  display: none;
+}
+
+.evo-children {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Species node (button) ────────────────────────────────────────────── */
+
+.evo-species-node {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  margin: 2px 0;
+  border: 1px solid #3a3a4a;
+  border-radius: 4px;
+  background: #1e1e2a;
+  cursor: pointer;
+  font-size: 11px;
+  color: #ccc;
+  transition: background 0.15s, border-color 0.15s;
+  max-width: 100%;
+  text-align: left;
+  font-family: inherit;
+}
+
+.evo-species-node:hover {
+  background: #292940;
+  border-color: #55d88b;
+}
+
+.evo-species-node.selected {
+  background: #242445;
+  border-color: #55d88b;
+  box-shadow: 0 0 6px rgba(85, 216, 139, 0.25);
+}
+
+.evo-species-node.extinct {
+  opacity: 0.55;
+  border-style: dashed;
+}
+
+.evo-species-node.extinct:hover {
+  opacity: 0.8;
+}
+
+.evo-species-icon {
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.evo-species-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+/* ── Detail card (selected species) ───────────────────────────────────── */
+
+.evo-detail-card {
+  margin-top: 8px;
+  padding: 10px;
+  border-radius: 6px;
+  background: #1a1a2e;
+  border: 1px solid #3a3a4a;
+}
+
+.evo-detail-card.alive {
+  border-left: 3px solid #55d88b;
+}
+
+.evo-detail-card.extinct {
+  border-left: 3px solid #ff6b6b;
+}
+
+.evo-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.evo-detail-icon {
+  font-size: 22px;
+}
+
+.evo-detail-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #eee;
+}
+
+.evo-detail-stage {
+  font-size: 10.5px;
+  color: #999;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.evo-extinct-badge {
+  font-size: 9px;
+  font-weight: 700;
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.12);
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  border-radius: 3px;
+  padding: 1px 4px;
+  letter-spacing: 0.5px;
+}
+
+.evo-detail-desc {
+  font-size: 11px;
+  color: #aaa;
+  line-height: 1.5;
+  margin: 6px 0 8px;
+}
+
+/* ── Traits grid ──────────────────────────────────────────────────────── */
+
+.evo-detail-traits {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 8px;
+}
+
+.evo-trait-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10.5px;
+  padding: 2px 0;
+  border-bottom: 1px solid #2a2a3a;
+}
+
+.evo-trait-label {
+  color: #888;
+  flex-shrink: 0;
+}
+
+.evo-trait-value {
+  color: #ccc;
+  text-align: right;
+  text-transform: capitalize;
+}
+
+/* ── Metrics bars ─────────────────────────────────────────────────────── */
+
+.evo-detail-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.evo-metric {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.evo-metric-label {
+  font-size: 10px;
+  color: #888;
+  width: 60px;
+  flex-shrink: 0;
+}
+
+.evo-metric-bar {
+  flex: 1;
+  height: 5px;
+  background: #2a2a3a;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.evo-metric-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #55d88b, #3ab075);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.evo-detail-card.extinct .evo-metric-fill {
+  background: linear-gradient(90deg, #777, #555);
+}
+
+.evo-metric-val {
+  font-size: 10px;
+  color: #aaa;
+  width: 30px;
+  text-align: right;
+}
+
+/* ── Extinction reason ────────────────────────────────────────────────── */
+
+.evo-detail-reason {
+  margin-top: 6px;
+  font-size: 10px;
+  color: #ff6b6b;
+  font-style: italic;
+}

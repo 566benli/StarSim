@@ -8,6 +8,7 @@ import { formatNumber, formatTime } from '@utils/math';
 import { getClosestNeighbors } from '@utils/gravityNeighbors';
 import { ELEMENTS } from '@data/elements';
 import HRDiagram from './HRDiagram';
+import EvolutionTree from './EvolutionTree';
 import './InfoPanel.css';
 
 const PANEL_STORAGE_KEY = 'starsim-infopanel-position';
@@ -545,6 +546,14 @@ const InfoPanel = ({ onExplore, onClose, onFocusBody, getBodies }) => {
                 <Row label="Adaptability" value={renderValue(props.speciesProfile.adaptability)} />
               </>
             )}
+          </div>
+
+          <div className="info-section">
+            <EvolutionTree
+              evolutionTree={props.evolutionTree}
+              lifeStage={props.lifeStage}
+              planetName={props.name}
+            />
           </div>
         </>
       )}
