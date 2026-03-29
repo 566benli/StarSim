@@ -8,7 +8,7 @@ import { formatNumber, formatTime } from '@utils/math';
 import { getClosestNeighbors } from '@utils/gravityNeighbors';
 import { ELEMENTS } from '@data/elements';
 import HRDiagram from './HRDiagram';
-import EvolutionTree from './EvolutionTree';
+import EvolutionTreeButton from './EvolutionTree';
 import './InfoPanel.css';
 
 const PANEL_STORAGE_KEY = 'starsim-infopanel-position';
@@ -549,7 +549,7 @@ const InfoPanel = ({ onExplore, onClose, onFocusBody, getBodies }) => {
           </div>
 
           <div className="info-section">
-            <EvolutionTree
+            <EvolutionTreeButton
               evolutionTree={props.evolutionTree}
               lifeStage={props.lifeStage}
               planetName={props.name}

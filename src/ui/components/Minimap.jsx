@@ -178,13 +178,26 @@ const Minimap = ({
 
   const drawBodies = useCallback((ctx, size) => {
     if (!sceneManager) return;
-    const metrics = sceneManager.getSystemMetrics();
     const aliveBodies = getVisibleBodies();
 
     if (aliveBodies.length === 0) return;
 
-    const extent = Math.max(metrics?.extent || 1, 0.1);
-    const com = metrics?.com || { x: 0, z: 0 };
+    let comX = 0, comZ = 0, totalMass = 0;
+    for (const b of aliveBodies) {
+      comX += b.position.x * b.mass;
+      comZ += b.position.z * b.mass;
+      totalMass += b.mass;
+    }
+    if (totalMass > 0) { comX /= totalMass; comZ /= totalMass; }
+
+    let maxDist = 0.5;
+    for (const b of aliveBodies) {
+      const d = Math.hypot(b.position.x - comX, b.position.z - comZ);
+      if (d > maxDist) maxDist = d;
+    }
+
+    const extent = Math.max(maxDist * 1.2, 0.1);
+    const com = { x: comX, z: comZ };
 
     for (const body of aliveBodies) {
       let px = (body.position.x - com.x) / extent * ((size - 16) / 2) + size / 2;
@@ -230,8 +243,9 @@ const Minimap = ({
       }
     }
 
-    if (metrics?.target) {
-      const tp = worldToMap(metrics.target.x, metrics.target.z ?? 0, com, extent, size);
+    const camTarget = sceneManager?.controls?.target;
+    if (camTarget) {
+      const tp = worldToMap(camTarget.x, camTarget.z ?? 0, com, extent, size);
       const r = (size - 16) / 2;
       if (Math.hypot(tp.x - size / 2, tp.y - size / 2) <= r) {
         ctx.strokeStyle = 'rgba(0, 204, 255, 0.8)';

@@ -33,6 +33,7 @@ export default class LifeEvolutionSystem {
     this.preset = preset;
     this.config = getLifeConfig(preset);
     this.pendingEvents = [];
+    this.enabled = true;
   }
 
   setPreset(preset) {
@@ -78,7 +79,7 @@ export default class LifeEvolutionSystem {
   }
 
   update(bodies, dtYears, simulationTime = 0) {
-    if (!this.config.enabled || dtYears <= 0) return;
+    if (!this.enabled || !this.config.enabled || dtYears <= 0) return;
 
     for (const body of bodies) {
       if (!body?.alive || body.type !== 'planet') continue;

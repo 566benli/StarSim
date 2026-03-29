@@ -153,8 +153,39 @@ export default class BlackHole extends CelestialBody {
     // Luminosity comes from accretion disk
     this.luminosity = this.accretionDisk.luminosity;
 
-    // Hawking evaporation (negligible but track it)
+    // Hawking radiation: mass loss dM/dt = -ℏc⁴/(15360πG²M²)
+    // In solar units: dM/dt ≈ -5.34e-67 / M² (M☉/yr)
+    // For primordial BHs (M << 1 M☉), this is significant
     this.hawkingTemperature = this.calculateHawkingTemp();
+    const hawkingLossRate = 5.34e-67 / (this.mass * this.mass);
+    const netLoss = hawkingLossRate * dt;
+    if (netLoss > 0 && netLoss < this.mass) {
+      this.mass -= netLoss;
+      this.hawkingLuminosity = hawkingLossRate;
+      if (this.mass < 1e-10) {
+        this.logEvent({
+          type: 'hawking_evaporation',
+          message: `${this.name} has completely evaporated via Hawking radiation!`,
+          severity: 'catastrophic',
+        });
+        this._pendingExplosion = {
+          type: 'hawking_burst',
+          sourceId: this.id,
+          progenitorMass: this.mass,
+          ejectaMass: this.mass,
+          energy: this.mass * 20,
+          position: this.position.clone(),
+          remnantType: 'none',
+          shockwaveRadius: 10,
+          radiationBurst: this.mass * 1e6,
+          duration: 0.5,
+        };
+        this.alive = false;
+      }
+    } else {
+      this.hawkingLuminosity = hawkingLossRate;
+    }
+    this.evaporationTime = this.calculateEvaporationTime();
   }
 
   /**
@@ -175,6 +206,7 @@ export default class BlackHole extends CelestialBody {
         luminosity: { value: this.accretionDisk.luminosity, unit: 'L☉' },
       },
       hawkingTemperature: { value: this.hawkingTemperature, unit: 'K' },
+      hawkingLuminosity: { value: this.hawkingLuminosity || 0, unit: 'M☉/yr' },
       evaporationTime: { value: this.evaporationTime, unit: 'years' },
       hasJets: this.hasJets,
       jetPower: this.hasJets ? { value: this.jetPower, unit: 'W' } : 'N/A',

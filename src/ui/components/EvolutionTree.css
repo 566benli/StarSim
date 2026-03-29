@@ -1,63 +1,198 @@
-/* ── Evolution Tree Container ──────────────────────────────────────────── */
+/* ── Evolution Tree Open Button ─────────────────────────────────────── */
 
-.evo-tree-container {
-  padding: 6px 0 2px;
-}
-
-.evo-tree-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #ddd;
-  margin: 0 0 8px;
+.evo-tree-open-btn {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #3a3a4a;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #1a2a1e, #1e1e2a);
+  color: #aadda8;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s, border-color 0.2s;
 }
 
-.evo-tree-counts {
+.evo-tree-open-btn:hover {
+  background: linear-gradient(135deg, #223828, #242445);
+  border-color: #55d88b;
+}
+
+.evo-tree-btn-count {
+  margin-left: auto;
   font-size: 10.5px;
   font-weight: 400;
   color: #888;
 }
 
-/* ── Empty state ──────────────────────────────────────────────────────── */
+/* ── Modal Backdrop ───────────────────────────────────────────────── */
+
+.evo-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: evo-fade-in 0.2s ease;
+}
+
+@keyframes evo-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ── Modal ────────────────────────────────────────────────────────── */
+
+.evo-modal {
+  background: #12121e;
+  border: 1px solid #333;
+  border-radius: 12px;
+  width: min(90vw, 760px);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: evo-slide-up 0.25s ease;
+}
+
+@keyframes evo-slide-up {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.evo-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid #2a2a3a;
+  flex-shrink: 0;
+}
+
+.evo-modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #eee;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.evo-modal-counts {
+  font-size: 11px;
+  color: #888;
+  white-space: nowrap;
+}
+
+.evo-modal-close {
+  margin-left: auto;
+  background: none;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #aaa;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 8px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.evo-modal-close:hover {
+  color: #ff6b6b;
+  border-color: #ff6b6b;
+}
+
+/* ── Modal body ───────────────────────────────────────────────────── */
+
+.evo-modal-body {
+  flex: 1;
+  overflow: hidden;
+  padding: 12px 18px 18px;
+}
+
+.evo-modal-split {
+  display: flex;
+  gap: 16px;
+  height: 100%;
+  max-height: 60vh;
+}
+
+.evo-modal-tree {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #444 transparent;
+  padding-right: 4px;
+}
+
+.evo-modal-detail {
+  width: 260px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #444 transparent;
+}
+
+.evo-detail-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #555;
+  font-size: 12px;
+  font-style: italic;
+  text-align: center;
+  padding: 40px 20px;
+}
+
+/* ── SVG species icon ─────────────────────────────────────────────── */
+
+.species-svg-icon {
+  flex-shrink: 0;
+  display: block;
+}
+
+/* ── Empty state ──────────────────────────────────────────────────── */
 
 .evo-tree-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 16px 8px;
+  padding: 40px 20px;
   color: #777;
   text-align: center;
-  gap: 6px;
+  gap: 10px;
 }
 
 .evo-empty-icon {
-  font-size: 28px;
+  font-size: 40px;
   opacity: 0.5;
 }
 
 .evo-tree-empty p {
   margin: 0;
-  font-size: 11.5px;
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
-/* ── Tree graph layout ────────────────────────────────────────────────── */
+/* ── Tree graph layout ────────────────────────────────────────────── */
 
 .evo-tree-graph {
   display: flex;
   flex-direction: column;
   gap: 0;
-  max-height: 280px;
-  overflow-y: auto;
-  overflow-x: hidden;
   padding: 4px 0;
-  scrollbar-width: thin;
-  scrollbar-color: #444 transparent;
 }
 
-/* ── Branch (recursive) ───────────────────────────────────────────────── */
+/* ── Branch (recursive) ───────────────────────────────────────────── */
 
 .evo-branch {
   position: relative;
@@ -101,16 +236,16 @@
   flex-direction: column;
 }
 
-/* ── Species node (button) ────────────────────────────────────────────── */
+/* ── Species node (button) ────────────────────────────────────────── */
 
 .evo-species-node {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   padding: 3px 8px;
   margin: 2px 0;
   border: 1px solid #3a3a4a;
-  border-radius: 4px;
+  border-radius: 5px;
   background: #1e1e2a;
   cursor: pointer;
   font-size: 11px;
@@ -141,11 +276,6 @@
   opacity: 0.8;
 }
 
-.evo-species-icon {
-  font-size: 13px;
-  flex-shrink: 0;
-}
-
 .evo-species-name {
   white-space: nowrap;
   overflow: hidden;
@@ -153,12 +283,11 @@
   font-weight: 500;
 }
 
-/* ── Detail card (selected species) ───────────────────────────────────── */
+/* ── Detail card (selected species) ───────────────────────────────── */
 
 .evo-detail-card {
-  margin-top: 8px;
-  padding: 10px;
-  border-radius: 6px;
+  padding: 12px;
+  border-radius: 8px;
   background: #1a1a2e;
   border: 1px solid #3a3a4a;
 }
@@ -174,22 +303,18 @@
 .evo-detail-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-.evo-detail-icon {
-  font-size: 22px;
+  gap: 10px;
+  margin-bottom: 8px;
 }
 
 .evo-detail-name {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: #eee;
 }
 
 .evo-detail-stage {
-  font-size: 10.5px;
+  font-size: 11px;
   color: #999;
   display: flex;
   align-items: center;
@@ -208,19 +333,19 @@
 }
 
 .evo-detail-desc {
-  font-size: 11px;
+  font-size: 11.5px;
   color: #aaa;
   line-height: 1.5;
-  margin: 6px 0 8px;
+  margin: 8px 0 10px;
 }
 
-/* ── Traits grid ──────────────────────────────────────────────────────── */
+/* ── Traits grid ──────────────────────────────────────────────────── */
 
 .evo-detail-traits {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .evo-trait-row {
@@ -242,7 +367,7 @@
   text-transform: capitalize;
 }
 
-/* ── Metrics bars ─────────────────────────────────────────────────────── */
+/* ── Metrics bars ─────────────────────────────────────────────────── */
 
 .evo-detail-metrics {
   display: flex;
@@ -289,11 +414,11 @@
   text-align: right;
 }
 
-/* ── Extinction reason ────────────────────────────────────────────────── */
+/* ── Extinction reason ────────────────────────────────────────────── */
 
 .evo-detail-reason {
-  margin-top: 6px;
-  font-size: 10px;
+  margin-top: 8px;
+  font-size: 10.5px;
   color: #ff6b6b;
   font-style: italic;
 }

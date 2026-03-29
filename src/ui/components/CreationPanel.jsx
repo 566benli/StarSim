@@ -18,6 +18,17 @@ const TAG_LABELS = {
   life: 'Life',
 };
 
+const DEFAULT_UNIVERSE_PARAMS = {
+  boundaryRadius: 50,
+  initialClusters: 1,
+  gasH: 0.75,
+  gasHe: 0.25,
+  starFormRate: 1.0,
+  planetFormRate: 1.0,
+  lifeEnabled: true,
+  lifeDifficulty: 1.0,
+};
+
 const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, onSaveSimulation, onDeleteSlot, onReplayWelcome, onLaunchExample }) => {
   const {
     creationStep, setCreationStep,
@@ -30,6 +41,8 @@ const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, on
   const [activeTab, setActiveTab] = useState('stars');
   const [customName, setCustomName] = useState('');
   const [saveSlots, setSaveSlots] = useState({});
+  const [universeParams, setUniverseParams] = useState({ ...DEFAULT_UNIVERSE_PARAMS });
+  const [showUniverseParams, setShowUniverseParams] = useState(false);
 
   // Helper functions
   const formatDate = (dateString) => {
@@ -166,7 +179,7 @@ const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, on
    */
   const startSim = () => {
     if (createdBodies.length !== 1) return;
-    onStartSimulation(createdBodies);
+    onStartSimulation(createdBodies, universeParams);
   };
 
   // === Render: Type Selection ===
@@ -301,6 +314,77 @@ const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, on
             </div>
           </div>
         )}
+
+        {/* Universe Parameters Tuning */}
+        <div className="universe-params-section">
+          <button
+            type="button"
+            className="universe-params-toggle"
+            onClick={() => setShowUniverseParams(prev => !prev)}
+          >
+            ⚙️ Universe Parameters
+            <span className="toggle-arrow">{showUniverseParams ? '▾' : '▸'}</span>
+          </button>
+          {showUniverseParams && (
+            <div className="universe-params-grid">
+              <div className="uparam-row">
+                <label>Universe Radius (Mly)</label>
+                <input type="range" min="10" max="200" step="10"
+                  value={universeParams.boundaryRadius}
+                  onChange={(e) => setUniverseParams(p => ({ ...p, boundaryRadius: +e.target.value }))} />
+                <span className="uparam-val">{universeParams.boundaryRadius}</span>
+              </div>
+              <div className="uparam-row">
+                <label>Initial Clusters</label>
+                <input type="range" min="0" max="5" step="1"
+                  value={universeParams.initialClusters}
+                  onChange={(e) => setUniverseParams(p => ({ ...p, initialClusters: +e.target.value }))} />
+                <span className="uparam-val">{universeParams.initialClusters}</span>
+              </div>
+              <div className="uparam-row">
+                <label>Hydrogen Abundance</label>
+                <input type="range" min="0.5" max="0.9" step="0.01"
+                  value={universeParams.gasH}
+                  onChange={(e) => setUniverseParams(p => ({ ...p, gasH: +e.target.value, gasHe: Math.max(0.05, 1 - (+e.target.value)) }))} />
+                <span className="uparam-val">{(universeParams.gasH * 100).toFixed(0)}%</span>
+              </div>
+              <div className="uparam-row">
+                <label>Star Formation Rate</label>
+                <input type="range" min="0" max="3" step="0.1"
+                  value={universeParams.starFormRate}
+                  onChange={(e) => setUniverseParams(p => ({ ...p, starFormRate: +e.target.value }))} />
+                <span className="uparam-val">{universeParams.starFormRate.toFixed(1)}x</span>
+              </div>
+              <div className="uparam-row">
+                <label>Planet Formation Rate</label>
+                <input type="range" min="0" max="3" step="0.1"
+                  value={universeParams.planetFormRate}
+                  onChange={(e) => setUniverseParams(p => ({ ...p, planetFormRate: +e.target.value }))} />
+                <span className="uparam-val">{universeParams.planetFormRate.toFixed(1)}x</span>
+              </div>
+              <div className="uparam-row">
+                <label>Life Evolution</label>
+                <input type="checkbox" checked={universeParams.lifeEnabled}
+                  onChange={(e) => setUniverseParams(p => ({ ...p, lifeEnabled: e.target.checked }))} />
+                <span className="uparam-val">{universeParams.lifeEnabled ? 'On' : 'Off'}</span>
+              </div>
+              <div className="uparam-row">
+                <label>Life Difficulty</label>
+                <input type="range" min="0.1" max="3" step="0.1"
+                  value={universeParams.lifeDifficulty}
+                  onChange={(e) => setUniverseParams(p => ({ ...p, lifeDifficulty: +e.target.value }))} />
+                <span className="uparam-val">{universeParams.lifeDifficulty.toFixed(1)}x</span>
+              </div>
+              <button
+                type="button"
+                className="uparam-reset"
+                onClick={() => setUniverseParams({ ...DEFAULT_UNIVERSE_PARAMS })}
+              >
+                Reset to Defaults
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Divider before manual creation */}
         <div className="section-divider">

@@ -14,6 +14,7 @@ import TimeControl from './components/TimeControl';
 import InfoPanel from './components/InfoPanel';
 import HUD from './components/HUD';
 import EventNotification from './components/EventNotification';
+import EventChronicle from './components/EventChronicle';
 import AIChat from './components/AIChat';
 import ViewControls from './components/ViewControls';
 import Minimap from './components/Minimap';
@@ -557,13 +558,32 @@ const App = () => {
    * Handle starting the simulation from creation panel.
    * Creates a default cluster and system, then places bodies.
    */
-  const handleStartSimulation = useCallback((createdBodies) => {
+  const handleStartSimulation = useCallback((createdBodies, universeParams) => {
     const engine = engineRef.current;
     const scene = sceneRef.current;
     if (!engine) return;
 
     if (!Array.isArray(createdBodies) || createdBodies.length !== 1) {
       return;
+    }
+
+    // Apply universe parameters if provided
+    if (universeParams) {
+      if (universeParams.boundaryRadius) {
+        engine.universe.boundaryRadius = universeParams.boundaryRadius;
+      }
+      if (universeParams.gasH != null) {
+        engine.universe.composition.H = universeParams.gasH;
+        engine.universe.composition.He = universeParams.gasHe || (1 - universeParams.gasH);
+      }
+      engine._starFormRateMultiplier = universeParams.starFormRate ?? 1;
+      engine._planetFormRateMultiplier = universeParams.planetFormRate ?? 1;
+      if (universeParams.lifeEnabled === false) {
+        engine.lifeEvolutionSystem.enabled = false;
+      }
+      if (universeParams.lifeDifficulty != null) {
+        engine._lifeDifficultyMultiplier = universeParams.lifeDifficulty;
+      }
     }
 
     const first = createdBodies[0];
@@ -1456,6 +1476,11 @@ const App = () => {
 
       {/* Event Notifications */}
       <EventNotification />
+
+      {/* Universe Chronicle (WorldBox-style log book) */}
+      {simState !== 'setup' && (
+        <EventChronicle engine={engineRef.current} />
+      )}
 
       {/* AI Chat */}
       {showAIChat && (

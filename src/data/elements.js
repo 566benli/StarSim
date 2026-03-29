@@ -26,14 +26,19 @@ export const ELEMENTS = {
  */
 export const FUSION_RULES = [
   { inputs: ['H', 'H'],   output: 'He', tempRequired: 1e7,  ratePerMyr: 0.02,  name: 'pp-chain' },
+  { inputs: ['H', 'C'],   output: 'N',  tempRequired: 1.5e7, ratePerMyr: 0.015, name: 'CNO cycle (C→N)' },
+  { inputs: ['H', 'N'],   output: 'O',  tempRequired: 1.5e7, ratePerMyr: 0.010, name: 'CNO cycle (N→O)' },
   { inputs: ['He', 'He'], output: 'C',  tempRequired: 1e8,  ratePerMyr: 0.005, name: 'Triple-alpha' },
   { inputs: ['C', 'He'],  output: 'O',  tempRequired: 5e8,  ratePerMyr: 0.003, name: 'Carbon burning' },
   { inputs: ['O', 'O'],   output: 'Si', tempRequired: 1.5e9, ratePerMyr: 0.002, name: 'Oxygen burning' },
   { inputs: ['Si', 'Si'], output: 'Fe', tempRequired: 3e9,  ratePerMyr: 0.001, name: 'Silicon burning' },
+  { inputs: ['Si', 'He'], output: 'S',  tempRequired: 2e9,  ratePerMyr: 0.0015, name: 'Si alpha capture' },
+  { inputs: ['S', 'He'],  output: 'Fe', tempRequired: 2.5e9, ratePerMyr: 0.001, name: 'S alpha capture' },
   { inputs: ['C', 'C'],   output: 'Ne', tempRequired: 6e8,  ratePerMyr: 0.002, name: 'Carbon-Carbon' },
   { inputs: ['O', 'He'],  output: 'Ne', tempRequired: 2e8,  ratePerMyr: 0.003, name: 'Alpha capture' },
   { inputs: ['Ne', 'He'], output: 'Mg', tempRequired: 1.2e9, ratePerMyr: 0.002, name: 'Neon burning' },
   { inputs: ['Mg', 'He'], output: 'Si', tempRequired: 1.5e9, ratePerMyr: 0.001, name: 'Mg alpha capture' },
+  { inputs: ['Fe', 'H'],  output: 'Ni', tempRequired: 4e9,  ratePerMyr: 0.0005, name: 's-process capture' },
 ];
 
 /**

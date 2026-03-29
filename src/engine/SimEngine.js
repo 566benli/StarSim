@@ -574,11 +574,121 @@ export default class SimEngine {
       this.universe.markFormed();
     }
 
+    // Cluster star formation: clusters create new stars as gas cools
+    this._updateClusterStarFormation(fullSimDt);
+
+    // Planet formation: young stars can spawn protoplanetary disks → planets
+    this._updatePlanetFormation(fullSimDt);
+
     const now = performance.now();
     this.fps = 1000 / (now - this.lastFrameTime);
     this.lastFrameTime = now;
 
     return aliveBodies;
+  }
+
+  /**
+   * Clusters form new stars as gas cools over time.
+   * Each cluster can spawn a new system + star every ~500 Myr if it has enough gas.
+   */
+  _updateClusterStarFormation(dtYears) {
+    const formInterval = 5e8;
+    for (const cluster of this.universe.clusters) {
+      if (!cluster.alive) continue;
+      if (!cluster._lastStarFormTime) cluster._lastStarFormTime = 0;
+      const elapsed = this.simulationTime - cluster._lastStarFormTime;
+      if (elapsed < formInterval) continue;
+
+      const systemCount = cluster.systemIds.length;
+      if (systemCount >= 8) continue;
+
+      const h = this.universe.composition.H || 0;
+      const he = this.universe.composition.He || 0;
+      if (h + he < 0.4) continue;
+
+      const baseChance = 0.3 + systemCount * 0.05;
+      const chance = baseChance * (this._starFormRateMultiplier || 1);
+      if (Math.random() > chance) { cluster._lastStarFormTime = this.simulationTime; continue; }
+
+      const presets = ['sun_like', 'red_dwarf', 'blue_giant', 'orange_dwarf'];
+      const presetId = presets[Math.floor(Math.random() * presets.length)];
+      const sysName = `${cluster.name} System ${systemCount + 1}`;
+      const system = this.createStarSystem(cluster.id, { name: sysName, position: { x: 0, y: 0, z: 0 } });
+      const star = this.createStar(presetId, { name: `${sysName} Star`, systemId: system.id });
+      cluster._lastStarFormTime = this.simulationTime;
+
+      const event = {
+        id: `starform_${Date.now()}_${Math.random()}`,
+        name: 'Star Formation',
+        category: 'evolution',
+        targetBody: star,
+        time: this.simulationTime,
+        notification: {
+          title: 'New Star Born',
+          body: `A new star (${star.name}) has formed from cooling gas in ${cluster.name}!`,
+          color: '#ffcc66',
+        },
+      };
+      this.eventHistory.push(event);
+      this.pendingEvents.push(event);
+      if (this.onEvent) this.onEvent(event);
+    }
+  }
+
+  /**
+   * Young main-sequence stars can form planets from their protoplanetary disk.
+   * Stars younger than 100 Myr with fewer than 5 planets have a chance to spawn planets.
+   */
+  _updatePlanetFormation(dtYears) {
+    const formInterval = 2e7;
+    if (!this._lastPlanetFormCheck) this._lastPlanetFormCheck = 0;
+    if (this.simulationTime - this._lastPlanetFormCheck < formInterval) return;
+    this._lastPlanetFormCheck = this.simulationTime;
+
+    const bodies = this.getBodies();
+    const stars = bodies.filter(b => b.alive && b.type === 'star' && b.phase === 'main_sequence');
+
+    for (const star of stars) {
+      if (star.age > 1e8) continue;
+      if (star._planetFormDone) continue;
+
+      const children = bodies.filter(b => b.alive && b.type === 'planet' && b.parentBody === star);
+      if (children.length >= 5) { star._planetFormDone = true; continue; }
+
+      if (Math.random() > 0.15 * (this._planetFormRateMultiplier || 1)) continue;
+
+      const presets = ['earth_like', 'super_earth', 'hot_jupiter', 'ice_giant', 'desert_world', 'ocean_world'];
+      const presetId = presets[Math.floor(Math.random() * presets.length)];
+      const preset = PLANET_PRESETS[presetId];
+      if (!preset) continue;
+
+      const minDist = 0.3 + children.length * 0.5;
+      const maxDist = Math.max(minDist + 2, 8 + children.length * 3);
+      const dist = minDist + Math.random() * (maxDist - minDist);
+      const name = `${star.name} ${String.fromCharCode(98 + children.length)}`;
+
+      const planet = this.createPlanet(presetId, star, {
+        name,
+        systemId: star.systemId,
+        orbitalDistance: dist,
+      });
+
+      const event = {
+        id: `planetform_${Date.now()}_${Math.random()}`,
+        name: 'Planet Formation',
+        category: 'evolution',
+        targetBody: planet,
+        time: this.simulationTime,
+        notification: {
+          title: 'New Planet Formed',
+          body: `${name} has coalesced from the protoplanetary disk around ${star.name}!`,
+          color: '#66bbff',
+        },
+      };
+      this.eventHistory.push(event);
+      this.pendingEvents.push(event);
+      if (this.onEvent) this.onEvent(event);
+    }
   }
 
   checkPhaseChanges() {
