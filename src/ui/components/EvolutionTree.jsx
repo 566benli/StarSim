@@ -99,7 +99,7 @@ const EvolutionTree = ({ evolutionTree, lifeStage, planetName }) => {
   return (
     <div className="evo-tree-container">
       <h3 className="evo-tree-title">
-        Evolution Tree
+        <span className="evo-tree-title-text">Evolution Tree</span>
         {!noLife && (
           <span className="evo-tree-counts">
             {stats.alive} living · {stats.extinct} extinct

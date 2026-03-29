@@ -25,6 +25,7 @@ desktop.ini
 
 # Test artifacts
 test-screenshots/
+screenshots/
 
 # Cursor internal (agent transcripts, terminal state)
 .cursor/projects/
