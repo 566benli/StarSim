@@ -312,21 +312,46 @@ const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, on
               {Object.values(allPresets)
                 .filter(p => p.category === cat.id)
                 .map(preset => (
-                  <div
+                  <button
+                    type="button"
                     key={preset.id}
                     className={`preset-card ${createdBodies.length >= 1 ? 'disabled' : ''}`}
                     onClick={() => selectPreset(preset.id)}
+                    disabled={createdBodies.length >= 1}
                   >
                     <div className="preset-card-icon">{preset.icon || '⭐'}</div>
                     <div className="preset-card-info">
                       <span className="preset-card-name">{preset.name}</span>
                       <span className="preset-card-desc">{preset.description}</span>
                     </div>
-                  </div>
+                  </button>
                 ))}
             </div>
           </div>
         ))}
+
+        {/* Created Bodies Queue — shows after user picks + customizes an object */}
+        {createdBodies.length > 0 && (
+          <div className="creation-queue">
+            <h3>Your starting object</h3>
+            <div className="queue-list">
+              {createdBodies.map((body, i) => (
+                <div key={i} className="queue-item">
+                  <span className="queue-icon">{body.icon}</span>
+                  <span className="queue-name">{body.name}</span>
+                  <button className="queue-remove" onClick={() => removeCreatedBody(i)}>✕</button>
+                </div>
+              ))}
+            </div>
+            <button
+              className="start-btn"
+              onClick={startSim}
+              disabled={createdBodies.length !== 1}
+            >
+              🚀 Launch Simulation
+            </button>
+          </div>
+        )}
 
         <div className="creation-step-buttons">
           <button type="button" className="step-back-btn" onClick={() => setCreationPhase('universe_setup')}>
@@ -510,9 +535,12 @@ const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, on
   // === Render: Customization ===
   if (creationStep === 'customize' && creationTarget) {
     const preset = creationTarget;
+    const handleBackFromCustomize = () => {
+      resetCreation();
+    };
     return (
       <div className="creation-panel customize-panel">
-        <button className="back-btn" onClick={resetCreation}>← Back</button>
+        <button className="back-btn" onClick={handleBackFromCustomize}>← Back</button>
 
         <div className="customize-header">
           <div className="customize-icon">{preset.icon}</div>
