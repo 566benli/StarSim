@@ -165,6 +165,12 @@ const UniversePanel = ({
         >
           Life
         </button>
+        <button
+          className={`up-tab ${activeTab === 'settings' ? 'active' : ''}`}
+          onClick={() => setActiveTab('settings')}
+        >
+          Settings
+        </button>
       </div>
 
       <div className="up-content">
@@ -435,6 +441,73 @@ const UniversePanel = ({
                 </div>
               </>
             )}
+          </div>
+        )}
+
+        {activeTab === 'settings' && (
+          <div className="up-settings">
+            {(() => {
+              const eng = engine;
+              if (!eng) return <div className="up-empty">Engine not available.</div>;
+              const uni = eng.universe;
+              const starMul = eng._starFormRateMultiplier ?? 1;
+              const planetMul = eng._planetFormRateMultiplier ?? 1;
+              const lifeMul = eng._lifeDifficultyMultiplier ?? 1;
+              const lifeOn = eng.lifeEvolutionSystem?.enabled ?? true;
+              return (
+                <>
+                  <div className="up-detail-rows">
+                    <div className="up-row">
+                      <span className="up-key">Boundary Radius</span>
+                      <span className="up-val">{uni?.boundaryRadius || 50} Mly</span>
+                    </div>
+                    <div className="up-row">
+                      <span className="up-key">Hydrogen</span>
+                      <span className="up-val">{((uni?.composition?.H || 0) * 100).toFixed(1)}%</span>
+                    </div>
+                    <div className="up-row">
+                      <span className="up-key">Helium</span>
+                      <span className="up-val">{((uni?.composition?.He || 0) * 100).toFixed(1)}%</span>
+                    </div>
+                  </div>
+
+                  <div className="up-settings-sliders">
+                    <div className="up-life-slider">
+                      <div className="up-life-slider-head">
+                        <span>Star Formation Rate</span>
+                        <span>{starMul.toFixed(1)}x</span>
+                      </div>
+                      <input className="up-life-range" type="range" min="0" max="3" step="0.1"
+                        value={starMul}
+                        onChange={(e) => { eng._starFormRateMultiplier = +e.target.value; }} />
+                    </div>
+                    <div className="up-life-slider">
+                      <div className="up-life-slider-head">
+                        <span>Planet Formation Rate</span>
+                        <span>{planetMul.toFixed(1)}x</span>
+                      </div>
+                      <input className="up-life-range" type="range" min="0" max="3" step="0.1"
+                        value={planetMul}
+                        onChange={(e) => { eng._planetFormRateMultiplier = +e.target.value; }} />
+                    </div>
+                    <div className="up-life-slider">
+                      <div className="up-life-slider-head">
+                        <span>Life Difficulty</span>
+                        <span>{lifeMul.toFixed(1)}x</span>
+                      </div>
+                      <input className="up-life-range" type="range" min="0.1" max="3" step="0.1"
+                        value={lifeMul}
+                        onChange={(e) => { eng._lifeDifficultyMultiplier = +e.target.value; }} />
+                    </div>
+                    <label className="up-life-toggle">
+                      <input type="checkbox" checked={lifeOn}
+                        onChange={(e) => { if (eng.lifeEvolutionSystem) eng.lifeEvolutionSystem.enabled = e.target.checked; }} />
+                      <span>Life Evolution Enabled</span>
+                    </label>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         )}
       </div>

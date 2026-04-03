@@ -43,6 +43,7 @@ const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, on
   const [saveSlots, setSaveSlots] = useState({});
   const [universeParams, setUniverseParams] = useState({ ...DEFAULT_UNIVERSE_PARAMS });
   const [showUniverseParams, setShowUniverseParams] = useState(false);
+  const [creationPhase, setCreationPhase] = useState('main'); // 'main' | 'universe_setup' | 'object_select'
 
   // Helper functions
   const formatDate = (dateString) => {
@@ -182,7 +183,161 @@ const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, on
     onStartSimulation(createdBodies, universeParams);
   };
 
-  // === Render: Type Selection ===
+  // === Universe Setup Phase (Step 1 of 2) ===
+  if (creationStep === 'choose_type' && creationPhase === 'universe_setup') {
+    return (
+      <div className="creation-panel">
+        <div className="creation-header">
+          <h1 className="creation-title">
+            <span className="title-star">✦</span> Universe Setup
+          </h1>
+          <p className="creation-subtitle">Step 1 of 2: Configure Your Universe</p>
+          <p className="creation-hint">
+            Set the fundamental parameters of your universe. These affect how galaxies form,
+            how quickly stars and planets emerge, and whether life can evolve.
+          </p>
+        </div>
+
+        <div className="universe-params-grid" style={{ margin: '0 0 16px' }}>
+          <div className="uparam-row">
+            <label>Universe Radius (Mly)</label>
+            <input type="range" min="10" max="200" step="10"
+              value={universeParams.boundaryRadius}
+              onChange={(e) => setUniverseParams(p => ({ ...p, boundaryRadius: +e.target.value }))} />
+            <span className="uparam-val">{universeParams.boundaryRadius}</span>
+          </div>
+          <div className="uparam-row">
+            <label>Initial Galaxies</label>
+            <input type="range" min="1" max="5" step="1"
+              value={universeParams.initialClusters}
+              onChange={(e) => setUniverseParams(p => ({ ...p, initialClusters: +e.target.value }))} />
+            <span className="uparam-val">{universeParams.initialClusters}</span>
+          </div>
+          <div className="uparam-row">
+            <label>Hydrogen Abundance</label>
+            <input type="range" min="0.5" max="0.9" step="0.01"
+              value={universeParams.gasH}
+              onChange={(e) => setUniverseParams(p => ({ ...p, gasH: +e.target.value, gasHe: Math.max(0.05, 1 - (+e.target.value)) }))} />
+            <span className="uparam-val">{(universeParams.gasH * 100).toFixed(0)}%</span>
+          </div>
+          <div className="uparam-row">
+            <label>Star Formation Rate</label>
+            <input type="range" min="0" max="3" step="0.1"
+              value={universeParams.starFormRate}
+              onChange={(e) => setUniverseParams(p => ({ ...p, starFormRate: +e.target.value }))} />
+            <span className="uparam-val">{universeParams.starFormRate.toFixed(1)}x</span>
+          </div>
+          <div className="uparam-row">
+            <label>Planet Formation Rate</label>
+            <input type="range" min="0" max="3" step="0.1"
+              value={universeParams.planetFormRate}
+              onChange={(e) => setUniverseParams(p => ({ ...p, planetFormRate: +e.target.value }))} />
+            <span className="uparam-val">{universeParams.planetFormRate.toFixed(1)}x</span>
+          </div>
+          <div className="uparam-row">
+            <label>Life Evolution</label>
+            <input type="checkbox" checked={universeParams.lifeEnabled}
+              onChange={(e) => setUniverseParams(p => ({ ...p, lifeEnabled: e.target.checked }))} />
+            <span className="uparam-val">{universeParams.lifeEnabled ? 'On' : 'Off'}</span>
+          </div>
+          <div className="uparam-row">
+            <label>Life Difficulty</label>
+            <input type="range" min="0.1" max="3" step="0.1"
+              value={universeParams.lifeDifficulty}
+              onChange={(e) => setUniverseParams(p => ({ ...p, lifeDifficulty: +e.target.value }))} />
+            <span className="uparam-val">{universeParams.lifeDifficulty.toFixed(1)}x</span>
+          </div>
+          <button
+            type="button"
+            className="uparam-reset"
+            onClick={() => setUniverseParams({ ...DEFAULT_UNIVERSE_PARAMS })}
+          >
+            Reset to Defaults
+          </button>
+        </div>
+
+        <div className="creation-step-buttons">
+          <button type="button" className="step-back-btn" onClick={() => setCreationPhase('main')}>
+            ← Back
+          </button>
+          <button type="button" className="step-next-btn" onClick={() => setCreationPhase('object_select')}>
+            Next: Choose Starting Object →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // === Object Selection Phase (Step 2 of 2) ===
+  if (creationStep === 'choose_type' && creationPhase === 'object_select') {
+    return (
+      <div className="creation-panel">
+        <div className="creation-header">
+          <h1 className="creation-title">
+            <span className="title-star">✦</span> Select Starting Object
+          </h1>
+          <p className="creation-subtitle">Step 2 of 2: Place Your First Object</p>
+          <p className="creation-hint">
+            Choose a star, planet, or other object to place in your universe. If you pick a planet,
+            a primary star is created for it to orbit. After launch, use the <strong>Objects</strong> bar
+            to add more bodies.
+          </p>
+        </div>
+
+        {/* Tab Switcher */}
+        <div className="tab-switcher">
+          <button
+            type="button"
+            className={`tab-btn ${activeTab === 'stars' ? 'active' : ''}`}
+            onClick={() => setActiveTab('stars')}
+          >
+            ⭐ Stars &amp; Remnants
+          </button>
+          <button
+            type="button"
+            className={`tab-btn ${activeTab === 'planets' ? 'active' : ''}`}
+            onClick={() => setActiveTab('planets')}
+          >
+            🌍 Planets
+          </button>
+        </div>
+
+        {categories.map((cat) => (
+          <div key={cat.id} className="category-section">
+            <h3 className="category-title" style={{ color: cat.color }}>
+              {cat.label}
+            </h3>
+            <p className="category-desc">{cat.description}</p>
+            <div className="preset-grid">
+              {Object.values(allPresets)
+                .filter(p => p.category === cat.id)
+                .map(preset => (
+                  <div
+                    key={preset.id}
+                    className={`preset-card ${createdBodies.length >= 1 ? 'disabled' : ''}`}
+                    onClick={() => selectPreset(preset.id)}
+                  >
+                    <div className="preset-card-icon">{preset.icon || '⭐'}</div>
+                    <div className="preset-card-info">
+                      <span className="preset-card-name">{preset.name}</span>
+                      <span className="preset-card-desc">{preset.description}</span>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        ))}
+
+        <div className="creation-step-buttons">
+          <button type="button" className="step-back-btn" onClick={() => setCreationPhase('universe_setup')}>
+            ← Back to Universe Setup
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // === Render: Main Menu ===
   if (creationStep === 'choose_type') {
     return (
       <div className="creation-panel">
@@ -192,9 +347,8 @@ const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, on
           </h1>
           <p className="creation-subtitle">Build Your Universe</p>
           <p className="creation-hint">
-            Add <strong>exactly one</strong> object — a star, planet, black hole, or other preset. If you pick a planet, a
-            default primary star is placed for it to orbit. After launch, use the <strong>Objects</strong> bar to drag in
-            more bodies (distance &amp; angle on the canvas). New here? Run the welcome tour again anytime.
+            Create a brand new universe with custom parameters, or jump into a pre-built example system.
+            You can also load a previously saved universe.
           </p>
           {onReplayWelcome && (
             <p className="creation-hint-actions">
@@ -203,6 +357,18 @@ const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, on
               </button>
             </p>
           )}
+        </div>
+
+        {/* Create New Universe — 2-step flow */}
+        <div className="new-universe-section">
+          <button
+            type="button"
+            className="new-universe-btn"
+            onClick={() => setCreationPhase('universe_setup')}
+          >
+            🌌 Create New Universe
+            <span className="new-universe-hint">Configure parameters → choose your starting object</span>
+          </button>
         </div>
 
         {/* Saved Universes Section */}
@@ -315,128 +481,7 @@ const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, on
           </div>
         )}
 
-        {/* Universe Parameters Tuning */}
-        <div className="universe-params-section">
-          <button
-            type="button"
-            className="universe-params-toggle"
-            onClick={() => setShowUniverseParams(prev => !prev)}
-          >
-            ⚙️ Universe Parameters
-            <span className="toggle-arrow">{showUniverseParams ? '▾' : '▸'}</span>
-          </button>
-          {showUniverseParams && (
-            <div className="universe-params-grid">
-              <div className="uparam-row">
-                <label>Universe Radius (Mly)</label>
-                <input type="range" min="10" max="200" step="10"
-                  value={universeParams.boundaryRadius}
-                  onChange={(e) => setUniverseParams(p => ({ ...p, boundaryRadius: +e.target.value }))} />
-                <span className="uparam-val">{universeParams.boundaryRadius}</span>
-              </div>
-              <div className="uparam-row">
-                <label>Initial Clusters</label>
-                <input type="range" min="0" max="5" step="1"
-                  value={universeParams.initialClusters}
-                  onChange={(e) => setUniverseParams(p => ({ ...p, initialClusters: +e.target.value }))} />
-                <span className="uparam-val">{universeParams.initialClusters}</span>
-              </div>
-              <div className="uparam-row">
-                <label>Hydrogen Abundance</label>
-                <input type="range" min="0.5" max="0.9" step="0.01"
-                  value={universeParams.gasH}
-                  onChange={(e) => setUniverseParams(p => ({ ...p, gasH: +e.target.value, gasHe: Math.max(0.05, 1 - (+e.target.value)) }))} />
-                <span className="uparam-val">{(universeParams.gasH * 100).toFixed(0)}%</span>
-              </div>
-              <div className="uparam-row">
-                <label>Star Formation Rate</label>
-                <input type="range" min="0" max="3" step="0.1"
-                  value={universeParams.starFormRate}
-                  onChange={(e) => setUniverseParams(p => ({ ...p, starFormRate: +e.target.value }))} />
-                <span className="uparam-val">{universeParams.starFormRate.toFixed(1)}x</span>
-              </div>
-              <div className="uparam-row">
-                <label>Planet Formation Rate</label>
-                <input type="range" min="0" max="3" step="0.1"
-                  value={universeParams.planetFormRate}
-                  onChange={(e) => setUniverseParams(p => ({ ...p, planetFormRate: +e.target.value }))} />
-                <span className="uparam-val">{universeParams.planetFormRate.toFixed(1)}x</span>
-              </div>
-              <div className="uparam-row">
-                <label>Life Evolution</label>
-                <input type="checkbox" checked={universeParams.lifeEnabled}
-                  onChange={(e) => setUniverseParams(p => ({ ...p, lifeEnabled: e.target.checked }))} />
-                <span className="uparam-val">{universeParams.lifeEnabled ? 'On' : 'Off'}</span>
-              </div>
-              <div className="uparam-row">
-                <label>Life Difficulty</label>
-                <input type="range" min="0.1" max="3" step="0.1"
-                  value={universeParams.lifeDifficulty}
-                  onChange={(e) => setUniverseParams(p => ({ ...p, lifeDifficulty: +e.target.value }))} />
-                <span className="uparam-val">{universeParams.lifeDifficulty.toFixed(1)}x</span>
-              </div>
-              <button
-                type="button"
-                className="uparam-reset"
-                onClick={() => setUniverseParams({ ...DEFAULT_UNIVERSE_PARAMS })}
-              >
-                Reset to Defaults
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Divider before manual creation */}
-        <div className="section-divider">
-          <span className="section-divider-label">or build from scratch</span>
-        </div>
-
-        {/* Tab Switcher */}
-        <div className="tab-switcher">
-          <button
-            type="button"
-            className={`tab-btn ${activeTab === 'stars' ? 'active' : ''}`}
-            onClick={() => setActiveTab('stars')}
-          >
-            ⭐ Stars &amp; Remnants
-          </button>
-          <button
-            type="button"
-            className={`tab-btn ${activeTab === 'planets' ? 'active' : ''}`}
-            onClick={() => setActiveTab('planets')}
-          >
-            🌍 Planets
-          </button>
-        </div>
-
-        {/* Category Sections */}
-        {categories.map((cat) => (
-          <div key={cat.id} className="category-section">
-            <h3 className="category-title" style={{ color: cat.color }}>
-              {cat.label}
-            </h3>
-            <p className="category-desc">{cat.description}</p>
-            <div className="preset-grid">
-              {Object.values(allPresets)
-                .filter(p => p.category === cat.id)
-                .map(preset => (
-                  <div
-                    key={preset.id}
-                    className="preset-card"
-                    onClick={() => selectPreset(preset.id)}
-                  >
-                    <div className="preset-icon">{preset.icon}</div>
-                    <div className="preset-name">{preset.name}</div>
-                    <div className="preset-desc">{preset.description}</div>
-                    <div className="preset-fact">{preset.funFact}</div>
-                  </div>
-                ))
-              }
-            </div>
-          </div>
-        ))}
-
-        {/* Created Bodies Queue */}
+        {/* Created Bodies Queue (from step 2 flow) */}
         {createdBodies.length > 0 && (
           <div className="creation-queue">
             <h3>Your first object (launch when ready)</h3>

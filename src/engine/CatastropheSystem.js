@@ -128,18 +128,45 @@ export default class CatastropheSystem {
    * @param {number}          energy     (simulation units M☉·(AU/yr)² — use ~1e46 for a supernova)
    */
   propagateSupernova(source, bodies, ejectaMass, energy) {
+    const shockRadius = 80 + (source.initialMass || source.mass) * 5;
     this.process(
       {
         type: 'supernova_shockwave',
         sourceId: source.id,
         position: source.position.clone(),
         energy,
-        shockwaveRadius: 100,
+        shockwaveRadius: shockRadius,
         radiationBurst: energy * 0.01,
         ejectaMass,
       },
       bodies,
       0
     );
+
+    // Enrich nearby bodies with heavy elements from supernova ejecta
+    for (const body of bodies) {
+      if (!body.alive || body.id === source.id) continue;
+      if (!body.composition) continue;
+      const dist = body.position.distanceTo(source.position);
+      if (dist > shockRadius || dist < 1e-6) continue;
+
+      const enrichFactor = Math.max(0, 1 - dist / shockRadius) * 0.02 * ejectaMass;
+      const ejectaElements = { C: 0.15, O: 0.20, Si: 0.10, Fe: 0.25, Mg: 0.08, S: 0.06, Ne: 0.05, Ni: 0.03 };
+      let totalAdded = 0;
+      for (const [el, frac] of Object.entries(ejectaElements)) {
+        const add = enrichFactor * frac;
+        body.composition[el] = (body.composition[el] || 0) + add;
+        totalAdded += add;
+      }
+      if (totalAdded > 0 && body.composition.H > 0.1) {
+        body.composition.H = Math.max(0.05, (body.composition.H || 0) - totalAdded * 0.7);
+      }
+      if (totalAdded > 0.001) {
+        body.logEvent({
+          type: 'supernova_enrichment',
+          message: `${body.name} enriched with heavy elements from ${source.name}'s supernova ejecta`,
+        });
+      }
+    }
   }
 }

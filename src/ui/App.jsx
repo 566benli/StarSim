@@ -587,12 +587,18 @@ const App = () => {
     }
 
     const first = createdBodies[0];
+    const numClusters = universeParams?.initialClusters ?? 1;
+    const galaxyNames = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon'];
+    const galaxyColors = ['#6688ff', '#ff8866', '#66ffaa', '#ffaa66', '#aa66ff'];
+    const galaxyTypes = ['spiral', 'elliptical', 'irregular', 'spiral', 'elliptical'];
+    const starPresets = ['sun_like', 'red_dwarf', 'blue_giant', 'orange_dwarf'];
 
-    // Create default cluster and system
+    // Create the player's cluster at the origin
     const cluster = engine.createCluster({
-      name: 'Galaxy Alpha',
+      name: `Galaxy ${galaxyNames[0]}`,
       type: 'spiral',
       position: { x: 0, y: 0, z: 0 },
+      color: galaxyColors[0],
     });
 
     const system = engine.createStarSystem(cluster.id, {
@@ -620,11 +626,32 @@ const App = () => {
       });
     }
 
+    // Create additional initial clusters spread across the universe
+    const boundary = engine.universe.boundaryRadius || 50;
+    for (let i = 1; i < numClusters; i++) {
+      const angle = (Math.PI * 2 * i) / numClusters + (Math.random() - 0.5) * 0.5;
+      const dist = boundary * (0.15 + Math.random() * 0.35);
+      const extraCluster = engine.createCluster({
+        name: `Galaxy ${galaxyNames[i] || `G${i + 1}`}`,
+        type: galaxyTypes[i % galaxyTypes.length],
+        position: { x: dist * Math.cos(angle), y: 0, z: dist * Math.sin(angle) },
+        color: galaxyColors[i % galaxyColors.length],
+      });
+      const extraSystem = engine.createStarSystem(extraCluster.id, {
+        name: `${extraCluster.name} Primary`,
+        position: { x: 0, y: 0, z: 0 },
+      });
+      const presetId = starPresets[Math.floor(Math.random() * starPresets.length)];
+      engine.createStar(presetId, {
+        name: `${extraCluster.name} Star`,
+        systemId: extraSystem.id,
+      });
+    }
+
     engine.start();
     setSimState('running');
     useStore.getState().clearCreatedBodies();
 
-    // Start in system view focused on this system
     navigateTo(VIEW_LEVEL.SYSTEM, {
       clusterId: cluster.id,
       systemId: system.id,

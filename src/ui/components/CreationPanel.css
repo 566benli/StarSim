@@ -813,3 +813,84 @@
   color: #ccc;
   border-color: #666;
 }
+
+/* ── New Universe Button ──────────────────────────────────────────── */
+
+.new-universe-section {
+  margin: 8px 0 16px;
+}
+
+.new-universe-btn {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 20px;
+  background: linear-gradient(135deg, rgba(68, 100, 255, 0.2), rgba(120, 60, 200, 0.2));
+  border: 1px solid #4466aa;
+  border-radius: 10px;
+  color: #ccd;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.25s, border-color 0.25s, transform 0.15s;
+}
+
+.new-universe-btn:hover {
+  background: linear-gradient(135deg, rgba(68, 100, 255, 0.35), rgba(120, 60, 200, 0.35));
+  border-color: #7788dd;
+  transform: scale(1.01);
+}
+
+.new-universe-hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: #888;
+}
+
+/* ── Step Navigation Buttons ──────────────────────────────────────── */
+
+.creation-step-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.step-back-btn {
+  flex: 0 0 auto;
+  padding: 10px 16px;
+  border: 1px solid #444;
+  border-radius: 6px;
+  background: rgba(30, 30, 50, 0.8);
+  color: #aaa;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s, color 0.2s;
+}
+
+.step-back-btn:hover {
+  background: rgba(40, 40, 60, 0.9);
+  color: #ddd;
+}
+
+.step-next-btn {
+  flex: 1;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #4466cc, #6644aa);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s, transform 0.15s;
+}
+
+.step-next-btn:hover {
+  background: linear-gradient(135deg, #5577dd, #7755bb);
+  transform: scale(1.01);
+}

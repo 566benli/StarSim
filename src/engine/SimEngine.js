@@ -580,6 +580,9 @@ export default class SimEngine {
     // Planet formation: young stars can spawn protoplanetary disks → planets
     this._updatePlanetFormation(fullSimDt);
 
+    // Rogue body formation: occasional star/planet formation outside clusters
+    this._updateRogueFormation(fullSimDt);
+
     const now = performance.now();
     this.fps = 1000 / (now - this.lastFrameTime);
     this.lastFrameTime = now;
@@ -689,6 +692,58 @@ export default class SimEngine {
       this.pendingEvents.push(event);
       if (this.onEvent) this.onEvent(event);
     }
+  }
+
+  /**
+   * Rogue star/planet formation in intergalactic space.
+   * Occasionally, gas clouds outside clusters collapse into lone stars.
+   */
+  _updateRogueFormation(dtYears) {
+    const interval = 1e9;
+    if (!this._lastRogueFormCheck) this._lastRogueFormCheck = 0;
+    if (this.simulationTime - this._lastRogueFormCheck < interval) return;
+    this._lastRogueFormCheck = this.simulationTime;
+
+    const h = this.universe.composition.H || 0;
+    if (h < 0.3) return;
+    if (Math.random() > 0.2 * (this._starFormRateMultiplier || 1)) return;
+
+    const boundary = this.universe.boundaryRadius || 50;
+    const angle = Math.random() * Math.PI * 2;
+    const dist = boundary * (0.1 + Math.random() * 0.5);
+
+    const rogueCluster = this.createCluster({
+      name: `Rogue Cloud ${this.universe.clusters.length + 1}`,
+      type: 'irregular',
+      position: { x: dist * Math.cos(angle), y: 0, z: dist * Math.sin(angle) },
+      color: '#888899',
+    });
+    const rogueSys = this.createStarSystem(rogueCluster.id, {
+      name: `${rogueCluster.name} System`,
+      position: { x: 0, y: 0, z: 0 },
+    });
+    const presets = ['red_dwarf', 'sun_like', 'orange_dwarf'];
+    const presetId = presets[Math.floor(Math.random() * presets.length)];
+    const star = this.createStar(presetId, {
+      name: `Rogue Star ${Math.floor(Math.random() * 1000)}`,
+      systemId: rogueSys.id,
+    });
+
+    const event = {
+      id: `rogueform_${Date.now()}_${Math.random()}`,
+      name: 'Rogue Star Formation',
+      category: 'evolution',
+      targetBody: star,
+      time: this.simulationTime,
+      notification: {
+        title: 'Rogue Star Formed',
+        body: `${star.name} condensed from intergalactic gas far from any galaxy!`,
+        color: '#aaccff',
+      },
+    };
+    this.eventHistory.push(event);
+    this.pendingEvents.push(event);
+    if (this.onEvent) this.onEvent(event);
   }
 
   checkPhaseChanges() {
