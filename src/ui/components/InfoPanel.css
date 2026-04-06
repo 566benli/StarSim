@@ -186,6 +186,19 @@
   box-shadow: 0 0 12px rgba(0, 200, 255, 0.2);
 }
 
+.supernova-trigger-btn {
+  background: rgba(255, 80, 20, 0.12) !important;
+  border-color: rgba(255, 100, 30, 0.45) !important;
+  color: #ff8855 !important;
+}
+
+.supernova-trigger-btn:hover {
+  background: rgba(255, 80, 20, 0.25) !important;
+  border-color: #ff6622 !important;
+  box-shadow: 0 0 14px rgba(255, 80, 0, 0.35) !important;
+  color: #ffaa77 !important;
+}
+
 .info-fact {
   background: rgba(0, 204, 255, 0.06);
   border: 1px solid rgba(0, 204, 255, 0.12);

@@ -1476,6 +1476,7 @@ const App = () => {
           onClose={handleDeselectBody}
           onFocusBody={handleNavigateToBody}
           getBodies={() => engineRef.current?.getBodies?.() ?? []}
+          engine={engineRef.current}
         />
       )}
 

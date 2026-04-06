@@ -61,7 +61,7 @@ const PHASE_INFO = {
   },
 };
 
-const InfoPanel = ({ onExplore, onClose, onFocusBody, getBodies }) => {
+const InfoPanel = ({ onExplore, onClose, onFocusBody, getBodies, engine }) => {
   const { selectedBody, simulationTime } = useStore();
   const [showHRDiagram, setShowHRDiagram] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
@@ -348,6 +348,23 @@ const InfoPanel = ({ onExplore, onClose, onFocusBody, getBodies }) => {
           >
             📊 HR Diagram
           </button>
+
+          {/* Supernova trigger — visible for massive stars not yet exploded */}
+          {selectedBody.mass >= 8 &&
+            !['neutron_star', 'black_hole', 'supernova', 'white_dwarf'].includes(selectedBody.phase) && (
+            <button
+              className="hr-diagram-btn supernova-trigger-btn"
+              title="Manually trigger a supernova for this massive star"
+              onClick={() => {
+                const body = engine?.getBodies?.()?.find(b => b.id === selectedBody.id) ?? selectedBody;
+                if (typeof body?.triggerSupernova === 'function') {
+                  body.triggerSupernova();
+                }
+              }}
+            >
+              💥 Trigger Supernova
+            </button>
+          )}
 
           {/* Phase badge + description card */}
           <div className="phase-card" style={{ borderColor: phaseInfo.color || '#4488ff' }}>
