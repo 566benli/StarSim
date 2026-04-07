@@ -143,8 +143,11 @@ const Minimap = ({
 
       const clusterSize = Math.max(3, cluster.size / 20);
       const glow = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, clusterSize * 2);
-      glow.addColorStop(0, cluster.color || '#6688ff');
-      glow.addColorStop(0.5, `${cluster.color || '#6688ff'}66`);
+      const clr = cluster.color || '#6688ff';
+      glow.addColorStop(0, clr);
+      // Append alpha only for valid 6-char hex; otherwise use rgba(0,0,0,0) fallback
+      const semiClr = /^#[0-9a-fA-F]{6}$/.test(clr) ? `${clr}66` : `${clr.replace(/\)$/, ', 0.4)')}`;
+      glow.addColorStop(0.5, semiClr);
       glow.addColorStop(1, 'transparent');
       ctx.fillStyle = glow;
       ctx.beginPath();

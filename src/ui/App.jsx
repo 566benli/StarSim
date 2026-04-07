@@ -162,6 +162,8 @@ const App = () => {
     try {
       engine = new SimEngine();
       engineRef.current = engine;
+      // Expose engine for browser console testing / debugging
+      if (typeof window !== 'undefined') window.__starSimEngine = engine;
     } catch (e) {
       console.error('[StarSim] Engine init failed:', e);
       setInitError('Simulation engine failed to initialize: ' + e.message);
