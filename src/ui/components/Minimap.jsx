@@ -70,13 +70,15 @@ const Minimap = ({
     let aliveBodies = (bodies || []).filter(b => b.alive);
 
     if (viewLevel === VIEW_LEVEL.SYSTEM && focusedSystemId) {
-      aliveBodies = aliveBodies.filter(b => b.systemId === focusedSystemId);
+      // Exclude bodies that have escaped the system — they drift as rogues and
+      // are shown on the universe minimap instead.
+      aliveBodies = aliveBodies.filter(b => b.systemId === focusedSystemId && !b.escapedSystem);
     }
     if (viewLevel === VIEW_LEVEL.BODY && selectedBodyId) {
       const focused = aliveBodies.find(b => b.id === selectedBodyId);
       const sysId = focused?.systemId;
       if (sysId) {
-        aliveBodies = aliveBodies.filter(b => b.systemId === sysId);
+        aliveBodies = aliveBodies.filter(b => b.systemId === sysId && !b.escapedSystem);
       }
     }
     return aliveBodies;

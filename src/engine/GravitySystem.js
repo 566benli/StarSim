@@ -19,7 +19,7 @@ import CollisionSystem from './CollisionSystem';
 export default class GravitySystem {
   constructor() {
     this.bodies = [];
-    this.softening = 0.15; // AU — prevents singularities
+    this.softening = 0.05; // AU — reduced for more precise planetary orbits
     this.collisionEnabled = true;
     this.mergeEnabled = true;
     this.boundaryEnabled = true;

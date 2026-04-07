@@ -56,8 +56,8 @@ export default class SimEngine {
     /** Called with VFX event payloads for Three.js animation hooks */
     this.onVfxEvent   = null;
 
-    this.stepsPerFrame = 12;
-    this.maxDtPerStep  = 0.005;
+    this.stepsPerFrame = 20;      // more sub-steps → tighter Verlet integration
+    this.maxDtPerStep  = 0.003;  // max 1.1 day/step for precise inner-planet orbits
     this.maxStepsPerFrame = 80;
     this.typicalFrameTime = 1 / 60;
     this.lastFrameTime = 0;

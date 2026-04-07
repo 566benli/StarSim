@@ -824,7 +824,8 @@ export default class SceneManager {
       group.add(halo);
       group.userData.halo = halo;
 
-      const label = this.createLabel(`${body.name} @ ${body.escapeOriginClusterId ? 'rogue' : 'deep space'}`);
+      const rogueColor = body.type === 'star' ? '#ffd88a' : '#88d8ff';
+      const label = this.createLabel(`${body.name} @ ${body.escapeOriginClusterId ? 'rogue' : 'deep space'}`, { color: rogueColor });
       label.position.y = 4;
       label.scale.set(6, 1.5, 1);
       group.add(label);
@@ -1288,29 +1289,32 @@ export default class SceneManager {
 
     // Scale label position to always be above the body
     if (group.userData.label) {
-      group.userData.label.position.y = effectiveScale * 1.8 + 0.3;
-      group.userData.label.scale.setScalar(Math.max(0.5, effectiveScale * 1.2));
+      group.userData.label.position.y = effectiveScale * 1.8 + 0.5;
+      // Keep labels at a readable size — floor ensures they're always clear
+      group.userData.label.scale.setScalar(Math.max(1.4, effectiveScale * 1.4));
 
-      // Smooth label opacity cross-fade: fully opaque when close, fades out as body
-      // shrinks, fades back in at the scale-floor threshold so names remain readable
-      // even at extreme zoom-out.  Selected bodies always show their label.
-      const LABEL_FADE_IN  = 0.0018; // apparent size below which label starts fading
-      const LABEL_FADE_OUT = 0.0045; // apparent size above which label is fully on
+      // Label fade: show clearly at normal zoom, fade gently at extreme zoom-out.
+      // Thresholds tuned so labels are obvious for newly-placed and selected bodies.
+      const LABEL_FADE_IN  = 0.0005; // apparent size below which label starts fading
+      const LABEL_FADE_OUT = 0.0022; // apparent size above which label is fully on
       const rawAlpha = (apparentSize - LABEL_FADE_IN) / (LABEL_FADE_OUT - LABEL_FADE_IN);
-      const labelAlpha = body.selected ? 1.0 : Math.max(0, Math.min(1, rawAlpha));
-      const labelVisible = (body.showLabel !== false) && (body.selected || labelAlpha > 0.05);
+      // Minimum opacity 0.45 so labels never fully vanish in system view (pill bg provides contrast)
+      const labelAlpha = body.selected ? 1.0 : Math.max(0.45, Math.min(1, rawAlpha));
+      const labelVisible = (body.showLabel !== false);
       group.userData.label.visible = labelVisible;
       if (group.userData.label.material && labelVisible) {
         group.userData.label.material.opacity = labelAlpha;
       }
 
-      // Update label text if name or phase changed
+      // Update label text or color if name/phase changed
       const phaseLabel = body.type === 'star' ? this.getPhaseDisplayName(body.phase) : null;
       const labelText = phaseLabel ? `${body.name} (${phaseLabel})` : body.name;
-      if (labelText !== group.userData._lastLabelText) {
+      const labelColor = body.type === 'star' ? '#ffd88a' : body.type === 'planet' ? '#88d8ff' : '#d0d0d0';
+      if (labelText !== group.userData._lastLabelText || labelColor !== group.userData._labelColor) {
         group.userData._lastLabelText = labelText;
         group.userData._lastPhase = body.phase;
-        const newLabel = this.createLabel(labelText);
+        group.userData._labelColor = labelColor;
+        const newLabel = this.createLabel(labelText, { color: labelColor });
         newLabel.position.copy(group.userData.label.position);
         newLabel.scale.copy(group.userData.label.scale);
         newLabel.visible = group.userData.label.visible;
@@ -1390,12 +1394,14 @@ export default class SceneManager {
 
     // Name label (using sprite)
     const labelText = body.type === 'star' ? `${body.name} (${this.getPhaseDisplayName(body.phase)})` : body.name;
-    const label = this.createLabel(labelText);
+    const labelColor = body.type === 'star' ? '#ffd88a' : body.type === 'planet' ? '#88d8ff' : '#d0d0d0';
+    const label = this.createLabel(labelText, { color: labelColor });
     label.position.y = 2.0;
     group.add(label);
     group.userData.label = label;
     group.userData._lastLabelText = labelText;
     group.userData._lastPhase = body.phase;
+    group.userData._labelColor = labelColor;
 
     return group;
   }
@@ -2111,31 +2117,65 @@ export default class SceneManager {
   }
 
   /**
-   * Create a text label sprite
+   * Create a text label sprite.
+   * @param {string} text
+   * @param {{ color?: string }} [options]
    */
-  createLabel(text) {
+  createLabel(text, options = {}) {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-    canvas.width = 256;
-    canvas.height = 64;
+    canvas.width = 512;
+    canvas.height = 80;
 
-    ctx.fillStyle = 'transparent';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const textColor = options.color || '#ffffff';
+    const font = 'bold 26px "Segoe UI", Arial, sans-serif';
+    ctx.font = font;
 
-    ctx.font = 'bold 24px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#ffffff';
+    // Measure text for the background pill
+    const metrics = ctx.measureText(text);
+    const textW = metrics.width;
+    const padX = 22;
+    const padY = 10;
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    const pillW = textW + padX * 2;
+    const pillH = 34 + padY * 2;
+    const pillX = cx - pillW / 2;
+    const pillY = cy - pillH / 2;
+
+    // Semi-transparent dark pill for contrast against any background
+    ctx.beginPath();
+    if (ctx.roundRect) {
+      ctx.roundRect(pillX, pillY, pillW, pillH, 9);
+    } else {
+      ctx.rect(pillX, pillY, pillW, pillH);
+    }
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.52)';
+    ctx.fill();
+
+    // Subtle border
+    ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Label text
+    ctx.font = font;
+    ctx.fillStyle = textColor;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    ctx.fillText(text, cx, cy);
 
     const texture = new THREE.CanvasTexture(canvas);
     const material = new THREE.SpriteMaterial({
       map: texture,
       transparent: true,
-      opacity: 0.8,
+      opacity: 0.9,
+      depthTest: false,
+      sizeAttenuation: true,
     });
     const sprite = new THREE.Sprite(material);
-    sprite.scale.set(2, 0.5, 1);
+    sprite.scale.set(4.0, 0.62, 1);
+    sprite.renderOrder = 950;
     return sprite;
   }
 
