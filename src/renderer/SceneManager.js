@@ -612,7 +612,7 @@ export default class SceneManager {
         trail.visible = false;
         return;
       }
-      if (lvl === VIEW_LEVEL.UNIVERSE) {
+      if (lvl === VIEW_LEVEL.UNIVERSE || b.escapedSystem) {
         trail.visible = false;
       } else if (lvl === VIEW_LEVEL.SYSTEM) {
         trail.visible = true;
@@ -2763,12 +2763,18 @@ export default class SceneManager {
               this.updateTrail(body);
             }
           } else {
-            // Explicitly show, then update — ensures meshes hidden by a previous
-            // cross-system pass become visible again when their system is focused.
             const group = this.bodyMeshes.get(body.id);
-            if (group) group.visible = true;
-            this.updateBodyVisual(body);
-            this.updateTrail(body);
+            if (body.escapedSystem) {
+              // Escaped bodies are no longer part of the local system;
+              // hide their mesh here — they show as rogue markers in universe view.
+              if (group) group.visible = false;
+            } else {
+              // Explicitly show, then update — ensures meshes hidden by a previous
+              // cross-system pass become visible again when their system is focused.
+              if (group) group.visible = true;
+              this.updateBodyVisual(body);
+              this.updateTrail(body);
+            }
           }
         }
       }

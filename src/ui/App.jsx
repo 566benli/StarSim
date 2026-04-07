@@ -206,6 +206,9 @@ const App = () => {
         systemId: body.systemId,
         com: info?.centerOfMass,
       });
+      // Remove from local GravitySystem so it stops being integrated as a bound body
+      const escGS = engine.getSystemGravity?.(body.systemId);
+      if (escGS) escGS.removeBody(body);
       addEvent({
         id: `boundary_${Date.now()}`,
         name: 'System Escape',
@@ -214,7 +217,7 @@ const App = () => {
         time: engine.simulationTime,
         notification: {
           title: 'Object Escaped',
-          body: `${body.name} left its star system and is now tracked in universe space.`,
+          body: `${body.name} left its star system and is now drifting in universe space.`,
           severity: 'notable',
         },
         effects: {},
@@ -946,11 +949,22 @@ const App = () => {
     }
 
     if (config.bodyType === 'star') {
-      const sysBodies = engine.getSystemBodies(currentSystemId);
+      const sysBodies = engine.getSystemBodies(currentSystemId).filter(b => b.alive && !b.escapedSystem);
       const gs = engine.getSystemGravity(currentSystemId);
       const com = gs ? gs.centerOfMass() : { position: { x: 0, y: 0, z: 0 }, totalMass: 0 };
       const refStar = config.referenceId ? sysBodies.find(b => b.id === config.referenceId) : null;
       const refPos = refStar ? refStar.position : com.position;
+
+      // Compute current system CoM velocity (so the new star orbits in the right inertial frame)
+      let comVx = 0, comVz = 0;
+      if (com.totalMass > 0) {
+        for (const b of sysBodies) {
+          comVx += b.mass * b.velocity.x;
+          comVz += b.mass * b.velocity.z;
+        }
+        comVx /= com.totalMass;
+        comVz /= com.totalMass;
+      }
 
       let starPos;
       if (config.params?.position) {
@@ -977,10 +991,23 @@ const App = () => {
         const dz = newBody.position.z - com.position.z;
         const r = Math.sqrt(dx * dx + dz * dz) || 1;
         if (r > 0.01) {
-          const vOrb = Math.sqrt(G_sim * com.totalMass / r);
-          const vx = -vOrb * dz / r;
-          const vz = vOrb * dx / r;
-          newBody.velocity.set(vx, 0, vz);
+          const M_total = com.totalMass + newBody.mass;
+          // Relative circular orbit speed (two-body problem)
+          const vRel = Math.sqrt(G_sim * M_total / r);
+          // Unit tangent (perpendicular to separation in xz plane)
+          const ux = -dz / r;
+          const uz = dx / r;
+          // New body: orbits at its fraction of the relative velocity
+          const f2 = com.totalMass / M_total;
+          newBody.velocity.set(comVx + f2 * vRel * ux, 0, comVz + f2 * vRel * uz);
+          // Existing bodies: equal-and-opposite reaction kick (conserves CoM momentum)
+          const f1 = newBody.mass / M_total;
+          const dVx = -f1 * vRel * ux;
+          const dVz = -f1 * vRel * uz;
+          for (const b of sysBodies) {
+            b.velocity.x += dVx;
+            b.velocity.z += dVz;
+          }
         }
       }
     } else if (config.bodyType === 'planet') {
