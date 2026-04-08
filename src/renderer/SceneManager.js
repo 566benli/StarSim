@@ -765,6 +765,9 @@ export default class SceneManager {
       this.scene.add(group);
     }
 
+    // Always ensure the group is visible when it is being actively updated (cluster is alive)
+    if (!group.visible) group.visible = true;
+
     // Scale based on cluster size (relative to base 8-unit core)
     const scale = Math.max(1, cluster.size / 50);
     group.userData.core.scale.setScalar(scale);

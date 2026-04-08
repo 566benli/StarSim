@@ -104,10 +104,28 @@ export default class Universe {
       cluster.position.addScaledVector(cluster.velocity, dt);
       cluster.rotationAngle += cluster.angularVelocity * dt;
 
-      // Boundary check
+      // Boundary check — bounce back elastically so clusters NEVER disappear
       const dist = cluster.position.length();
-      if (dist > this.boundaryRadius) {
-        cluster.alive = false;
+      if (dist > 0 && dist > this.boundaryRadius * 0.92) {
+        // Inward unit normal
+        const nx = cluster.position.x / dist;
+        const ny = cluster.position.y / dist;
+        const nz = cluster.position.z / dist;
+        // Reflect outward radial velocity component
+        const vr = cluster.velocity.x * nx + cluster.velocity.y * ny + cluster.velocity.z * nz;
+        if (vr > 0) {
+          // Damped elastic reflection (coefficient 0.6) so it doesn't just bounce forever
+          cluster.velocity.x -= 1.6 * vr * nx;
+          cluster.velocity.y -= 1.6 * vr * ny;
+          cluster.velocity.z -= 1.6 * vr * nz;
+        }
+        // Clamp position strictly inside boundary
+        if (dist > this.boundaryRadius) {
+          const scale = this.boundaryRadius * 0.9 / dist;
+          cluster.position.x *= scale;
+          cluster.position.y *= scale;
+          cluster.position.z *= scale;
+        }
       }
     }
   }

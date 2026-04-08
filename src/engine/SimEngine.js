@@ -557,11 +557,17 @@ export default class SimEngine {
     // Primordial formation: gas -> star/cluster over time
     if (this.universe.canFormFromGas()) {
       const angle = Math.random() * Math.PI * 2;
-      const dist = (this.universe.boundaryRadius * 0.3) * (0.5 + Math.random() * 0.5);
+      const dist = (this.universe.boundaryRadius * 0.25) * (0.5 + Math.random() * 0.5);
+      const G_UNIV = 4.5e-6;
+      const primTotalMass = this.universe.clusters.filter(c => c.alive).length * 100 + 100;
+      const primVCirc = Math.sqrt(G_UNIV * primTotalMass / Math.max(dist, 1));
+      const ptx = -Math.sin(angle);
+      const ptz = Math.cos(angle);
       const cluster = this.createCluster({
         name: `Galaxy ${this.universe.clusters.length + 1}`,
         type: Math.random() > 0.5 ? 'spiral' : 'elliptical',
         position: { x: dist * Math.cos(angle), y: 0, z: dist * Math.sin(angle) },
+        velocity: { x: ptx * primVCirc, y: 0, z: ptz * primVCirc },
       });
       const system = this.createStarSystem(cluster.id, {
         name: `${cluster.name} Primary`,
@@ -710,12 +716,20 @@ export default class SimEngine {
 
     const boundary = this.universe.boundaryRadius || 50;
     const angle = Math.random() * Math.PI * 2;
-    const dist = boundary * (0.1 + Math.random() * 0.5);
+    // Keep rogue clusters well inside boundary (max 45%) so they never hit the edge
+    const dist = boundary * (0.1 + Math.random() * 0.35);
+    // Tangential circular-orbit velocity to keep rogue clusters in stable orbit
+    const G_UNIV = 4.5e-6;
+    const totalMass = this.universe.clusters.filter(c => c.alive).length * 100 + 100;
+    const vCirc = Math.sqrt(G_UNIV * totalMass / Math.max(dist, 1));
+    const tx = -Math.sin(angle);
+    const tz = Math.cos(angle);
 
     const rogueCluster = this.createCluster({
       name: `Rogue Cloud ${this.universe.clusters.length + 1}`,
       type: 'irregular',
       position: { x: dist * Math.cos(angle), y: 0, z: dist * Math.sin(angle) },
+      velocity: { x: tx * vCirc, y: 0, z: tz * vCirc },
       color: '#888899',
     });
     const rogueSys = this.createStarSystem(rogueCluster.id, {

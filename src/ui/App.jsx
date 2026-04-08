@@ -632,14 +632,24 @@ const App = () => {
     }
 
     // Create additional initial clusters spread across the universe
+    // Give each cluster a tangential (circular-orbit) velocity so they orbit
+    // the origin stably instead of falling inward and getting ejected.
+    const G_UNIVERSE = 4.5e-6; // must match Universe.updateClusterPhysics
+    const CLUSTER_MASS_APPROX = 100;
     const boundary = engine.universe.boundaryRadius || 50;
     for (let i = 1; i < numClusters; i++) {
       const angle = (Math.PI * 2 * i) / numClusters + (Math.random() - 0.5) * 0.5;
       const dist = boundary * (0.15 + Math.random() * 0.35);
+      // Circular-orbit speed around the origin (treats all other clusters as a point mass at origin)
+      const vCirc = Math.sqrt(G_UNIVERSE * CLUSTER_MASS_APPROX * numClusters / Math.max(dist, 1));
+      // Tangent direction in XZ plane (perpendicular to radial, 90° CCW)
+      const tx = -Math.sin(angle);
+      const tz = Math.cos(angle);
       const extraCluster = engine.createCluster({
         name: `Galaxy ${galaxyNames[i] || `G${i + 1}`}`,
         type: galaxyTypes[i % galaxyTypes.length],
         position: { x: dist * Math.cos(angle), y: 0, z: dist * Math.sin(angle) },
+        velocity: { x: tx * vCirc, y: 0, z: tz * vCirc },
         color: galaxyColors[i % galaxyColors.length],
       });
       const extraSystem = engine.createStarSystem(extraCluster.id, {
