@@ -17,6 +17,7 @@
     "test:evolution-tree": "node scripts/test-evolution-tree.js",
     "test:evolution-tree:deep": "node scripts/test-evolution-tree-deep.js",
     "test:evolution-tree:ui": "node scripts/test-evolution-tree-ui.js",
+    "test:click-focus-hr": "node scripts/test-click-focus-hr.js",
     "ensure-exe": "powershell -ExecutionPolicy Bypass -File build/ensure-exe-placement.ps1",
     "shortcut": "powershell -ExecutionPolicy Bypass -File build/create-desktop-shortcut.ps1",
     "serve:web": "npx serve dist -l 8080 --cors",

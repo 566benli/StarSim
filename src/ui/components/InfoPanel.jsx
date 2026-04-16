@@ -340,14 +340,23 @@ const InfoPanel = ({ onExplore, onClose, onFocusBody, getBodies, engine }) => {
       {/* ========== STAR: PHASE-AWARE PROPERTIES ========== */}
       {selectedBody.type === 'star' && (
         <>
-          {/* HR Diagram button */}
+          {/* HR Diagram toggle button */}
           <button
             className="hr-diagram-btn"
-            onClick={() => setShowHRDiagram(true)}
-            title="View star on Hertzsprung–Russell diagram"
+            onClick={() => setShowHRDiagram(v => !v)}
+            title="Toggle Hertzsprung–Russell diagram"
           >
-            📊 HR Diagram
+            📊 HR Diagram {showHRDiagram ? '▲' : '▼'}
           </button>
+
+          {/* Inline HR Diagram — shown when toggled, updates live with simulation */}
+          {showHRDiagram && (
+            <HRDiagram
+              star={selectedBody}
+              allStars={getBodies?.() ?? []}
+              onClose={() => setShowHRDiagram(false)}
+            />
+          )}
 
           {/* Supernova trigger — visible for massive stars not yet exploded */}
           {selectedBody.mass >= 8 &&
@@ -687,14 +696,6 @@ const InfoPanel = ({ onExplore, onClose, onFocusBody, getBodies, engine }) => {
         Enter Explorer Mode
       </button>
 
-      {/* HR Diagram modal */}
-      {showHRDiagram && selectedBody?.type === 'star' && (
-        <HRDiagram
-          star={selectedBody}
-          allStars={getBodies?.() ?? []}
-          onClose={() => setShowHRDiagram(false)}
-        />
-      )}
     </div>
   );
 };

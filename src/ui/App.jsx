@@ -232,9 +232,11 @@ const App = () => {
         engine.getBodies().forEach(b => b.selected = false);
         body.selected = true;
         setSelectedBody(body);
+        // Enable per-frame camera tracking on this body
+        scene.selectedBody = body;
         // Stay in system view: show the InfoPanel and center camera on the body with
-        // enough context to see its orbit. Clicking the InfoPanel panel will switch
-        // to the full body-centred view.
+        // enough context to see its orbit. Clicking the InfoPanel "Focus" button will
+        // switch to the full body-centred view.
         const extent = Math.max((body.orbitalDistance || 0) * 2.5, 5);
         scene.fitOnBody(body, extent);
       }
@@ -539,6 +541,25 @@ const App = () => {
             extinctionPressure: b.extinctionPressure,
             evolutionTree: (b.evolutionTree || []).map(s => ({ ...s })),
           }));
+      },
+      snapshotBodies: () => {
+        const engine = engineRef.current;
+        if (!engine) return [];
+        return engine.getBodies()
+          .filter((b) => b.alive)
+          .map((b) => ({
+            id: b.id,
+            name: b.name,
+            type: b.type,
+            temperature: b.temperature,
+            luminosity: b.luminosity,
+            phase: b.phase,
+          }));
+      },
+      /** Fire the body-selected pipeline (same as clicking a body in the canvas) */
+      selectBody: (bodyId) => {
+        const scene = sceneRef.current;
+        if (scene?.onBodySelected) scene.onBodySelected(bodyId);
       },
     };
 
