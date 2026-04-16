@@ -1,5 +1,5 @@
 import { DEFAULT_LIFE_PRESET, getLifeConfig } from '@data/lifeEvolutionConfig';
-import { generateSpecies } from './SpeciesGenerator';
+import { generateSpecies } from './SpeciesGenerator.js';
 
 const LIFE_STAGES = {
   NONE: 'none',

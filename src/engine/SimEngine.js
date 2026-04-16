@@ -10,17 +10,17 @@
  * separations at galaxy scale would be negligible vs in-system dynamics. Cluster motion uses
  * Universe.updateClusterPhysics (Mly). UI may show cross-system distances as reference only.
  */
-import GravitySystem from './GravitySystem';
-import Universe from './Universe';
-import Cluster from './Cluster';
-import StarSystem from './StarSystem';
-import Star from './Star';
-import Planet from './Planet';
-import BlackHole from './BlackHole';
-import RadiationSystem from './RadiationSystem';
-import CatastropheSystem from './CatastropheSystem';
-import OrbitalAnalysisSystem from './OrbitalAnalysisSystem';
-import LifeEvolutionSystem from './LifeEvolutionSystem';
+import GravitySystem from './GravitySystem.js';
+import Universe from './Universe.js';
+import Cluster from './Cluster.js';
+import StarSystem from './StarSystem.js';
+import Star from './Star.js';
+import Planet from './Planet.js';
+import BlackHole from './BlackHole.js';
+import RadiationSystem from './RadiationSystem.js';
+import CatastropheSystem from './CatastropheSystem.js';
+import OrbitalAnalysisSystem from './OrbitalAnalysisSystem.js';
+import LifeEvolutionSystem from './LifeEvolutionSystem.js';
 import { getApplicableEvents } from '@data/events';
 import { STAR_PRESETS } from '@data/starTypes';
 import { PLANET_PRESETS } from '@data/planetTypes';

@@ -40,7 +40,7 @@ const path = require('path');
     return window.__STAR_SIM_DEBUG__.snapshotPlanets().map(p => ({
       name: p.name, lifeStage: p.lifeStage,
       treeSize: (p.evolutionTree || []).length,
-      alive: (p.evolutionTree || []).filter(s => !s.extinctAt).length,
+      alive: (p.evolutionTree || []).filter(s => s.extinctAt === null).length,
       extinct: (p.evolutionTree || []).filter(s => s.extinctAt !== null).length,
     }));
   });
@@ -68,15 +68,25 @@ const path = require('path');
 
   await new Promise((r) => setTimeout(r, 500));
 
-  // ── Check that the Evolution Tree section is rendered ───────────────
+  // ── Open Evolution Tree modal from InfoPanel ────────────────────────
+  const openButtonResult = await page.evaluate(() => {
+    const openBtn = document.querySelector('.evo-tree-open-btn');
+    if (!openBtn) return { found: false };
+    openBtn.click();
+    return { found: true, text: openBtn.textContent || '' };
+  });
+  assert(openButtonResult.found, 'Evolution Tree button should be present in InfoPanel');
+  await new Promise((r) => setTimeout(r, 300));
+
+  // ── Check that the Evolution Tree modal is rendered ─────────────────
   const evoTreeVisible = await page.evaluate(() => {
-    const container = document.querySelector('.evo-tree-container');
-    if (!container) return { found: false };
-    const title = container.querySelector('.evo-tree-title');
-    const graph = container.querySelector('.evo-tree-graph');
-    const nodes = container.querySelectorAll('.evo-species-node');
-    const aliveNodes = container.querySelectorAll('.evo-species-node.alive');
-    const extinctNodes = container.querySelectorAll('.evo-species-node.extinct');
+    const modal = document.querySelector('.evo-modal');
+    if (!modal) return { found: false };
+    const title = modal.querySelector('.evo-modal-title');
+    const graph = modal.querySelector('.evo-tree-graph');
+    const nodes = modal.querySelectorAll('.evo-species-node');
+    const aliveNodes = modal.querySelectorAll('.evo-species-node.alive');
+    const extinctNodes = modal.querySelectorAll('.evo-species-node.extinct');
     return {
       found: true,
       titleText: title?.textContent || '',
@@ -88,15 +98,18 @@ const path = require('path');
   });
 
   console.log('  Evolution Tree UI:', JSON.stringify(evoTreeVisible, null, 2));
-  assert(evoTreeVisible.found, 'evo-tree-container should be present in DOM');
+  assert(evoTreeVisible.found, 'evolution tree modal should be present in DOM');
   assert(evoTreeVisible.hasGraph, 'evo-tree-graph should be rendered');
   assert(evoTreeVisible.nodeCount > 0, `Species nodes should be rendered (found ${evoTreeVisible.nodeCount})`);
-  assert(evoTreeVisible.titleText.includes('Evolution Tree'), 'Title should say "Evolution Tree"');
+  assert(
+    (evoTreeVisible.titleText || '').includes('Evolution Tree'),
+    'Title should say "Evolution Tree"',
+  );
 
   // ── Click on a species node to open detail card ─────────────────────
   console.log('\n=== Clicking a species node to test detail card ===');
   const clickResult = await page.evaluate(() => {
-    const firstNode = document.querySelector('.evo-species-node.alive');
+    const firstNode = document.querySelector('.evo-modal .evo-species-node.alive');
     if (!firstNode) return { clicked: false };
     firstNode.click();
     return { clicked: true, name: firstNode.querySelector('.evo-species-name')?.textContent };
@@ -153,21 +166,29 @@ const path = require('path');
         planet.hasLife = false;
         store.setSelectedBody(null);
         store.setSelectedBody(planet);
-        return { tested: true, name: planet.name, restored: savedTree.length };
+        return { tested: true, name: planet.name, restored: savedTree.length, fallbackMutated: true };
       }
       return { tested: false };
     }
     store.setSelectedBody(noLifePlanet);
-    return { tested: true, name: noLifePlanet.name };
+    return { tested: true, name: noLifePlanet.name, fallbackMutated: false };
   });
 
   if (emptyResult.tested) {
     await new Promise((r) => setTimeout(r, 400));
+    await page.evaluate(() => {
+      const close = document.querySelector('.evo-modal-close');
+      if (close) close.click();
+      const openBtn = document.querySelector('.evo-tree-open-btn');
+      if (openBtn) openBtn.click();
+    });
+    await new Promise((r) => setTimeout(r, 300));
+
     const emptyTree = await page.evaluate(() => {
-      const container = document.querySelector('.evo-tree-container');
-      if (!container) return { found: false };
-      const empty = container.querySelector('.evo-tree-empty');
-      const graph = container.querySelector('.evo-tree-graph');
+      const modal = document.querySelector('.evo-modal');
+      if (!modal) return { found: false };
+      const empty = modal.querySelector('.evo-tree-empty');
+      const graph = modal.querySelector('.evo-tree-graph');
       return {
         found: true,
         showsEmptyState: !!empty,
@@ -182,6 +203,11 @@ const path = require('path');
       'Empty copy should describe no tree',
     );
   }
+
+  await page.evaluate(() => {
+    const close = document.querySelector('.evo-modal-close');
+    if (close) close.click();
+  });
 
   // ── Summary ─────────────────────────────────────────────────────────
   console.log('\n=== SUMMARY ===');

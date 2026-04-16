@@ -2,7 +2,7 @@
  * Star - A luminous celestial body powered by nuclear fusion
  * Handles stellar evolution, spectral classification, and lifecycle
  */
-import CelestialBody from './CelestialBody';
+import CelestialBody from './CelestialBody.js';
 import { EVOLUTION_PHASES } from '@data/starTypes';
 import {
   mainSequenceLuminosity,

@@ -5,8 +5,8 @@
  * A circular boundary destroys objects that reach the edge.
  */
 import * as THREE from 'three';
-import Cluster from './Cluster';
-import StarSystem from './StarSystem';
+import Cluster from './Cluster.js';
+import StarSystem from './StarSystem.js';
 import { PRIMORDIAL_COMPOSITION } from '@data/elements';
 import { UNIVERSE_RADIUS_MLY } from '@utils/constants';
 

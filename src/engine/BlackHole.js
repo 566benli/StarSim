@@ -2,7 +2,7 @@
  * BlackHole - Singularity with event horizon and accretion physics
  * Handles gravitational lensing parameters, accretion disk, Hawking radiation
  */
-import CelestialBody from './CelestialBody';
+import CelestialBody from './CelestialBody.js';
 import { schwarzschildRadius } from '@utils/math';
 
 export default class BlackHole extends CelestialBody {

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import './EvolutionTree.css';
 
 const STAGE_LABELS = {
@@ -41,6 +42,37 @@ const BODY_SHAPES = {
     return d + 'Z';
   },
   'bilateral body': (r) => `M0,${-r} Q${r * 0.7},${-r * 0.5} ${r * 0.6},0 Q${r * 0.7},${r * 0.5} 0,${r} Q${-r * 0.7},${r * 0.5} ${-r * 0.6},0 Q${-r * 0.7},${-r * 0.5} 0,${-r}Z`,
+  // Extra shapes for SpeciesGenerator body plan names
+  'cryo-gel matrix': (r) => `M0,${-r * 0.9} Q${r * 1.1},${-r * 0.4} ${r * 0.85},${r * 0.6} Q0,${r * 1.0} ${-r * 0.85},${r * 0.6} Q${-r * 1.1},${-r * 0.4} 0,${-r * 0.9}Z`,
+  'ice-membrane sac': (r) => `M0,${-r} L${r * 0.5},${-r * 0.5} L${r * 0.8},${r * 0.3} L${r * 0.3},${r} L${-r * 0.3},${r} L${-r * 0.8},${r * 0.3} L${-r * 0.5},${-r * 0.5}Z`,
+  'antifreeze capsule': (r) => `M${-r * 0.5},${-r} Q${r * 0.5},${-r} ${r},0 Q${r * 0.5},${r} ${-r * 0.5},${r} Q${-r},${r * 0.5} ${-r},0 Q${-r},${-r * 0.5} ${-r * 0.5},${-r}Z`,
+  'lipid bilayer cell': (r) => {
+    let d = '';
+    for (let i = 0; i < 8; i++) {
+      const a = (Math.PI * 2 * i) / 8 - Math.PI / 2;
+      const rr = r * (0.85 + 0.15 * (i % 2));
+      d += `${i === 0 ? 'M' : 'L'}${Math.cos(a) * rr},${Math.sin(a) * rr} `;
+    }
+    return d + 'Z';
+  },
+  'flexible membrane': (r) => `M0,${-r} Q${r * 1.2},${-r * 0.3} ${r * 0.7},${r * 0.8} Q0,${r * 0.5} ${-r * 0.7},${r * 0.8} Q${-r * 1.2},${-r * 0.3} 0,${-r}Z`,
+  'hydrogel sphere': (r) => `M${-r},0 C${-r},${-r * 0.55} ${-r * 0.55},${-r} 0,${-r} C${r * 0.55},${-r} ${r},${-r * 0.55} ${r},0 C${r},${r * 0.55} ${r * 0.55},${r} 0,${r} C${-r * 0.55},${r} ${-r},${r * 0.55} ${-r},0Z`,
+  'silicate shell': (r) => `M0,${-r} L${r * 0.7},${-r * 0.7} L${r},0 L${r * 0.7},${r * 0.7} L0,${r} L${-r * 0.7},${r * 0.7} L${-r},0 L${-r * 0.7},${-r * 0.7}Z`,
+  'heat-resistant cyst': (r) => `M0,${-r} Q${r * 0.9},${-r * 0.5} ${r * 0.9},${r * 0.2} Q${r * 0.5},${r} 0,${r * 0.95} Q${-r * 0.5},${r} ${-r * 0.9},${r * 0.2} Q${-r * 0.9},${-r * 0.5} 0,${-r}Z`,
+  'ceramic microbe': (r) => `M0,${-r} L${r * 0.5},${-r * 0.87} L${r},0 L${r * 0.5},${r * 0.87} L${-r * 0.5},${r * 0.87} L${-r},0 L${-r * 0.5},${-r * 0.87}Z`,
+  'metalloprotein chain': (r) => `M${-r},${-r * 0.25} L${-r * 0.4},${-r * 0.6} L${r * 0.4},${-r * 0.6} L${r},${-r * 0.25} L${r},${r * 0.25} L${r * 0.4},${r * 0.6} L${-r * 0.4},${r * 0.6} L${-r},${r * 0.25}Z`,
+  'plasma-film entity': (r) => {
+    let d = '';
+    for (let i = 0; i < 5; i++) {
+      const a1 = (Math.PI * 2 * i) / 5 - Math.PI / 2;
+      const a2 = (Math.PI * 2 * (i + 0.5)) / 5 - Math.PI / 2;
+      d += `${i === 0 ? 'M' : 'L'}${Math.cos(a1) * r},${Math.sin(a1) * r} L${Math.cos(a2) * r * 0.38},${Math.sin(a2) * r * 0.38} `;
+    }
+    return d + 'Z';
+  },
+  'molten droplet': (r) => `M0,${-r} Q${r * 0.8},${-r * 0.6} ${r * 0.9},${r * 0.1} Q${r * 0.5},${r * 1.1} 0,${r} Q${-r * 0.5},${r * 1.1} ${-r * 0.9},${r * 0.1} Q${-r * 0.8},${-r * 0.6} 0,${-r}Z`,
+  'volcanic tube weaver': (r) => `M${-r * 0.3},${-r} L${r * 0.3},${-r} L${r * 0.5},${-r * 0.3} L${r},0 L${r * 0.5},${r * 0.3} L${r * 0.3},${r} L${-r * 0.3},${r} L${-r * 0.5},${r * 0.3} L${-r},0 L${-r * 0.5},${-r * 0.3}Z`,
+  'magma-crust symbiont': (r) => `M0,${-r} Q${r * 0.6},${-r * 0.8} ${r},${-r * 0.2} Q${r * 1.1},${r * 0.4} ${r * 0.4},${r} L${-r * 0.4},${r} Q${-r * 1.1},${r * 0.4} ${-r},${-r * 0.2} Q${-r * 0.6},${-r * 0.8} 0,${-r}Z`,
 };
 
 const METAB_COLORS = {
@@ -49,14 +81,22 @@ const METAB_COLORS = {
   phototrophy: ['#66dd55', '#338822'],
   radiosynthesis: ['#cc66ff', '#662299'],
   methanotrophy: ['#88bbff', '#334488'],
-  sulfur_oxidation: ['#ffcc33', '#886611'],
+  'sulfur': ['#ffcc33', '#886611'],
   cryosynthesis: ['#66eeff', '#2288aa'],
-};
+  osmotrophy: ['#55aadd', '#224466'],
+  heterotrophy: ['#cc9966', '#664422'],
+  mixotrophy: ['#88cc88', '#336644'],
+  'iron oxidation': ['#cc6644', '#882211'],
+  'plasma harvesting': ['#ff66cc', '#882266'],
+  'volcanic': ['#ff5522', '#881100'],
+  'ice-catalytic': ['#88eeff', '#3399bb'],
+}
 
 function getSpeciesColors(species) {
-  const m = species.traits?.metabolism || '';
+  const m = (species.traits?.metabolism || '').toLowerCase();
   for (const [key, cols] of Object.entries(METAB_COLORS)) {
-    if (m.includes(key) || m.includes(key.replace('_', ' '))) return cols;
+    const k = key.toLowerCase().replace('_', ' ');
+    if (m.includes(k)) return cols;
   }
   const rng = seededRand(hashStr(species.id || species.name || ''));
   const h = Math.floor(rng() * 360);
@@ -71,7 +111,7 @@ function SpeciesIcon({ species, size = 28 }) {
   const shapeFn = BODY_SHAPES[bodyType] || BODY_SHAPES['amorphous blob'];
   const [fill, stroke] = getSpeciesColors(species);
   const stage = species.stage || 'simple';
-  const extinct = species.extinctAt !== null;
+  const extinct = species.extinctAt != null;
 
   const r = size * 0.36;
   const bodyPath = shapeFn(r);
@@ -140,7 +180,7 @@ function buildTreeStructure(flatList) {
 }
 
 const SpeciesCard = ({ species, isSelected, onClick }) => {
-  const alive = species.extinctAt === null;
+  const alive = species.extinctAt == null;
   return (
     <button
       type="button"
@@ -244,14 +284,14 @@ const EvolutionTreeModal = ({ evolutionTree, lifeStage, planetName, onClose }) =
 
               <div className="evo-modal-detail">
                 {selectedSpecies ? (
-                  <div className={`evo-detail-card ${selectedSpecies.extinctAt !== null ? 'extinct' : 'alive'}`}>
+                  <div className={`evo-detail-card ${selectedSpecies.extinctAt != null ? 'extinct' : 'alive'}`}>
                     <div className="evo-detail-header">
                       <SpeciesIcon species={selectedSpecies} size={48} />
                       <div>
                         <div className="evo-detail-name">{selectedSpecies.name}</div>
                         <div className="evo-detail-stage">
                           {STAGE_LABELS[selectedSpecies.stage] || selectedSpecies.stage}
-                          {selectedSpecies.extinctAt !== null && (
+                          {selectedSpecies.extinctAt != null && (
                             <span className="evo-extinct-badge">EXTINCT</span>
                           )}
                         </div>
@@ -271,7 +311,7 @@ const EvolutionTreeModal = ({ evolutionTree, lifeStage, planetName, onClose }) =
                       <Metric label="Fitness" value={selectedSpecies.fitness} />
                       <Metric label="Population" value={selectedSpecies.population} />
                     </div>
-                    {selectedSpecies.extinctAt !== null && selectedSpecies.extinctReason && (
+                    {selectedSpecies.extinctAt != null && selectedSpecies.extinctReason && (
                       <div className="evo-detail-reason">
                         Cause: {selectedSpecies.extinctReason}
                       </div>
@@ -306,14 +346,17 @@ const EvolutionTreeButton = ({ evolutionTree, lifeStage, planetName }) => {
         🌿 Evolution Tree
         {count > 0 && <span className="evo-tree-btn-count">{alive} species</span>}
       </button>
-      {isOpen && (
-        <EvolutionTreeModal
-          evolutionTree={evolutionTree}
-          lifeStage={lifeStage}
-          planetName={planetName}
-          onClose={() => setIsOpen(false)}
-        />
-      )}
+      {isOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <EvolutionTreeModal
+            evolutionTree={evolutionTree}
+            lifeStage={lifeStage}
+            planetName={planetName}
+            onClose={() => setIsOpen(false)}
+          />,
+          document.body,
+        )}
     </>
   );
 };

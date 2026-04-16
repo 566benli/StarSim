@@ -3,7 +3,7 @@
  * Handles orbital mechanics, atmosphere, surface conditions, and habitability
  */
 import * as THREE from 'three';
-import CelestialBody from './CelestialBody';
+import CelestialBody from './CelestialBody.js';
 import { EARTH_MASS, EARTH_RADIUS, SOLAR_MASS } from '@utils/constants';
 
 export default class Planet extends CelestialBody {
@@ -249,7 +249,7 @@ export default class Planet extends CelestialBody {
       extinctionPressure: this.extinctionPressure,
       biosphereFitness: this.biosphereFitness,
       speciesProfile: this.speciesProfile,
-      evolutionTree: this.evolutionTree,
+      evolutionTree: [...this.evolutionTree],
       habitableZone: this.parentBody
         ? (this.isHabitable(this.parentBody.luminosity) ? 'Yes ✓' : 'No ✗')
         : 'N/A',

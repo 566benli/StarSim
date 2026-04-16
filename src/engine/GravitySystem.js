@@ -10,11 +10,11 @@
  */
 import * as THREE from 'three';
 import { R_SUN_IN_AU, ARENA_RADIUS_AU } from '@utils/constants';
-import CelestialBody from './CelestialBody';
-import Star from './Star';
-import Planet from './Planet';
-import BlackHole from './BlackHole';
-import CollisionSystem from './CollisionSystem';
+import CelestialBody from './CelestialBody.js';
+import Star from './Star.js';
+import Planet from './Planet.js';
+import BlackHole from './BlackHole.js';
+import CollisionSystem from './CollisionSystem.js';
 
 export default class GravitySystem {
   constructor() {
