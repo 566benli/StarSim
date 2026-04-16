@@ -9,6 +9,7 @@ import { getClosestNeighbors } from '@utils/gravityNeighbors';
 import { ELEMENTS } from '@data/elements';
 import HRDiagram from './HRDiagram';
 import EvolutionTreeButton from './EvolutionTree';
+import TechTree from './TechTree';
 import './InfoPanel.css';
 
 const PANEL_STORAGE_KEY = 'starsim-infopanel-position';
@@ -64,6 +65,7 @@ const PHASE_INFO = {
 const InfoPanel = ({ onExplore, onClose, onFocusBody, getBodies, engine }) => {
   const { selectedBody, simulationTime } = useStore();
   const [showHRDiagram, setShowHRDiagram] = useState(false);
+  const [showTechTree, setShowTechTree] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState('');
   const [labelVisible, setLabelVisible] = useState(true);
@@ -579,7 +581,28 @@ const InfoPanel = ({ onExplore, onClose, onFocusBody, getBodies, engine }) => {
               evolutionTree={props.evolutionTree}
               lifeStage={props.lifeStage}
               planetName={props.name}
+              civilization={selectedBody?.civilization}
             />
+
+            {/* Tech Tree — only shown if a civilization exists */}
+            {selectedBody?.civilization && !selectedBody.civilization.collapsed && (
+              <>
+                <button
+                  className="hr-diagram-btn"
+                  onClick={() => setShowTechTree(v => !v)}
+                  title="Toggle Technology Tree"
+                  style={{ marginTop: 6 }}
+                >
+                  🔬 Tech Tree {showTechTree ? '▲' : '▼'}
+                </button>
+                {showTechTree && (
+                  <TechTree
+                    civilization={selectedBody.civilization}
+                    onClose={() => setShowTechTree(false)}
+                  />
+                )}
+              </>
+            )}
           </div>
         </>
       )}

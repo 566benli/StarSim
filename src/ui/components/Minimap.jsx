@@ -179,6 +179,30 @@ const Minimap = ({
       ctx.lineWidth = 0.8;
       ctx.stroke();
     }
+
+    // Empire territory overlay — color-tint each cluster that contains empire systems
+    const empireSystem = engine?.getEmpireSystem?.();
+    if (empireSystem) {
+      for (const empire of empireSystem.getAllEmpires()) {
+        for (const sysId of empire.systemIds) {
+          const sys = engine.universe?.getSystem?.(sysId);
+          if (!sys) continue;
+          const clus = engine.universe?.getCluster?.(sys.clusterId);
+          if (!clus) continue;
+          const pos = worldToMap(
+            clus.position.x * 0.4, clus.position.z * 0.4,
+            { x: 0, z: 0 }, extent, size
+          );
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, 10, 0, Math.PI * 2);
+          ctx.fillStyle = empire.color + '22';
+          ctx.fill();
+          ctx.strokeStyle = empire.color + '66';
+          ctx.lineWidth = 0.8;
+          ctx.stroke();
+        }
+      }
+    }
   }, [engine, worldToMap]);
 
   const drawBodies = useCallback((ctx, size) => {
@@ -220,6 +244,13 @@ const Minimap = ({
 
       const selected = body.id === selectedBodyId;
 
+      // Empire overlay: draw empire-colored halo for planets with civilizations
+      const empireColor = body.civilization?.empireId
+        ? (engine?.getEmpireSystem?.()?.getEmpireForBody?.(body.id)?.color ?? null)
+        : body.civilization && !body.civilization.collapsed
+          ? '#ffaa00'
+          : null;
+
       if (body.type === 'star') {
         const glow = ctx.createRadialGradient(px, py, 0, px, py, 6);
         glow.addColorStop(0, selected ? '#00ffff' : 'rgba(255, 220, 150, 0.9)');
@@ -231,6 +262,16 @@ const Minimap = ({
         ctx.fill();
         ctx.fillStyle = selected ? '#00ffff' : '#ffcc66';
       } else if (body.type === 'planet') {
+        // Draw empire halo before the dot
+        if (empireColor) {
+          ctx.beginPath();
+          ctx.arc(px, py, 5, 0, Math.PI * 2);
+          ctx.fillStyle = empireColor + '44';
+          ctx.fill();
+          ctx.strokeStyle = empireColor + 'aa';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
         ctx.fillStyle = selected ? '#00ff88' : 'rgba(100, 200, 255, 0.8)';
       } else {
         ctx.fillStyle = selected ? '#ff44aa' : 'rgba(150, 100, 255, 0.8)';

@@ -21,6 +21,8 @@ import RadiationSystem from './RadiationSystem.js';
 import CatastropheSystem from './CatastropheSystem.js';
 import OrbitalAnalysisSystem from './OrbitalAnalysisSystem.js';
 import LifeEvolutionSystem from './LifeEvolutionSystem.js';
+import CivilizationSystem from './CivilizationSystem.js';
+import EmpireSystem from './EmpireSystem.js';
 import { getApplicableEvents } from '@data/events';
 import { STAR_PRESETS } from '@data/starTypes';
 import { PLANET_PRESETS } from '@data/planetTypes';
@@ -73,6 +75,8 @@ export default class SimEngine {
     this.catastropheSystem  = new CatastropheSystem();
     this.orbitalAnalysis    = new OrbitalAnalysisSystem();
     this.lifeEvolutionSystem = new LifeEvolutionSystem();
+    this.civilizationSystem  = new CivilizationSystem();
+    this.empireSystem        = new EmpireSystem();
 
     // How often (in sim years) to run orbital analysis (expensive for many bodies)
     this._orbitalCheckInterval   = 1.0;
@@ -81,6 +85,8 @@ export default class SimEngine {
     this._lastRadiationUpdate    = 0;
     this._lifeUpdateInterval     = 10;
     this._lastLifeUpdate         = 0;
+    this._civUpdateInterval      = 50;
+    this._lastCivUpdate          = 0;
     this._escapeVisualScaleMly = 10;
     this._escapeVisualVelocityMly = 2.5;
   }
@@ -531,6 +537,28 @@ export default class SimEngine {
         this.lifeEvolutionSystem.update(gs.getAliveBodies(), lifeDt, nextSimulationTime);
       }
       this._lastLifeUpdate = nextSimulationTime;
+    }
+
+    // Civilization & Empire update (less frequent — every 50 sim-years)
+    if (nextSimulationTime - this._lastCivUpdate >= this._civUpdateInterval) {
+      const civDt = nextSimulationTime - this._lastCivUpdate;
+      const allBodies = this.getBodies();
+      this.civilizationSystem._allBodies = allBodies;
+      for (const gs of this.gravitySystems.values()) {
+        this.civilizationSystem.update(
+          gs.getAliveBodies(), civDt, nextSimulationTime, this.empireSystem
+        );
+      }
+      this._lastCivUpdate = nextSimulationTime;
+
+      // Consume civ + empire events
+      const civEvents = this.civilizationSystem.consumePendingEvents();
+      const empEvents = this.empireSystem.consumePendingEvents();
+      for (const event of [...civEvents, ...empEvents]) {
+        this.eventHistory.push(event);
+        this.pendingEvents.push(event);
+        if (this.onEvent) this.onEvent(event);
+      }
     }
 
     this.simulationTime = nextSimulationTime;
@@ -1194,5 +1222,13 @@ export default class SimEngine {
     this.eventHistory = [];
     this.lastEventCheck = 0;
     this._lastLifeUpdate = 0;
+    this._lastCivUpdate  = 0;
+    this.empireSystem.reset();
+    this.civilizationSystem.pendingEvents = [];
+    this.civilizationSystem._allBodies = [];
   }
+
+  /** Expose empire system for UI queries */
+  getEmpireSystem() { return this.empireSystem; }
+  getCivilizationSystem() { return this.civilizationSystem; }
 }

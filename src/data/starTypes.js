@@ -57,6 +57,20 @@ export const STAR_PRESETS = {
     funFact: 'Blue giants can be 100,000 times brighter than the Sun but live only a few million years.',
   },
 
+  orange_dwarf: {
+    id: 'orange_dwarf',
+    name: 'Orange Dwarf',
+    category: 'main_sequence',
+    description: 'A K-type star — cooler than the Sun but longer-lived. Great for stable habitable zones.',
+    icon: '🟠',
+    mass: { default: 0.7, min: 0.5, max: 0.9, unit: 'M☉' },
+    radius: { default: 0.7, min: 0.5, max: 0.9, unit: 'R☉' },
+    temperature: { default: 4500, min: 3700, max: 5200, unit: 'K' },
+    luminosity: { default: 0.2, min: 0.05, max: 0.6, unit: 'L☉' },
+    age: { default: 0, min: 0, max: 30, unit: 'Gyr' },
+    funFact: 'Orange dwarfs may be the best hosts for life — stable for 20–70 billion years!',
+  },
+
   // === Evolved Stars ===
   red_giant: {
     id: 'red_giant',

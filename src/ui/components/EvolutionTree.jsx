@@ -1,11 +1,27 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { CIV_STAGES, KARDASHEV_LEVELS } from '@data/techTree.js';
 import './EvolutionTree.css';
 
 const STAGE_LABELS = {
-  simple: 'Single-cell',
-  complex: 'Multicellular',
-  intelligent: 'Sapient',
+  simple:       'Single-cell',
+  complex:      'Multicellular',
+  intelligent:  'Sapient',
+  civilization: 'Civilized',
+};
+
+const STAGE_TIER_ICON = {
+  simple:       '🦠',
+  complex:      '🐠',
+  intelligent:  '🧠',
+  civilization: '🏙️',
+};
+
+const STAGE_COLORS = {
+  simple:       '#44cc88',
+  complex:      '#44aaff',
+  intelligent:  '#cc88ff',
+  civilization: '#ffaa00',
 };
 
 function seededRand(seed) {
@@ -103,14 +119,39 @@ function getSpeciesColors(species) {
   return [`hsl(${h}, 65%, 55%)`, `hsl(${h}, 50%, 30%)`];
 }
 
-function SpeciesIcon({ species, size = 28 }) {
+function CivSpeciesIcon({ species, size = 28, civ }) {
+  // Special icon for civilization-tier species
+  const extinct = species.extinctAt != null;
+  const kLevel = civ?.kardashevLevel ?? 0;
+  const stageIcon = kLevel >= 3 ? '✨' : kLevel >= 2 ? '🌐' : kLevel >= 1 ? '🚀' : '🏙️';
+  return (
+    <span
+      className="species-svg-icon civ-species-icon"
+      style={{
+        width: size, height: size, fontSize: size * 0.65,
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        opacity: extinct ? 0.4 : 1, lineHeight: 1,
+      }}
+    >
+      {stageIcon}
+    </span>
+  );
+}
+
+function SpeciesIcon({ species, size = 28, civ }) {
+  const stage = species.stage || 'simple';
+
+  // Civilization species get a special icon
+  if (stage === 'civilization') {
+    return <CivSpeciesIcon species={species} size={size} civ={civ} />;
+  }
+
   const seed = hashStr(species.id || species.name || '');
   const rng = seededRand(seed);
 
   const bodyType = species.traits?.bodyType || 'amorphous blob';
   const shapeFn = BODY_SHAPES[bodyType] || BODY_SHAPES['amorphous blob'];
   const [fill, stroke] = getSpeciesColors(species);
-  const stage = species.stage || 'simple';
   const extinct = species.extinctAt != null;
 
   const r = size * 0.36;
@@ -179,22 +220,24 @@ function buildTreeStructure(flatList) {
   return roots;
 }
 
-const SpeciesCard = ({ species, isSelected, onClick }) => {
+const SpeciesCard = ({ species, isSelected, onClick, civ }) => {
   const alive = species.extinctAt == null;
+  const stageColor = STAGE_COLORS[species.stage] || '#888';
   return (
     <button
       type="button"
-      className={`evo-species-node ${alive ? 'alive' : 'extinct'} ${isSelected ? 'selected' : ''}`}
+      className={`evo-species-node ${alive ? 'alive' : 'extinct'} ${isSelected ? 'selected' : ''} stage-${species.stage || 'simple'}`}
       onClick={(e) => { e.stopPropagation(); onClick(species); }}
       title={species.description}
+      style={{ '--stage-color': stageColor }}
     >
-      <SpeciesIcon species={species} size={22} />
+      <SpeciesIcon species={species} size={22} civ={civ} />
       <span className="evo-species-name">{species.name}</span>
     </button>
   );
 };
 
-const TreeBranch = ({ node, selectedId, onSelect, depth }) => {
+const TreeBranch = ({ node, selectedId, onSelect, depth, civ }) => {
   const hasChildren = node.children && node.children.length > 0;
   return (
     <div className="evo-branch" data-depth={depth}>
@@ -202,6 +245,7 @@ const TreeBranch = ({ node, selectedId, onSelect, depth }) => {
         species={node}
         isSelected={selectedId === node.id}
         onClick={onSelect}
+        civ={civ}
       />
       {hasChildren && (
         <div className="evo-children">
@@ -212,6 +256,7 @@ const TreeBranch = ({ node, selectedId, onSelect, depth }) => {
               selectedId={selectedId}
               onSelect={onSelect}
               depth={depth + 1}
+              civ={civ}
             />
           ))}
         </div>
@@ -220,20 +265,52 @@ const TreeBranch = ({ node, selectedId, onSelect, depth }) => {
   );
 };
 
-const EvolutionTreeModal = ({ evolutionTree, lifeStage, planetName, onClose }) => {
+const EvolutionTreeModal = ({ evolutionTree, lifeStage, planetName, civilization, onClose }) => {
   const [selectedSpecies, setSelectedSpecies] = useState(null);
 
+  // Merge civilization node into tree if applicable
+  const fullTree = useMemo(() => {
+    const base = evolutionTree || [];
+    if (!civilization || civilization.collapsed) return base;
+    // Add a synthetic "civilization" node descending from dominant intelligent species
+    const dominantIntelligent = [...base]
+      .filter(s => s.stage === 'intelligent' && s.extinctAt === null)
+      .sort((a, b) => (b.fitness || 0) - (a.fitness || 0))[0];
+    const civNode = {
+      id: `civ_node_${civilization.id}`,
+      name: civilization.name,
+      description: `${civilization.name} — ${CIV_STAGES[civilization.stage]?.description ?? ''}`,
+      parentId: dominantIntelligent?.id ?? null,
+      traits: {
+        bodyType: 'civilization',
+        metabolism: 'technology',
+        locomotion: civilization.stage === 'interstellar' ? 'ftl-capable' : civilization.stage === 'space' ? 'spacefaring' : 'planetary',
+        size: 'civilizational',
+        intelligence: 'sapient-civilized',
+      },
+      fitness: Math.min(1, (civilization.techPoints ?? 0) / 5000 + 0.3),
+      population: Math.min(1, (civilization.population ?? 0) / 100),
+      stage: 'civilization',
+      appearedAt: civilization.discoveredAt ?? 0,
+      extinctAt: civilization.collapsed ? 1 : null,
+      extinctReason: civilization.collapseReason ?? null,
+    };
+    return [...base, civNode];
+  }, [evolutionTree, civilization]);
+
   const treeRoots = useMemo(
-    () => buildTreeStructure(evolutionTree || []),
-    [evolutionTree],
+    () => buildTreeStructure(fullTree),
+    [fullTree],
   );
 
   const stats = useMemo(() => {
-    const list = evolutionTree || [];
+    const list = fullTree;
+    const byStage = { simple: 0, complex: 0, intelligent: 0, civilization: 0 };
     const alive = list.filter(s => s.extinctAt === null);
     const extinct = list.filter(s => s.extinctAt !== null);
-    return { total: list.length, alive: alive.length, extinct: extinct.length };
-  }, [evolutionTree]);
+    for (const s of list) if (byStage[s.stage] !== undefined) byStage[s.stage]++;
+    return { total: list.length, alive: alive.length, extinct: extinct.length, byStage };
+  }, [fullTree]);
 
   const handleSelect = useCallback((sp) => {
     setSelectedSpecies((prev) => (prev?.id === sp.id ? null : sp));
@@ -256,6 +333,26 @@ const EvolutionTreeModal = ({ evolutionTree, lifeStage, planetName, onClose }) =
           <button className="evo-modal-close" onClick={onClose}>✕</button>
         </div>
 
+        {/* Stage tier summary bar */}
+        {!noLife && (
+          <div className="evo-stage-bar">
+            {Object.entries(stats.byStage).map(([stage, count]) => count > 0 && (
+              <span key={stage} className={`evo-stage-chip stage-${stage}`}
+                style={{ '--stage-color': STAGE_COLORS[stage] }}>
+                {STAGE_TIER_ICON[stage]} {STAGE_LABELS[stage]} ×{count}
+              </span>
+            ))}
+            {civilization && !civilization.collapsed && (
+              <span className="evo-civ-banner"
+                style={{ background: KARDASHEV_LEVELS[civilization.kardashevLevel ?? 0]?.color + '33',
+                         borderColor: KARDASHEV_LEVELS[civilization.kardashevLevel ?? 0]?.color }}>
+                ⭐ {CIV_STAGES[civilization.stage]?.icon ?? '🏙️'} {civilization.name}
+                · K-{civilization.kardashevLevel ?? 0}
+              </span>
+            )}
+          </div>
+        )}
+
         <div className="evo-modal-body">
           {noLife ? (
             <div className="evo-tree-empty">
@@ -277,6 +374,7 @@ const EvolutionTreeModal = ({ evolutionTree, lifeStage, planetName, onClose }) =
                       selectedId={selectedSpecies?.id}
                       onSelect={handleSelect}
                       depth={0}
+                      civ={civilization}
                     />
                   ))}
                 </div>
@@ -284,12 +382,14 @@ const EvolutionTreeModal = ({ evolutionTree, lifeStage, planetName, onClose }) =
 
               <div className="evo-modal-detail">
                 {selectedSpecies ? (
-                  <div className={`evo-detail-card ${selectedSpecies.extinctAt != null ? 'extinct' : 'alive'}`}>
+                  <div className={`evo-detail-card ${selectedSpecies.extinctAt != null ? 'extinct' : 'alive'} stage-${selectedSpecies.stage}`}
+                    style={{ '--stage-color': STAGE_COLORS[selectedSpecies.stage] || '#888' }}>
                     <div className="evo-detail-header">
-                      <SpeciesIcon species={selectedSpecies} size={48} />
+                      <SpeciesIcon species={selectedSpecies} size={48} civ={civilization} />
                       <div>
                         <div className="evo-detail-name">{selectedSpecies.name}</div>
-                        <div className="evo-detail-stage">
+                        <div className="evo-detail-stage" style={{ color: STAGE_COLORS[selectedSpecies.stage] }}>
+                          {STAGE_TIER_ICON[selectedSpecies.stage] || ''}{' '}
                           {STAGE_LABELS[selectedSpecies.stage] || selectedSpecies.stage}
                           {selectedSpecies.extinctAt != null && (
                             <span className="evo-extinct-badge">EXTINCT</span>
@@ -298,7 +398,38 @@ const EvolutionTreeModal = ({ evolutionTree, lifeStage, planetName, onClose }) =
                       </div>
                     </div>
                     <p className="evo-detail-desc">{selectedSpecies.description}</p>
-                    {selectedSpecies.traits && (
+
+                    {/* Civilization extra info */}
+                    {selectedSpecies.stage === 'civilization' && civilization && (
+                      <div className="evo-civ-detail-extra">
+                        <div className="evo-civ-detail-row">
+                          <span>Stage</span>
+                          <strong>{CIV_STAGES[civilization.stage]?.icon} {CIV_STAGES[civilization.stage]?.label}</strong>
+                        </div>
+                        <div className="evo-civ-detail-row">
+                          <span>Kardashev</span>
+                          <strong style={{ color: KARDASHEV_LEVELS[civilization.kardashevLevel ?? 0]?.color }}>
+                            Type {civilization.kardashevLevel ?? 0}
+                          </strong>
+                        </div>
+                        <div className="evo-civ-detail-row">
+                          <span>Population</span>
+                          <strong>{(civilization.population ?? 0).toFixed(3)} B</strong>
+                        </div>
+                        <div className="evo-civ-detail-row">
+                          <span>Tech Points</span>
+                          <strong>{Math.round(civilization.techPoints ?? 0)}</strong>
+                        </div>
+                        {(civilization.megastructures ?? []).length > 0 && (
+                          <div className="evo-civ-detail-row">
+                            <span>Megastructures</span>
+                            <strong>{civilization.megastructures.join(', ')}</strong>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {selectedSpecies.traits && selectedSpecies.stage !== 'civilization' && (
                       <div className="evo-detail-traits">
                         <TraitRow label="Body" value={selectedSpecies.traits.bodyType} />
                         <TraitRow label="Metabolism" value={selectedSpecies.traits.metabolism} />
@@ -307,10 +438,12 @@ const EvolutionTreeModal = ({ evolutionTree, lifeStage, planetName, onClose }) =
                         <TraitRow label="Intelligence" value={selectedSpecies.traits.intelligence} />
                       </div>
                     )}
-                    <div className="evo-detail-metrics">
-                      <Metric label="Fitness" value={selectedSpecies.fitness} />
-                      <Metric label="Population" value={selectedSpecies.population} />
-                    </div>
+                    {selectedSpecies.stage !== 'civilization' && (
+                      <div className="evo-detail-metrics">
+                        <Metric label="Fitness" value={selectedSpecies.fitness} />
+                        <Metric label="Population" value={selectedSpecies.population} />
+                      </div>
+                    )}
                     {selectedSpecies.extinctAt != null && selectedSpecies.extinctReason && (
                       <div className="evo-detail-reason">
                         Cause: {selectedSpecies.extinctReason}
@@ -331,20 +464,27 @@ const EvolutionTreeModal = ({ evolutionTree, lifeStage, planetName, onClose }) =
   );
 };
 
-const EvolutionTreeButton = ({ evolutionTree, lifeStage, planetName }) => {
+const EvolutionTreeButton = ({ evolutionTree, lifeStage, planetName, civilization }) => {
   const [isOpen, setIsOpen] = useState(false);
   const count = (evolutionTree || []).length;
   const alive = (evolutionTree || []).filter(s => s.extinctAt === null).length;
+  const hasCiv = civilization && !civilization.collapsed;
 
   return (
     <>
       <button
-        className="evo-tree-open-btn"
+        className={`evo-tree-open-btn ${hasCiv ? 'has-civilization' : ''}`}
         onClick={() => setIsOpen(true)}
         title="View evolution tree"
       >
-        🌿 Evolution Tree
-        {count > 0 && <span className="evo-tree-btn-count">{alive} species</span>}
+        {hasCiv ? '🏙️' : '🌿'} Evolution Tree
+        {count > 0 && <span className="evo-tree-btn-count">{alive} alive</span>}
+        {hasCiv && (
+          <span className="evo-civ-badge"
+            style={{ background: KARDASHEV_LEVELS[civilization.kardashevLevel ?? 0]?.color }}>
+            K-{civilization.kardashevLevel ?? 0}
+          </span>
+        )}
       </button>
       {isOpen &&
         typeof document !== 'undefined' &&
@@ -353,6 +493,7 @@ const EvolutionTreeButton = ({ evolutionTree, lifeStage, planetName }) => {
             evolutionTree={evolutionTree}
             lifeStage={lifeStage}
             planetName={planetName}
+            civilization={civilization}
             onClose={() => setIsOpen(false)}
           />,
           document.body,

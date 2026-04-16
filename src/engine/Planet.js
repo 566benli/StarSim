@@ -50,6 +50,9 @@ export default class Planet extends CelestialBody {
     this.lifeSignature = config.lifeSignature || null;
     this.evolutionTree = Array.isArray(config.evolutionTree) ? config.evolutionTree.map(n => ({ ...n, traits: n.traits ? { ...n.traits } : null })) : [];
 
+    // Civilization (null = no civilization; object = active/collapsed civilization)
+    this.civilization = config.civilization ? this._cloneCiv(config.civilization) : null;
+
     // Rings
     this.hasRings = config.hasRings || false;
     this.ringInnerRadius = config.ringInnerRadius || this.radiusEarth * 1.5;
@@ -73,6 +76,16 @@ export default class Planet extends CelestialBody {
     // Visual
     this.color = config.color || '#4488cc';
     this.bandColors = config.bandColors || null; // For gas giants
+  }
+
+  _cloneCiv(civ) {
+    if (!civ) return null;
+    return {
+      ...civ,
+      unlockedTechs: Array.isArray(civ.unlockedTechs) ? [...civ.unlockedTechs] : [],
+      megastructures: Array.isArray(civ.megastructures) ? [...civ.megastructures] : [],
+      fleets: Array.isArray(civ.fleets) ? [...civ.fleets] : [],
+    };
   }
 
   /**
@@ -250,6 +263,7 @@ export default class Planet extends CelestialBody {
       biosphereFitness: this.biosphereFitness,
       speciesProfile: this.speciesProfile,
       evolutionTree: [...this.evolutionTree],
+      civilization: this.civilization ? this._cloneCiv(this.civilization) : null,
       habitableZone: this.parentBody
         ? (this.isHabitable(this.parentBody.luminosity) ? 'Yes ✓' : 'No ✗')
         : 'N/A',
@@ -303,6 +317,7 @@ export default class Planet extends CelestialBody {
       environmentProfile: this.environmentProfile ? { ...this.environmentProfile } : null,
       lifeSignature: this.lifeSignature,
       evolutionTree: this.evolutionTree.map(n => ({ ...n, traits: n.traits ? { ...n.traits } : null })),
+      civilization: this.civilization ? this._cloneCiv(this.civilization) : null,
     };
   }
 }

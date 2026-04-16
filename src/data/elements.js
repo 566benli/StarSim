@@ -71,7 +71,12 @@ export const PLANETARY_COMPOSITIONS = {
   ice_giant:    { H: 0.15, He: 0.10, O: 0.30, C: 0.20, N: 0.15, S: 0.05, Si: 0.03, Fe: 0.02 },
   hot_jupiter:  { H: 0.71, He: 0.27, C: 0.005, O: 0.005, N: 0.002, S: 0.001 },
   lava_world:   { Fe: 0.35, Si: 0.25, O: 0.20, Mg: 0.10, S: 0.05, Ni: 0.03, C: 0.02 },
-  rogue_planet: { Fe: 0.30, O: 0.28, Si: 0.20, Mg: 0.12, C: 0.05, H: 0.03, N: 0.02 },
+  rogue_planet:  { Fe: 0.30, O: 0.28, Si: 0.20, Mg: 0.12, C: 0.05, H: 0.03, N: 0.02 },
+  desert_world:  { Fe: 0.34, O: 0.26, Si: 0.20, Mg: 0.10, S: 0.04, Ni: 0.02, C: 0.02, N: 0.01, H: 0.01 },
+  ocean_world:   { H: 0.11, O: 0.55, Fe: 0.12, Si: 0.08, Mg: 0.06, C: 0.03, N: 0.03, S: 0.02 },
+  asteroid:      { Fe: 0.25, Si: 0.20, O: 0.18, Mg: 0.15, Ni: 0.08, S: 0.06, C: 0.05, H: 0.03 },
+  comet:         { H: 0.30, O: 0.30, C: 0.15, N: 0.10, Si: 0.05, Fe: 0.03, S: 0.04, Mg: 0.03 },
+  dwarf_planet:  { Fe: 0.28, O: 0.25, Si: 0.18, Mg: 0.12, C: 0.06, H: 0.05, N: 0.04, S: 0.02 },
 };
 
 /**

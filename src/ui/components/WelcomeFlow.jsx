@@ -13,18 +13,24 @@ const ONB = (name) => `./assets/onboarding/${name}`;
 const STEPS = [
   {
     title: 'Welcome to StarSim',
-    body: 'You’ll build and evolve your own space of stars, planets, and compact objects. This short tour covers the essentials — you can skip anytime.',
+    body: "You'll build and evolve your own universe of stars, planets, and compact objects. This short tour covers the essentials \u2014 you can skip anytime.",
     image: ONB('onb-0-welcome.svg'),
     imageAlt: 'Illustration: star, planets, and orbit curve in space',
   },
   {
-    title: 'Your first object',
-    body: 'On the next screen, add exactly one body — a star, planet, black hole, or other preset. After you launch, use the Objects bar at the top to drag in more stars and planets; drop on the canvas to set distance and angle from existing bodies.',
-    image: ONB('onb-1-first-object.svg'),
-    imageAlt: 'Illustration: object palette and Launch button',
+    title: 'Creating a new universe',
+    body: 'Click "Create New Universe" to start fresh. In Step 1 you tune universe parameters \u2014 star formation rate, initial clusters, life difficulty, and more. In Step 2 you pick your first object (a star, planet, or even a comet) and hit Launch!',
+    image: ONB('onb-5b-universe-creation.svg'),
+    imageAlt: 'Illustration: two-step universe creation flow',
   },
   {
-    title: 'Views: Universe → System → Body',
+    title: 'Stars, planets & small bodies',
+    body: 'After launching, the Objects bar at the top has three tabs: Stars, Planets, and Small Bodies. Drag any object onto the canvas to place it \u2014 asteroids, comets, dwarf planets, and more are all available. Double-click for quick placement.',
+    image: ONB('onb-5c-objects.svg'),
+    imageAlt: 'Illustration: object palette with stars, planets, and small bodies tabs',
+  },
+  {
+    title: 'Views: Universe \u2192 System \u2192 Body',
     body: 'Use the breadcrumb (Universe / System / Body) to change scale. Universe shows galaxies; System shows orbits in AU; Body zooms on one object. The minimap and Universe panel also help you jump around.',
     image: ONB('onb-2-views.svg'),
     imageAlt: 'Illustration: breadcrumb navigation and system view',
@@ -37,9 +43,15 @@ const STEPS = [
   },
   {
     title: 'Information panel & orbit trails',
-    body: 'In System or Body view, click any star or planet to open its information panel (properties, neighbors, 🎯 Focus). Bright curved trails behind moving bodies show recent orbital paths — like sandbox-style orbit visualization.',
+    body: 'In System or Body view, click any star or planet to open its information panel (properties, neighbors, \uD83C\uDFAF Focus). Bright curved trails behind moving bodies show recent orbital paths \u2014 like sandbox-style orbit visualization.',
     image: ONB('onb-4-click-trails.svg'),
     imageAlt: 'Illustration: orbit trails and info panel',
+  },
+  {
+    title: 'Life evolution & event chronicle',
+    body: "Planets can develop life! Click a body to see its evolution tree \u2014 species branch and adapt to local conditions. The book icon opens the Event Chronicle: a log of every major event in your universe's history.",
+    image: ONB('onb-4-click-trails.svg'),
+    imageAlt: 'Illustration: evolution tree and event chronicle',
   },
   {
     title: 'Saving & loading',
@@ -48,8 +60,8 @@ const STEPS = [
     imageAlt: 'Illustration: save slots',
   },
   {
-    title: 'You’re ready',
-    body: 'Next, pick a starter scene to explore, or build entirely from scratch. You can replay this tour from the setup screen anytime.',
+    title: "You're ready!",
+    body: 'Next, pick a starter scene to explore, or build entirely from scratch. You can replay this tour from the setup screen anytime. Have fun creating your universe!',
     image: ONB('onb-6-ready.svg'),
     imageAlt: 'Illustration: example vs scratch choice',
   },

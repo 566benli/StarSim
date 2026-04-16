@@ -49,7 +49,10 @@ const BASE_CONFIG = {
   stages: {
     simpleThreshold: 0.18,
     complexThreshold: 0.55,
-    intelligentThreshold: 0.9,
+    // Intelligence target is a weighted sum of scores each in [0,1]; realistic
+    // max is ~0.85 for an optimally evolved earth-like world. Threshold must be
+    // well below that so at least very good planets can reach the intelligent stage.
+    intelligentThreshold: 0.62,
   },
 };
 

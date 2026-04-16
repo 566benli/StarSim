@@ -34,7 +34,8 @@
 .evo-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 9000;
+  /* Above minimap (1100), cluster panels (~1200), time bar (1000); portal renders at body */
+  z-index: 12000;
   background: rgba(0, 0, 0, 0.7);
   display: flex;
   align-items: center;
@@ -421,4 +422,109 @@
   font-size: 10.5px;
   color: #ff6b6b;
   font-style: italic;
+}
+
+/* ── Civilization tier enhancements ──────────────────────────────── */
+
+.evo-tree-open-btn.has-civilization {
+  background: linear-gradient(135deg, #1a1a2a, #2a1a0a);
+  border-color: #ffaa00;
+  color: #ffcc44;
+}
+
+.evo-tree-open-btn.has-civilization:hover {
+  border-color: #ffcc00;
+  background: linear-gradient(135deg, #222230, #331a00);
+}
+
+.evo-civ-badge {
+  margin-left: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: #000;
+}
+
+/* Stage tier bar */
+.evo-stage-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 10px;
+  background: rgba(0,0,0,0.25);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.evo-stage-chip {
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(120,200,120,0.12);
+  border: 1px solid rgba(120,200,120,0.3);
+  color: #aaddaa;
+}
+
+.evo-stage-chip.stage-simple     { background: rgba(68,204,136,0.12); border-color: rgba(68,204,136,0.35); color: #66dd99; }
+.evo-stage-chip.stage-complex    { background: rgba(68,170,255,0.12); border-color: rgba(68,170,255,0.35); color: #66bbff; }
+.evo-stage-chip.stage-intelligent{ background: rgba(200,136,255,0.12);border-color: rgba(200,136,255,0.35);color: #cc99ff; }
+.evo-stage-chip.stage-civilization{ background: rgba(255,170,0,0.12); border-color: rgba(255,170,0,0.35);  color: #ffcc44; }
+
+.evo-civ-banner {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: 1px solid rgba(255,170,0,0.4);
+  color: #ffcc44;
+  background: rgba(255,170,0,0.08);
+}
+
+/* Stage-colored left border on species nodes */
+.evo-species-node.stage-simple       { border-left: 2px solid #44cc88; }
+.evo-species-node.stage-complex      { border-left: 2px solid #44aaff; }
+.evo-species-node.stage-intelligent  { border-left: 2px solid #cc88ff; }
+.evo-species-node.stage-civilization {
+  border-left: 2px solid #ffaa00;
+  background: rgba(255,170,0,0.07) !important;
+}
+.evo-species-node.stage-civilization .evo-species-name { color: #ffcc44; }
+
+/* Detail card stage tint */
+.evo-detail-card.stage-civilization {
+  border-color: rgba(255,170,0,0.35);
+  background: rgba(255,170,0,0.04);
+}
+
+.evo-detail-card.stage-complex     { border-color: rgba(68,170,255,0.3);  }
+.evo-detail-card.stage-intelligent { border-color: rgba(200,136,255,0.3); }
+
+/* Civilization detail rows inside the detail card */
+.evo-civ-detail-extra {
+  margin-top: 8px;
+  padding: 6px 8px;
+  background: rgba(255,170,0,0.05);
+  border: 1px solid rgba(255,170,0,0.2);
+  border-radius: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.evo-civ-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+}
+
+.evo-civ-detail-row span  { color: #8899aa; }
+.evo-civ-detail-row strong { color: #e8f4ff; font-weight: 600; }
+
+/* Civilization species icon (emoji-based) */
+.civ-species-icon {
+  border-radius: 50%;
+  background: rgba(255,170,0,0.1);
+  border: 1px solid rgba(255,170,0,0.25);
+  flex-shrink: 0;
 }

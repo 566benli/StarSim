@@ -11,6 +11,7 @@ import './ObjectPalette.css';
 
 const STAR_ICONS = {
   red_dwarf: { icon: '\u2B50', color: '#ff6644' },
+  orange_dwarf: { icon: '🟠', color: '#ffa844' },
   sun_like: { icon: '\u2600', color: '#ffcc44' },
   blue_giant: { icon: '\u2B50', color: '#4488ff' },
   red_giant: { icon: '\uD83D\uDD34', color: '#ff4400' },
@@ -30,6 +31,11 @@ const PLANET_ICONS = {
   hot_jupiter: { icon: '\uD83D\uDD25', color: '#ff6622' },
   lava_world: { icon: '\uD83C\uDF0B', color: '#ff4400' },
   rogue_planet: { icon: '\uD83C\uDF11', color: '#556' },
+  desert_world: { icon: '🏜️', color: '#c9a44a' },
+  ocean_world: { icon: '🌊', color: '#2266aa' },
+  asteroid: { icon: '🪨', color: '#887766' },
+  comet: { icon: '☄️', color: '#aaddee' },
+  dwarf_planet: { icon: '🔘', color: '#998877' },
 };
 
 const ObjectPalette = ({ onDragStart, onAddBody, viewLevel }) => {
@@ -50,6 +56,7 @@ const ObjectPalette = ({ onDragStart, onAddBody, viewLevel }) => {
     }
     setSelectedPreset(presetId);
     const preset = type === 'star' ? STAR_PRESETS[presetId] : PLANET_PRESETS[presetId];
+    if (!preset) return;
     setEditParams({
       name: preset.name,
       mass: preset.mass.default,
@@ -59,7 +66,7 @@ const ObjectPalette = ({ onDragStart, onAddBody, viewLevel }) => {
     const phaseMap = { red_giant: 'red_giant', red_supergiant: 'red_supergiant', white_dwarf: 'white_dwarf', neutron_star: 'neutron_star', black_hole: 'black_hole', supermassive_black_hole: 'black_hole' };
     const defComp = type === 'star'
       ? { ...getDefaultComposition('star', presetId, phaseMap[presetId] || 'main_sequence') }
-      : { ...(PLANETARY_COMPOSITIONS[presetId] || PLANETARY_COMPOSITIONS.earth_like) };
+      : { ...(PLANETARY_COMPOSITIONS[presetId] || PLANETARY_COMPOSITIONS.rocky_small || PLANETARY_COMPOSITIONS.earth_like) };
     setEditComposition(defComp);
   }, [selectedPreset]);
 
@@ -102,7 +109,7 @@ const ObjectPalette = ({ onDragStart, onAddBody, viewLevel }) => {
 
   const randomizePaletteParams = useCallback(() => {
     if (!selectedPreset) return;
-    const preset = tab === 'stars' ? STAR_PRESETS[selectedPreset] : PLANET_PRESETS[selectedPreset];
+    const preset = (tab === 'stars') ? STAR_PRESETS[selectedPreset] : PLANET_PRESETS[selectedPreset];
     if (!preset) return;
     setEditParams((prev) => {
       const next = { ...prev, name: prev.name || preset.name };
@@ -118,7 +125,7 @@ const ObjectPalette = ({ onDragStart, onAddBody, viewLevel }) => {
       if (preset.luminosity) {
         next.luminosity = preset.luminosity.min + Math.random() * (preset.luminosity.max - preset.luminosity.min);
       }
-      if (tab === 'planets' && preset.orbitalDistance) {
+      if ((tab === 'planets' || tab === 'small_bodies') && preset.orbitalDistance) {
         next.orbitalDistance = preset.orbitalDistance.min
           + Math.random() * (preset.orbitalDistance.max - preset.orbitalDistance.min);
       }
@@ -150,7 +157,8 @@ const ObjectPalette = ({ onDragStart, onAddBody, viewLevel }) => {
   }
 
   const starPresets = Object.entries(STAR_PRESETS);
-  const planetPresets = Object.entries(PLANET_PRESETS);
+  const planetPresets = Object.entries(PLANET_PRESETS).filter(([, p]) => p.category !== 'small_body');
+  const smallBodyPresets = Object.entries(PLANET_PRESETS).filter(([, p]) => p.category === 'small_body');
   const currentPreset = selectedPreset
     ? (tab === 'stars' ? STAR_PRESETS[selectedPreset] : PLANET_PRESETS[selectedPreset])
     : null;
@@ -170,6 +178,12 @@ const ObjectPalette = ({ onDragStart, onAddBody, viewLevel }) => {
             onClick={() => { setTab('planets'); setSelectedPreset(null); }}
           >
             Planets
+          </button>
+          <button
+            className={`palette-tab ${tab === 'small_bodies' ? 'active' : ''}`}
+            onClick={() => { setTab('small_bodies'); setSelectedPreset(null); }}
+          >
+            Small Bodies
           </button>
         </div>
         <button className="palette-collapse" onClick={() => setExpanded(false)} title="Collapse">
@@ -223,6 +237,30 @@ const ObjectPalette = ({ onDragStart, onAddBody, viewLevel }) => {
             </div>
           );
         })}
+
+        {tab === 'small_bodies' && smallBodyPresets.map(([id, preset]) => {
+          const info = PLANET_ICONS[id] || { icon: '🪨', color: '#888' };
+          const isSelected = selectedPreset === id;
+          return (
+            <div
+              key={id}
+              className={`palette-item ${isSelected ? 'selected' : ''}`}
+              draggable
+              onDragStart={(e) => handleDragStartInternal(e, id, 'planet')}
+              onClick={() => handlePresetClick(id, 'planet')}
+              onDoubleClick={() => handleQuickAdd(id, 'planet')}
+              title={`${preset.name} - Drag to place, double-click to add\n${preset.description || ''}`}
+            >
+              <span className="palette-item-icon" style={{ color: info.color }}>
+                {info.icon}
+              </span>
+              <span className="palette-item-name">{preset.name}</span>
+              <span className="palette-item-mass">
+                {preset.mass.default < 0.01 ? preset.mass.default.toExponential(1) : preset.mass.default} M{'\u2295'}
+              </span>
+            </div>
+          );
+        })}
       </div>
 
       {/* Parameter Editor */}
@@ -250,7 +288,7 @@ const ObjectPalette = ({ onDragStart, onAddBody, viewLevel }) => {
           </div>
 
           <div className="editor-field">
-            <label>Mass ({tab === 'stars' ? 'M\u2609' : 'M\u2295'})</label>
+            <label>Mass ({tab === 'stars' ? 'M☉' : 'M⊕'})</label>
             <input
               type="number"
               step="0.1"
@@ -281,7 +319,7 @@ const ObjectPalette = ({ onDragStart, onAddBody, viewLevel }) => {
             </div>
           )}
 
-          {tab === 'planets' && currentPreset.orbitalDistance && (
+          {(tab === 'planets' || tab === 'small_bodies') && currentPreset.orbitalDistance && (
             <div className="editor-field">
               <label>Orbital Distance (AU)</label>
               <input
