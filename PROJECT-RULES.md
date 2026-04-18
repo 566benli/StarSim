@@ -1,6 +1,6 @@
 # 🚨 CRITICAL: Project Organization Rules (MANDATORY)
 
-> **📌 TRAINING LOG:** Always keep `docs/STARSIM-TRAINING-LOG.md` in mind — coordinate online (web) and offline (exe) versions!
+> **📌 TRAINING LOG:** Always keep `docs/GENESIS-ERROR-TRAINING-LOG.md` in mind — coordinate online (web) and offline (exe) versions!
 
 ## ⚠️ THESE RULES MUST BE FOLLOWED IN EVERY PROJECT
 
@@ -26,7 +26,7 @@ ProjectName/
 
 #### **File Organization Commands:**
 ```bash
-# 📌 Essential: See docs/STARSIM-TRAINING-LOG.md — always coordinate online & offline versions!
+# 📌 Essential: See docs/GENESIS-ERROR-TRAINING-LOG.md — always coordinate online & offline versions!
 
 # Organize project (run this after setup):
 npm run organize
