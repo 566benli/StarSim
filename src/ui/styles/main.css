@@ -893,3 +893,133 @@ html, body, #root {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* ── Body mode: planetary surface overlay ── */
+.body-surface-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1150;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.body-surface-card {
+  pointer-events: auto;
+  max-width: 440px;
+  width: calc(100vw - 32px);
+  max-height: min(88vh, 640px);
+  overflow-y: auto;
+  margin-top: -6vh;
+  padding: 14px 16px 16px;
+  background: rgba(10, 12, 28, 0.92);
+  border: 1px solid rgba(90, 140, 255, 0.35);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(10px);
+}
+.body-surface-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.body-surface-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: #e4ecff;
+}
+.body-surface-close {
+  border: none;
+  background: rgba(80, 100, 180, 0.25);
+  color: #ccd8ff;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+}
+.body-surface-close:hover {
+  background: rgba(120, 140, 220, 0.4);
+}
+.body-surface-atmo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  color: #c8d4f0;
+  margin-bottom: 8px;
+}
+.body-surface-atmo-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  flex-shrink: 0;
+}
+.body-surface-label {
+  color: #7a8cc8;
+  margin-right: 4px;
+}
+.body-surface-muted {
+  color: #6a7399;
+  font-size: 12px;
+}
+.body-surface-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.body-surface-chip {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(60, 90, 180, 0.25);
+  color: #aab8ee;
+}
+.body-surface-canvas {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  cursor: crosshair;
+  display: block;
+  border: 1px solid rgba(80, 110, 200, 0.25);
+}
+.body-surface-hint {
+  font-size: 11px;
+  color: #5a6488;
+  margin: 6px 0 0;
+}
+.body-surface-detail {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(80, 100, 160, 0.2);
+  font-size: 12px;
+  color: #b8c4ec;
+}
+.body-surface-species {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  align-items: flex-start;
+}
+.body-surface-portrait {
+  border-radius: 8px;
+  border: 1px solid rgba(120, 160, 255, 0.35);
+  flex-shrink: 0;
+}
+.body-surface-desc {
+  margin: 6px 0 0;
+  line-height: 1.45;
+  color: #9aa8cc;
+}
+.body-surface-traits {
+  margin: 6px 0 0;
+  padding-left: 16px;
+  color: #8a9ac0;
+}

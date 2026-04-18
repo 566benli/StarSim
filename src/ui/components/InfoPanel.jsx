@@ -534,6 +534,15 @@ const InfoPanel = ({ onExplore, onClose, onFocusBody, getBodies, engine }) => {
               <Row label="Atmosphere" value={renderValue(props.atmosphere.pressure)} />
             )}
             <Row label="Has Water" value={renderValue(props.hasWater)} />
+            {props.waterCoverage != null && (
+              <Row label="Water coverage" value={`${(props.waterCoverage * 100).toFixed(0)}%`} />
+            )}
+            {props.biomeArchetype && (
+              <Row label="Biome archetype" value={props.biomeArchetype} />
+            )}
+            {props.hasBiosphereGrid && (
+              <Row label="Surface biosphere grid" value="Active (body mode map)" />
+            )}
             <Row
               label="Has Life"
               value={renderValue(props.hasLife)}
@@ -587,6 +596,20 @@ const InfoPanel = ({ onExplore, onClose, onFocusBody, getBodies, engine }) => {
             {/* Tech Tree — only shown if a civilization exists */}
             {selectedBody?.civilization && !selectedBody.civilization.collapsed && (
               <>
+                {selectedBody.civilization.character && (
+                  <div className="civ-character-block" style={{ marginTop: 8, fontSize: 12 }}>
+                    <div style={{ fontWeight: 600, marginBottom: 4 }}>Kingdom character</div>
+                    <Row label="Society" value={selectedBody.civilization.character.societyShape} />
+                    <Row
+                      label="Temperament"
+                      value={`Aggr ${selectedBody.civilization.character.temperament.aggression.toFixed(2)} · Dip ${selectedBody.civilization.character.temperament.diplomacy.toFixed(2)} · Cur ${selectedBody.civilization.character.temperament.curiosity.toFixed(2)} · Trad ${selectedBody.civilization.character.temperament.tradition.toFixed(2)} · Exp ${selectedBody.civilization.character.temperament.expansionism.toFixed(2)}`}
+                    />
+                    <Row
+                      label="Aesthetics"
+                      value={`Hue ${selectedBody.civilization.character.aesthetics.colorHue}° · Emblem ${selectedBody.civilization.character.aesthetics.emblemSeed} · Arch #${selectedBody.civilization.character.aesthetics.architectureId}`}
+                    />
+                  </div>
+                )}
                 <button
                   className="hr-diagram-btn"
                   onClick={() => setShowTechTree(v => !v)}

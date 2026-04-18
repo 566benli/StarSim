@@ -1,0 +1,9 @@
+{
+  "id": "default",
+  "version": 1,
+  "layers": [
+    { "id": "base", "description": "Silhouette and core mass" },
+    { "id": "accent", "description": "Highlights and markings" }
+  ],
+  "variants": []
+}

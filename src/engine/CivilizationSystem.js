@@ -9,6 +9,7 @@ import {
   TECH_TREE, TECH_BY_ID, CIV_STAGES, getAvailableTechs, computeTechRate,
   computeKardashevLevel,
 } from '@data/techTree.js';
+import { buildCivCharacter } from './civCharacter.js';
 
 // Intelligence threshold at which a civilization first emerges (0–1 scale).
 // Must be <= lifeEvolutionConfig.stages.intelligentThreshold (currently 0.62)
@@ -129,6 +130,7 @@ export default class CivilizationSystem {
       name: civName,
       founderSpeciesId: domSpecies?.id ?? null,
       founderSpeciesName: speciesName,
+      character: buildCivCharacter({ domSpecies, body, simulationTime }),
       stage: 'tribal',
       kardashevLevel: 0,
       techPoints: 10,

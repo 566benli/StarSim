@@ -4,10 +4,12 @@
  * Every species gets a unique name, body plan, metabolism, and trait vector
  * derived from the host planet's temperature, pressure, atmosphere, and
  * radiation.  Different planets therefore produce fundamentally different
- * life, and stochastic components guarantee each simulation diverges.
+ * life; draws are keyed by biosphereSeed / biome / tree position for divergence.
  */
 
-const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+import { hashString32, mulberry32 } from './biosphereGrid.js';
+
+const pick = (arr, rng) => arr[Math.floor(rng() * arr.length)];
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
 // ── Name building blocks ────────────────────────────────────────────────────
@@ -119,7 +121,10 @@ export function generateSpeciesId() {
  * @param {object|null} opts.parentTraits – traits of the parent species to inherit from
  * @returns {object} species node for the evolution tree
  */
-export function generateSpecies({ env, body, stage, parentId = null, simulationTime = 0, parentTraits = null }) {
+export function generateSpecies({
+  env, body, stage, parentId = null, simulationTime = 0, parentTraits = null,
+  mutationGeneration = null,
+}) {
   const temp = body.temperature || 300;
   const pressure = body.atmospherePressure || 1;
   const composition = body.atmosphereComposition || {};
@@ -127,12 +132,21 @@ export function generateSpecies({ env, body, stage, parentId = null, simulationT
   const pCat = pressureCategory(pressure);
   const gas = dominantGas(composition);
 
-  const name = buildName(tCat, pCat, gas, stage);
-  const description = buildDescription(tCat, pCat, gas, stage, body.name);
+  const bioSeed = body.biosphereSeed ?? hashString32(`fallback|${body.id}`);
+  const mutGen = mutationGeneration != null
+    ? mutationGeneration
+    : (Array.isArray(body.evolutionTree) ? body.evolutionTree.length : 0);
+  const rngKey = hashString32(
+    `${bioSeed}|${mutGen}|${parentId ?? 'root'}|${stage}|${simulationTime}|${body.biomeArchetype ?? 'na'}|${gas}`
+  );
+  const rng = mulberry32(rngKey);
+
+  const name = buildName(tCat, pCat, gas, stage, rng);
+  const description = buildDescription(tCat, pCat, gas, stage, body.name, rng);
 
   const traits = parentTraits
-    ? mutateTraits(parentTraits, tCat, stage)
-    : buildTraits(tCat, stage);
+    ? mutateTraits(parentTraits, tCat, stage, rng)
+    : buildTraits(tCat, stage, rng);
 
   return {
     id: generateSpeciesId(),
@@ -140,8 +154,8 @@ export function generateSpecies({ env, body, stage, parentId = null, simulationT
     description,
     parentId,
     traits,
-    fitness: clamp01(body.biosphereFitness || 0.3 + Math.random() * 0.3),
-    population: clamp01(0.15 + Math.random() * 0.4),
+    fitness: clamp01((body.biosphereFitness || 0.3) + rng() * 0.3),
+    population: clamp01(0.15 + rng() * 0.4),
     stage,
     appearedAt: simulationTime,
     extinctAt: null,
@@ -151,22 +165,22 @@ export function generateSpecies({ env, body, stage, parentId = null, simulationT
 
 // ── Internal builders ───────────────────────────────────────────────────────
 
-function buildName(tCat, pCat, gas, stage) {
-  const prefix = pick(TEMP_PREFIX[tCat]);
-  const mid = pick(PRESSURE_MID[pCat]);
-  const root = pick(CHEMISTRY_ROOT[gas] || CHEMISTRY_ROOT.N2);
-  const suffix = pick(SUFFIXES_BY_STAGE[stage] || SUFFIXES_BY_STAGE.simple);
+function buildName(tCat, pCat, gas, stage, rng) {
+  const prefix = pick(TEMP_PREFIX[tCat], rng);
+  const mid = pick(PRESSURE_MID[pCat], rng);
+  const root = pick(CHEMISTRY_ROOT[gas] || CHEMISTRY_ROOT.N2, rng);
+  const suffix = pick(SUFFIXES_BY_STAGE[stage] || SUFFIXES_BY_STAGE.simple, rng);
 
-  if (Math.random() < 0.5) {
+  if (rng() < 0.5) {
     return `${prefix}${root}${suffix}`;
   }
   return `${prefix}${mid}${suffix}`;
 }
 
-function buildDescription(tCat, pCat, gas, stage, planetName) {
-  const bodyPlan = pick(BODY_PLANS[tCat]);
-  const metabolism = pick(METABOLISM[tCat]);
-  const locomotion = pick(LOCOMOTION_BY_STAGE[stage] || LOCOMOTION_BY_STAGE.simple);
+function buildDescription(tCat, pCat, gas, stage, planetName, rng) {
+  const bodyPlan = pick(BODY_PLANS[tCat], rng);
+  const metabolism = pick(METABOLISM[tCat], rng);
+  const locomotion = pick(LOCOMOTION_BY_STAGE[stage] || LOCOMOTION_BY_STAGE.simple, rng);
 
   const gasLabel = gas.replace(/\d/g, '');
   const stageLabel = stage === 'simple' ? 'single-celled organism'
@@ -177,26 +191,26 @@ function buildDescription(tCat, pCat, gas, stage, planetName) {
     `Derives energy through ${metabolism} in ${planetName}'s ${gasLabel}-rich atmosphere.`;
 }
 
-function buildTraits(tCat, stage) {
+function buildTraits(tCat, stage, rng) {
   return {
-    bodyType: pick(BODY_PLANS[tCat]),
-    metabolism: pick(METABOLISM[tCat]),
-    locomotion: pick(LOCOMOTION_BY_STAGE[stage] || LOCOMOTION_BY_STAGE.simple),
-    size: pick(SIZE_BY_STAGE[stage] || SIZE_BY_STAGE.simple),
-    intelligence: pick(INTELLIGENCE_BY_STAGE[stage] || INTELLIGENCE_BY_STAGE.simple),
+    bodyType: pick(BODY_PLANS[tCat], rng),
+    metabolism: pick(METABOLISM[tCat], rng),
+    locomotion: pick(LOCOMOTION_BY_STAGE[stage] || LOCOMOTION_BY_STAGE.simple, rng),
+    size: pick(SIZE_BY_STAGE[stage] || SIZE_BY_STAGE.simple, rng),
+    intelligence: pick(INTELLIGENCE_BY_STAGE[stage] || INTELLIGENCE_BY_STAGE.simple, rng),
   };
 }
 
-function mutateTraits(parentTraits, tCat, stage) {
+function mutateTraits(parentTraits, tCat, stage, rng) {
   const traits = { ...parentTraits };
   const stagePool = LOCOMOTION_BY_STAGE[stage] || LOCOMOTION_BY_STAGE.simple;
   const sizePool = SIZE_BY_STAGE[stage] || SIZE_BY_STAGE.simple;
   const intelPool = INTELLIGENCE_BY_STAGE[stage] || INTELLIGENCE_BY_STAGE.simple;
 
-  if (Math.random() < 0.4) traits.bodyType = pick(BODY_PLANS[tCat]);
-  if (Math.random() < 0.3) traits.metabolism = pick(METABOLISM[tCat]);
-  if (Math.random() < 0.5) traits.locomotion = pick(stagePool);
-  if (Math.random() < 0.5) traits.size = pick(sizePool);
-  traits.intelligence = pick(intelPool);
+  if (rng() < 0.4) traits.bodyType = pick(BODY_PLANS[tCat], rng);
+  if (rng() < 0.3) traits.metabolism = pick(METABOLISM[tCat], rng);
+  if (rng() < 0.5) traits.locomotion = pick(stagePool, rng);
+  if (rng() < 0.5) traits.size = pick(sizePool, rng);
+  traits.intelligence = pick(intelPool, rng);
   return traits;
 }

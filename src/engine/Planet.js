@@ -5,6 +5,8 @@
 import * as THREE from 'three';
 import CelestialBody from './CelestialBody.js';
 import { EARTH_MASS, EARTH_RADIUS, SOLAR_MASS } from '@utils/constants';
+import { cloneBiosphereGrid } from './biosphereGrid.js';
+import { cloneCivCharacter } from './civCharacter.js';
 
 export default class Planet extends CelestialBody {
   constructor(config = {}) {
@@ -50,6 +52,12 @@ export default class Planet extends CelestialBody {
     this.lifeSignature = config.lifeSignature || null;
     this.evolutionTree = Array.isArray(config.evolutionTree) ? config.evolutionTree.map(n => ({ ...n, traits: n.traits ? { ...n.traits } : null })) : [];
 
+    // Biosphere surface model (null until life; used by body-mode map and occupation)
+    this.biosphereSeed = config.biosphereSeed != null ? config.biosphereSeed : null;
+    this.surfaceSeed = config.surfaceSeed != null ? config.surfaceSeed : null;
+    this.biomeArchetype = config.biomeArchetype ?? null;
+    this.biosphereGrid = config.biosphereGrid ? cloneBiosphereGrid(config.biosphereGrid) : null;
+
     // Civilization (null = no civilization; object = active/collapsed civilization)
     this.civilization = config.civilization ? this._cloneCiv(config.civilization) : null;
 
@@ -85,6 +93,7 @@ export default class Planet extends CelestialBody {
       unlockedTechs: Array.isArray(civ.unlockedTechs) ? [...civ.unlockedTechs] : [],
       megastructures: Array.isArray(civ.megastructures) ? [...civ.megastructures] : [],
       fleets: Array.isArray(civ.fleets) ? [...civ.fleets] : [],
+      character: civ.character ? cloneCivCharacter(civ.character) : null,
     };
   }
 
@@ -248,6 +257,7 @@ export default class Planet extends CelestialBody {
       temperature: { value: this.temperature, unit: 'K' },
       albedo: this.albedo,
       hasWater: this.hasWater,
+      waterCoverage: this.waterCoverage,
       hasLife: this.hasLife,
       lifeStage: this.lifeStage,
       lifeOrigin: this.lifeOrigin || 'None yet',
@@ -264,6 +274,11 @@ export default class Planet extends CelestialBody {
       speciesProfile: this.speciesProfile,
       evolutionTree: [...this.evolutionTree],
       civilization: this.civilization ? this._cloneCiv(this.civilization) : null,
+      biomeArchetype: this.biomeArchetype,
+      biosphereSeed: this.biosphereSeed,
+      surfaceSeed: this.surfaceSeed,
+      hasBiosphereGrid: !!(this.biosphereGrid && this.biosphereGrid.cells?.length),
+      biosphereGrid: this.biosphereGrid ? cloneBiosphereGrid(this.biosphereGrid) : null,
       habitableZone: this.parentBody
         ? (this.isHabitable(this.parentBody.luminosity) ? 'Yes ✓' : 'No ✗')
         : 'N/A',
@@ -318,6 +333,10 @@ export default class Planet extends CelestialBody {
       lifeSignature: this.lifeSignature,
       evolutionTree: this.evolutionTree.map(n => ({ ...n, traits: n.traits ? { ...n.traits } : null })),
       civilization: this.civilization ? this._cloneCiv(this.civilization) : null,
+      biosphereSeed: this.biosphereSeed,
+      surfaceSeed: this.surfaceSeed,
+      biomeArchetype: this.biomeArchetype,
+      biosphereGrid: this.biosphereGrid ? cloneBiosphereGrid(this.biosphereGrid) : null,
     };
   }
 }

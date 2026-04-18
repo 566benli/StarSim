@@ -1,5 +1,11 @@
 import { DEFAULT_LIFE_PRESET, getLifeConfig } from '@data/lifeEvolutionConfig';
 import { generateSpecies } from './SpeciesGenerator.js';
+import {
+  ensurePlanetBiosphereIdentity,
+  initBiosphereGrid,
+  updateBiosphereGrid,
+  clearBiosphereGrid,
+} from './biosphereGrid.js';
 
 const LIFE_STAGES = {
   NONE: 'none',
@@ -110,6 +116,12 @@ export default class LifeEvolutionSystem {
     this.trySpeciesExtinction(body, env, dtYears, simulationTime);
     this.updateStageProgression(body, dtYears, simulationTime);
     this.applyExtinction(body, env, simulationTime);
+
+    if ([LIFE_STAGES.SIMPLE, LIFE_STAGES.COMPLEX, LIFE_STAGES.INTELLIGENT].includes(body.lifeStage)) {
+      ensurePlanetBiosphereIdentity(body, env);
+      if (!body.biosphereGrid) initBiosphereGrid(body);
+      updateBiosphereGrid(body, env, dtYears);
+    }
   }
 
   buildEnvironment(body) {
@@ -263,12 +275,17 @@ export default class LifeEvolutionSystem {
     body.speciesProfile = this.seedSpeciesProfile(env);
     body.lifeSignature = `adaptive-${Math.random().toString(36).slice(2, 7)}`;
 
+    ensurePlanetBiosphereIdentity(body, env);
+
     if (!Array.isArray(body.evolutionTree)) body.evolutionTree = [];
     const rootSpecies = generateSpecies({
       env, body, stage: 'simple', parentId: null, simulationTime,
+      mutationGeneration: 0,
     });
     body.evolutionTree.push(rootSpecies);
+    body._speciationCounter = 1;
     body._lastSpeciationTime = simulationTime;
+    initBiosphereGrid(body);
 
     body.logEvent({
       type: 'abiogenesis',
@@ -466,6 +483,7 @@ export default class LifeEvolutionSystem {
 
     const prebioticReversion = body.lifeStage !== LIFE_STAGES.NONE && body.biosphereHealth < 0.08;
     if (prebioticReversion) {
+      clearBiosphereGrid(body);
       this.transitionLifeStage(body, LIFE_STAGES.PREBIOTIC, simulationTime, {
         title: 'Biosphere Collapse',
         body: `${body.name}'s biosphere collapsed, leaving only prebiotic chemistry behind.`,
@@ -496,6 +514,7 @@ export default class LifeEvolutionSystem {
       body.intelligencePotential = 0;
       body.speciesProfile = null;
       body.prebioticChemistry = Math.min(body.prebioticChemistry || 0, 0.2);
+      clearBiosphereGrid(body);
     }
   }
 
@@ -522,6 +541,7 @@ export default class LifeEvolutionSystem {
       ? aliveSpecies[Math.floor(Math.random() * aliveSpecies.length)]
       : null;
 
+    const mutGen = (body._speciationCounter = (body._speciationCounter || 1) + 1);
     const newSpecies = generateSpecies({
       env,
       body,
@@ -529,6 +549,7 @@ export default class LifeEvolutionSystem {
       parentId: parent?.id ?? null,
       simulationTime,
       parentTraits: parent?.traits ?? null,
+      mutationGeneration: mutGen,
     });
     body.evolutionTree.push(newSpecies);
     body._lastSpeciationTime = simulationTime;
@@ -606,11 +627,13 @@ export default class LifeEvolutionSystem {
         parentId: dominant?.id ?? null,
         simulationTime,
         parentTraits: dominant?.traits ?? null,
+        mutationGeneration: body.evolutionTree.length,
       });
       body.evolutionTree.push(evolved);
     }
 
     if (nextStage === LIFE_STAGES.NONE || nextStage === LIFE_STAGES.PREBIOTIC) {
+      clearBiosphereGrid(body);
       for (const sp of body.evolutionTree) {
         if (sp.extinctAt === null) {
           sp.extinctAt = simulationTime;

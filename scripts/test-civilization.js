@@ -234,6 +234,26 @@ const MAX_WAIT_YEARS = 5e9; // fast-forward up to 5 billion simulated years
     assert(engineCheck.hasEmpireSys,  'getEmpireSystem() method exists');
     console.log(`  Empires: ${engineCheck.empireCount}, Active wars: ${engineCheck.warCount}`);
 
+    console.log('\n=== Creature composer + biosphere grid ===');
+    const artBio = await page.evaluate(() => {
+      const dbg = window.__STAR_SIM_DEBUG__;
+      const composer = dbg.creatureComposerTest?.() ?? { error: 'missing' };
+      const planets = dbg.snapshotPlanets?.() || [];
+      const lifePlanet = planets.find((p) => ['simple', 'complex', 'intelligent'].includes(p.lifeStage));
+      const civPlanet = planets.find((p) => p.hasCivCharacter);
+      return {
+        composer,
+        lifeHasGrid: !!lifePlanet?.hasBiosphereGrid,
+        lifeName: lifePlanet?.name,
+        civChar: !!civPlanet,
+      };
+    });
+    assert(artBio.composer?.sameTwice === true, 'Creature composer deterministic (same PNG twice)');
+    assert(artBio.lifeHasGrid === true, `Life-bearing planet has biosphere grid (${artBio.lifeName || 'n/a'})`);
+    if (civResult.reached) {
+      assert(artBio.civChar === true, 'Civilization exposes character on snapshot planet');
+    }
+
     if (errors.length) {
       console.log(`\n  [WARN] ${errors.length} browser error(s):`, errors.slice(0, 3));
     }

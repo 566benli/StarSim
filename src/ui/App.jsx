@@ -25,6 +25,8 @@ import UniversePanel from './components/UniversePanel';
 import ClusterInfoPanel from './components/ClusterInfoPanel';
 import UniverseCoordinatePanel from './components/UniverseCoordinatePanel';
 import WelcomeFlow from './components/WelcomeFlow';
+import BodySurfaceView from './components/BodySurfaceView';
+import { composeCreatureDataUrl, clearCreatureComposerCache } from '@art/CreatureComposer.js';
 import { ONBOARDING_DONE_KEY } from '@utils/onboardingKeys';
 import { getSaveSlots, saveSlot, loadSlot, deleteSlot } from '@services/saveService';
 import cloud from '@services/cloudService';
@@ -53,6 +55,7 @@ const App = () => {
   const [showGoodbye, setShowGoodbye] = useState(false);
   const returnToMenuAfterSaveRef = useRef(false);
 
+  const [bodySurfaceOpen, setBodySurfaceOpen] = useState(true);
   const [clusterPopup, setClusterPopup] = useState(null);
   const [clusterTooltip, setClusterTooltip] = useState(null);
   const [universeCoordinatePopup, setUniverseCoordinatePopup] = useState(null);
@@ -75,7 +78,7 @@ const App = () => {
     showAIChat, toggleAIChat,
     showInfoPanel, toggleInfoPanel,
     viewLevel, setViewLevel, navigateTo,
-    focusedClusterId, focusedSystemId,
+    focusedClusterId, focusedSystemId, focusedBodyId,
     setFocusedClusterId, setFocusedSystemId,
     showObjectPalette, showUniversePanel,
     draggingObject, setDraggingObject,
@@ -83,6 +86,10 @@ const App = () => {
     showDistGrid, toggleDistGrid,
     setUniverseStats: setStoreUniverseStats,
   } = useStore();
+
+  useEffect(() => {
+    setBodySurfaceOpen(true);
+  }, [focusedBodyId]);
 
   useEffect(() => {
     try { cloud.init(); } catch (e) { console.warn('Cloud init failed (offline mode):', e); }
@@ -540,7 +547,27 @@ const App = () => {
             mutationPressure: b.mutationPressure,
             extinctionPressure: b.extinctionPressure,
             evolutionTree: (b.evolutionTree || []).map(s => ({ ...s })),
+            biomeArchetype: b.biomeArchetype,
+            hasBiosphereGrid: !!(b.biosphereGrid && b.biosphereGrid.cells?.length),
+            hasCivCharacter: !!(b.civilization && b.civilization.character),
           }));
+      },
+      creatureComposerTest: () => {
+        try {
+          clearCreatureComposerCache();
+          const fake = {
+            id: 'test_sp_stable',
+            name: 'Stabledon',
+            stage: 'intelligent',
+            traits: { metabolism: 'chemosynthesis', locomotion: 'bipedal' },
+            description: 'Test species for composer determinism.',
+          };
+          const a = composeCreatureDataUrl(fake, { temperature: 280 });
+          const b = composeCreatureDataUrl(fake, { temperature: 280 });
+          return { sameTwice: a === b, prefixLen: a.length };
+        } catch (e) {
+          return { error: String(e?.message || e) };
+        }
       },
       snapshotBodies: () => {
         const engine = engineRef.current;
@@ -1520,6 +1547,14 @@ const App = () => {
 
       {/* HUD Overlay */}
       {simState !== 'setup' && <HUD onExitExplorer={simState === 'explorer' ? handleExitExplorer : undefined} />}
+
+      {simState !== 'setup' && viewLevel === VIEW_LEVEL.BODY && focusedBodyId && bodySurfaceOpen && (
+        <BodySurfaceView
+          engine={engineRef.current}
+          bodyId={focusedBodyId}
+          onClose={() => setBodySurfaceOpen(false)}
+        />
+      )}
 
       {/* Time Control Bar */}
       {simState !== 'setup' && (

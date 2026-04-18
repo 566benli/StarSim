@@ -8,6 +8,15 @@
  *   4. Collapse: can happen through military defeat or internal collapse
  */
 import { canColonize, TECH_BY_ID } from '@data/techTree.js';
+import { buildCivCharacter } from './civCharacter.js';
+
+function hexColorToHue(hex) {
+  if (!hex || typeof hex !== 'string') return 200;
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return 200;
+  const n = parseInt(m[1], 16);
+  return (Math.floor(n / 65536) * 3 + Math.floor((n % 65536) / 256) * 2 + (n % 256)) % 360;
+}
 
 const EMPIRE_COLORS = [
   '#ff4444', '#44aaff', '#44ff88', '#ffaa00', '#cc44ff',
@@ -161,7 +170,14 @@ export default class EmpireSystem {
         discoveredAt: simulationTime,
         collapsed: false,
         collapseReason: null,
+        founderSpeciesId: null,
         founderSpeciesName: 'Colony',
+        character: buildCivCharacter({
+          domSpecies: null,
+          body: target,
+          simulationTime,
+          meta: { isColony: true, empireHue: hexColorToHue(empire.color) },
+        }),
       };
     }
 
