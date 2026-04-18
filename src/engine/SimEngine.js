@@ -164,6 +164,7 @@ export default class SimEngine {
       angularVelocity: config.angularVelocity || (0.0005 + Math.random() * 0.001),
       color: config.color || `hsl(${Math.random() * 360}, 60%, 60%)`,
       size: config.size || (30 + Math.random() * 50),
+      isRogueFormation: config.isRogueFormation || false,
     });
     this.universe.addCluster(cluster);
     return cluster;
@@ -775,9 +776,12 @@ export default class SimEngine {
     const rogueCluster = this.createCluster({
       name: `Rogue Cloud ${this.universe.clusters.length + 1}`,
       type: 'irregular',
+      // Mark as a rogue intergalactic formation so the renderer draws it as a
+      // small distinct point marker rather than a full galaxy nebula blob.
+      isRogueFormation: true,
       position: { x: dist * Math.cos(angle), y: 0, z: dist * Math.sin(angle) },
       velocity: { x: tx * vCirc, y: 0, z: tz * vCirc },
-      color: '#888899',
+      color: '#99bbdd',
     });
     const rogueSys = this.createStarSystem(rogueCluster.id, {
       name: `${rogueCluster.name} System`,

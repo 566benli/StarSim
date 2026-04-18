@@ -36,7 +36,7 @@ export default class SceneManager {
     const gl = testCanvas.getContext('webgl2') || testCanvas.getContext('webgl') || testCanvas.getContext('experimental-webgl');
     if (!gl) {
       throw new Error(
-        'WebGL is not available on this device. StarSim requires WebGL to render 3D graphics.\n\n' +
+        'WebGL is not available on this device. Genesis Error requires WebGL to render 3D graphics.\n\n' +
         'Possible fixes:\n' +
         '• Update your graphics drivers\n' +
         '• Enable hardware acceleration in your system settings\n' +
@@ -672,9 +672,15 @@ export default class SceneManager {
   }
 
   /**
-   * Create or update cluster visualization in universe view
+   * Create or update cluster visualization in universe view.
+   * Rogue-formation clusters (spawned from intergalactic gas) get a small
+   * distinct point marker instead of a full nebula blob.
    */
   updateClusterVisual(cluster) {
+    if (cluster.isRogueFormation) {
+      return this._updateRogueClusterMarker(cluster);
+    }
+
     let group = this._clusterMeshes.get(cluster.id);
 
     if (!group) {
@@ -797,6 +803,110 @@ export default class SceneManager {
     );
 
     group.rotation.y = cluster.rotationAngle;
+
+    if (!cluster.alive) {
+      this.scene.remove(group);
+      this._clusterMeshes.delete(cluster.id);
+    }
+
+    return group;
+  }
+
+  /**
+   * Small point-source marker for intergalactic rogue-formation clusters.
+   * Looks like a dim wandering star, not a full galaxy nebula.
+   */
+  _updateRogueClusterMarker(cluster) {
+    let group = this._clusterMeshes.get(cluster.id);
+
+    if (!group) {
+      group = new THREE.Group();
+      group.userData.clusterId = cluster.id;
+
+      const color = new THREE.Color(cluster.color || '#99bbdd');
+
+      // Small glowing core — much smaller than a real galaxy
+      const coreGeom = new THREE.SphereGeometry(1.4, 12, 12);
+      const coreMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.80 });
+      const core = new THREE.Mesh(coreGeom, coreMat);
+      group.add(core);
+      group.userData.core = core;
+
+      // Soft halo
+      const haloGeom = new THREE.SphereGeometry(2.6, 12, 12);
+      const haloMat = new THREE.MeshBasicMaterial({
+        color, transparent: true, opacity: 0.18, side: THREE.BackSide,
+      });
+      group.add(new THREE.Mesh(haloGeom, haloMat));
+
+      // Label — italicised to distinguish from main galaxies
+      const labelCanvas = document.createElement('canvas');
+      const lctx = labelCanvas.getContext('2d');
+      labelCanvas.width = 512;
+      labelCanvas.height = 64;
+      lctx.clearRect(0, 0, 512, 64);
+      lctx.font = 'italic 22px "Segoe UI", Arial, sans-serif';
+      lctx.fillStyle = '#aaddff';
+      lctx.textAlign = 'center';
+      lctx.textBaseline = 'middle';
+      lctx.fillText(`${cluster.name} (rogue)`, 256, 32);
+      const labelTex = new THREE.CanvasTexture(labelCanvas);
+      const labelMat = new THREE.SpriteMaterial({
+        map: labelTex, transparent: true, opacity: 0.80,
+        depthTest: false, sizeAttenuation: false,
+      });
+      const label = new THREE.Sprite(labelMat);
+      label.scale.set(0.13, 0.018, 1);
+      label.position.y = 4;
+      label.renderOrder = 900;
+      group.add(label);
+      group.userData.label = label;
+
+      // Small crosshair locator
+      const locCanvas = document.createElement('canvas');
+      locCanvas.width = 32; locCanvas.height = 32;
+      const locCtx = locCanvas.getContext('2d');
+      locCtx.strokeStyle = '#aaddff';
+      locCtx.lineWidth = 2;
+      locCtx.beginPath();
+      locCtx.moveTo(16, 4); locCtx.lineTo(16, 28);
+      locCtx.moveTo(4, 16); locCtx.lineTo(28, 16);
+      locCtx.stroke();
+      const locTex = new THREE.CanvasTexture(locCanvas);
+      const locMat = new THREE.SpriteMaterial({
+        map: locTex, transparent: true, opacity: 0.70,
+        depthTest: false, sizeAttenuation: false,
+      });
+      const locator = new THREE.Sprite(locMat);
+      locator.scale.set(0.04, 0.04, 1);
+      locator.renderOrder = 901;
+      group.add(locator);
+      group.userData.locator = locator;
+
+      // Invisible hit proxy (small, matching visual size)
+      const hitGeom = new THREE.SphereGeometry(4, 8, 8);
+      const hitMat = new THREE.MeshBasicMaterial({ visible: false });
+      const hitProxy = new THREE.Mesh(hitGeom, hitMat);
+      hitProxy.userData.clusterId = cluster.id;
+      group.add(hitProxy);
+
+      this._clusterMeshes.set(cluster.id, group);
+      this.scene.add(group);
+    }
+
+    if (!group.visible) group.visible = true;
+
+    // Gentle pulse on locator
+    if (group.userData.locator) {
+      group.userData.locator.material.opacity = 0.45 + 0.25 * Math.sin(this.elapsedTime * 1.8);
+    }
+
+    const uScale = 0.4;
+    group.position.set(
+      cluster.position.x * uScale,
+      cluster.position.y * uScale,
+      cluster.position.z * uScale,
+    );
 
     if (!cluster.alive) {
       this.scene.remove(group);

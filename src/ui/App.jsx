@@ -111,7 +111,7 @@ const App = () => {
     } else {
       authCheckedRef.current = true;
       try {
-        const dismissed = localStorage.getItem('starsim-auth-dismissed');
+        const dismissed = localStorage.getItem('genesiserror-auth-dismissed');
         if (!dismissed) setShowAuthModal(true);
       } catch {}
     }
@@ -172,7 +172,7 @@ const App = () => {
       // Expose engine for browser console testing / debugging
       if (typeof window !== 'undefined') window.__starSimEngine = engine;
     } catch (e) {
-      console.error('[StarSim] Engine init failed:', e);
+      console.error('[GenesisError] Engine init failed:', e);
       setInitError('Simulation engine failed to initialize: ' + e.message);
       return;
     }
@@ -181,7 +181,7 @@ const App = () => {
       scene = new SceneManager(canvasRef.current);
       sceneRef.current = scene;
     } catch (e) {
-      console.error('[StarSim] Renderer init failed:', e);
+      console.error('[GenesisError] Renderer init failed:', e);
       setInitError(
         'Graphics initialization failed. Your system may not support WebGL.\n\n' +
         'Try:\n- Updating your GPU drivers\n- Enabling hardware acceleration in system settings\n- Using a device with a dedicated graphics card\n\n' +
@@ -194,7 +194,7 @@ const App = () => {
       explorer = new ExplorerCamera(scene.camera, scene.controls);
       explorerRef.current = explorer;
     } catch (e) {
-      console.error('[StarSim] Camera init failed:', e);
+      console.error('[GenesisError] Camera init failed:', e);
       setInitError('Camera system failed: ' + e.message);
       return;
     }
@@ -203,7 +203,7 @@ const App = () => {
       ai = new AIAgent({ engine });
       aiAgentRef.current = ai;
     } catch (e) {
-      console.warn('[StarSim] AI agent init failed (non-critical):', e);
+      console.warn('[GenesisError] AI agent init failed (non-critical):', e);
     }
 
     engine.onEvent = (event) => {
@@ -370,7 +370,9 @@ const App = () => {
       }
 
       // Determine which bodies to render based on view level
-      const allBodies = engine.getBodies();
+      // getAllBodies() merges bound bodies with _escapedBodies so rogue planets
+      // are included in the list passed to renderUniverse.
+      const allBodies = engine.getAllBodies();
       let bodiesToRender = allBodies;
       if (currentViewLevel === VIEW_LEVEL.SYSTEM && currentFocusedSystemId) {
         bodiesToRender = engine.getSystemBodies(currentFocusedSystemId);
@@ -590,10 +592,10 @@ const App = () => {
       },
     };
 
-    window.__STAR_SIM_DEBUG__ = debugApi;
+    window.__GENESIS_ERROR_DEBUG__ = debugApi;
     return () => {
-      if (window.__STAR_SIM_DEBUG__ === debugApi) {
-        delete window.__STAR_SIM_DEBUG__;
+      if (window.__GENESIS_ERROR_DEBUG__ === debugApi) {
+        delete window.__GENESIS_ERROR_DEBUG__;
       }
     };
   }, [
@@ -1368,7 +1370,7 @@ const App = () => {
         padding: 40, fontFamily: 'Segoe UI', textAlign: 'center', zIndex: 99999,
       }}>
         <div style={{ fontSize: 64, marginBottom: 16 }}>&#x2726;</div>
-        <h1 style={{ fontSize: 24, marginBottom: 12, color: '#00ccff' }}>StarSim</h1>
+        <h1 style={{ fontSize: 24, marginBottom: 12, color: '#00ccff' }}>Genesis Error</h1>
         <pre style={{
           fontSize: 14, color: '#ffaa44', maxWidth: 550, marginBottom: 24,
           whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.6,
@@ -1682,7 +1684,7 @@ const App = () => {
         {cloudUser ? (
           <div
             className="toolbar-user"
-            onClick={() => { cloud.logout(); setCloudUser(null); localStorage.removeItem('starsim-auth-dismissed'); }}
+            onClick={() => { cloud.logout(); setCloudUser(null); localStorage.removeItem('genesiserror-auth-dismissed'); }}
             title={`Logged in as ${cloudUser.username} - click to log out`}
           >
             {cloudUser.username}
@@ -1773,11 +1775,11 @@ const App = () => {
         <AuthModal
           onClose={() => {
             setShowAuthModal(false);
-            localStorage.setItem('starsim-auth-dismissed', '1');
+            localStorage.setItem('genesiserror-auth-dismissed', '1');
           }}
           onAuth={(user) => {
             setCloudUser(user);
-            localStorage.removeItem('starsim-auth-dismissed');
+            localStorage.removeItem('genesiserror-auth-dismissed');
           }}
         />
       )}

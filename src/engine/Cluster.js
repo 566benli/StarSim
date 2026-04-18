@@ -24,6 +24,10 @@ export default class Cluster {
     this.color = config.color || '#6688ff';
     this.size = config.size || 50; // visual size in kly
     this.alive = true;
+    // True when this cluster was spawned as an intergalactic rogue formation
+    // (not a full galaxy). Renderer uses this to draw a small point marker
+    // instead of a full nebula blob.
+    this.isRogueFormation = config.isRogueFormation || false;
   }
 
   get totalMass() {
