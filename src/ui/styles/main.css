@@ -1009,9 +1009,13 @@ html, body, #root {
   align-items: flex-start;
 }
 .body-surface-portrait {
-  border-radius: 8px;
-  border: 1px solid rgba(120, 160, 255, 0.35);
+  width: 160px;
+  height: 200px;
+  border-radius: 12px;
+  border: 1px solid rgba(120, 160, 255, 0.30);
   flex-shrink: 0;
+  object-fit: contain;
+  background: transparent;
 }
 .body-surface-desc {
   margin: 6px 0 0;

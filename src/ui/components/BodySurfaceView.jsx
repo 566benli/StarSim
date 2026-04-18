@@ -205,7 +205,7 @@ export default function BodySurfaceView({ engine, bodyId, onClose }) {
             {pick.species ? (
               <div className="body-surface-species">
                 {portraitUrl && (
-                  <img className="body-surface-portrait" src={portraitUrl} alt="" width={96} height={120} />
+                  <img className="body-surface-portrait" src={portraitUrl} alt="" width={160} height={200} />
                 )}
                 <div>
                   <strong>{pick.species.name}</strong>

@@ -168,3 +168,62 @@ export function clearBiosphereGrid(body) {
   if (!body) return;
   body.biosphereGrid = null;
 }
+
+/**
+ * Encode the biosphereGrid into a flat Float32Array for a GPU DataTexture.
+ * Layout: 32 wide (longitude) × 16 tall (latitude), 4 floats/pixel (RGBA).
+ *   R = species hue / 360 (0..1)
+ *   G = biomass01
+ *   B = civilizationInfluence01
+ *   A = life presence (1 if species present, 0.3 if habitat only, 0 if barren)
+ *
+ * @param {object} body           – planet
+ * @param {Float32Array} [target] – optional pre-allocated array (32*16*4); created if omitted
+ * @returns {Float32Array}
+ */
+export function encodeBiosphereToTexture(body, target) {
+  const SIZE = BIOSPHERE_LON * BIOSPHERE_LAT * 4;
+  const out = target instanceof Float32Array && target.length >= SIZE
+    ? target
+    : new Float32Array(SIZE);
+
+  const grid = body?.biosphereGrid;
+  if (!grid?.cells?.length) {
+    out.fill(0);
+    return out;
+  }
+
+  const { lat, lon, cells } = grid;
+
+  // Build a quick lookup: speciesId → hue (0..1)
+  const hueCache = new Map();
+  const getHue = (id) => {
+    if (!id) return 0;
+    if (hueCache.has(id)) return hueCache.get(id);
+    const h = (hashString32(String(id)) % 3600) / 3600;
+    hueCache.set(id, h);
+    return h;
+  };
+
+  for (let latI = 0; latI < lat; latI++) {
+    for (let lonI = 0; lonI < lon; lonI++) {
+      const ci = latI * lon + lonI;
+      const c  = cells[ci];
+      // DataTexture row 0 = bottom; biosphereGrid row 0 = south pole → match naturally
+      const pi = ci * 4;
+
+      const hue  = getHue(c.dominantSpeciesId);
+      const bio  = c.biomass01;
+      const civ  = c.civilizationInfluence01;
+      const hasSpecies = c.dominantSpeciesId != null;
+      const alpha = hasSpecies ? Math.max(0.35, bio) : (c.habitat !== 'ocean' ? 0.12 : 0);
+
+      out[pi]     = hue;
+      out[pi + 1] = bio;
+      out[pi + 2] = civ;
+      out[pi + 3] = alpha;
+    }
+  }
+
+  return out;
+}
