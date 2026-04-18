@@ -2850,8 +2850,14 @@ export default class SceneManager {
 
       if (this.selectedBody && this.selectedBody.alive) {
         const offset = this.camera.position.clone().sub(this.controls.target);
-        this.controls.target.copy(this.selectedBody.position);
-        this.camera.position.copy(this.selectedBody.position).add(offset);
+        // In system view, track the N-body physics position directly.
+        // Body view tracking is deferred until AFTER updateBodyVisual (below)
+        // so we use the already-rendered mesh position from the previous frame
+        // as a close approximation; final correction happens post-update.
+        if (this._viewLevel !== VIEW_LEVEL.BODY) {
+          this.controls.target.copy(this.selectedBody.position);
+          this.camera.position.copy(this.selectedBody.position).add(offset);
+        }
       } else if (this._explorerTarget) {
         this._updateExplorerTracking();
       } else if (this.trackCOM && this.elapsedTime >= this._trackingPausedUntil && !this._cameraAnimating) {
@@ -2959,6 +2965,20 @@ export default class SceneManager {
 
     if (bodies) {
       this._syncTrailVisibility(bodies);
+    }
+
+    // ── Body-mode camera lock (post-update) ────────────────────────────────────
+    // Run AFTER updateBodyVisual so we use this frame's mesh position, not the
+    // previous frame's. This keeps the focused body pixel-perfectly centred even
+    // at maximum fast-forward speed where the visual orbit drifts away from the
+    // N-body physics position.
+    if (this._viewLevel === VIEW_LEVEL.BODY && this.selectedBody?.alive) {
+      const g = this.bodyMeshes.get(this.selectedBody.id);
+      const trackPos = (g ? g.position : this.selectedBody.position);
+      const offset = this.camera.position.clone().sub(this.controls.target);
+      this.controls.target.copy(trackPos);
+      this.camera.position.copy(trackPos).add(offset);
+      this.controls.update(); // re-apply after repositioning
     }
 
     // System envelope ring — a pulsing halo drawn around the system's orbital
