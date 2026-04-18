@@ -145,6 +145,17 @@ export default class Star extends CelestialBody {
    * Sun brightens ~30% over 10 Gyr, radius grows ~10%
    */
   evolveMainSequence(dt, ageRatio) {
+    // ── Approaching-end warning (8% of main-sequence lifetime remaining) ──────
+    if (ageRatio >= 0.92 && !this._warnedMainSeqEnd) {
+      this._warnedMainSeqEnd = true;
+      this._pendingWarning = {
+        title: '⚠️ Stellar Evolution Approaching',
+        body: `${this.name} is nearing the end of its main-sequence phase. Expect significant changes to the system soon.`,
+        severity: 'warning',
+        category: 'evolution',
+      };
+    }
+
     if (ageRatio >= 1.0) {
       // Leave main sequence
       this.logEvent({
@@ -234,6 +245,17 @@ export default class Star extends CelestialBody {
     this.fusionElement = t < 0.5 ? 'helium (flash)' : 'helium';
     this.massLossRate = 1e-8 * Math.pow(this.luminosity / 1000, 1.5);
 
+    // ── Approaching planetary nebula / white dwarf (15% of red giant phase left) ─
+    if (this.evolutionProgress >= 0.85 && !this._warnedRedGiantEnd) {
+      this._warnedRedGiantEnd = true;
+      this._pendingWarning = {
+        title: '⚠️ White Dwarf Transition Imminent',
+        body: `${this.name} will soon shed its outer layers and collapse into a white dwarf. Orbiting planets may be ejected.`,
+        severity: 'warning',
+        category: 'evolution',
+      };
+    }
+
     if (this.evolutionProgress >= 1.0) {
       if (this.initialMass < 8) {
         this.logEvent({
@@ -276,6 +298,17 @@ export default class Star extends CelestialBody {
     else if (t < 0.5) this.fusionElement = 'neon';
     else if (t < 0.7) this.fusionElement = 'oxygen';
     else this.fusionElement = 'silicon → iron';
+
+    // ── Supernova imminent warning (12% of RSG phase left) ───────────────────
+    if (this.evolutionProgress >= 0.88 && !this._warnedSupernova) {
+      this._warnedSupernova = true;
+      this._pendingWarning = {
+        title: '🔴 Supernova Imminent!',
+        body: `${this.name} has fused iron in its core and is moments away from a catastrophic supernova explosion!`,
+        severity: 'critical',
+        category: 'evolution',
+      };
+    }
 
     if (this.evolutionProgress >= 1.0) {
       this.triggerSupernova();

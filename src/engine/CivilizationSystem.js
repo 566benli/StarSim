@@ -76,6 +76,17 @@ export default class CivilizationSystem {
       return;
     }
 
+    // ── At-risk warning — biosphere deteriorating under an active civilization ─
+    if (!civ._atRiskWarnEmitted && (body.biosphereHealth ?? 1) < 0.18) {
+      civ._atRiskWarnEmitted = true;
+      this._queueEvent(body, simulationTime, {
+        name: 'Civilization at Risk',
+        title: '⚠️ Civilization Under Threat',
+        body: `${civ.name} on ${body.name} faces extinction — the biosphere is collapsing. Intervention needed.`,
+        severity: 'warning',
+      });
+    }
+
     // ── Tech point accumulation ───────────────────────────────────────────
     const baseRate = computeTechRate(civ.unlockedTechs);
     const popBonus = 1 + Math.log10(Math.max(civ.population, 0.001) + 1) * 0.3;
@@ -97,9 +108,9 @@ export default class CivilizationSystem {
       civ.kardashevLevel = newLevel;
       this._queueEvent(body, simulationTime, {
         name: 'Kardashev Ascension',
-        title: `Type ${newLevel} Civilization`,
-        body: `${civ.name} on ${body.name} has become a Kardashev Type ${newLevel} civilization.`,
-        severity: 'major',
+        title: `🌟 Kardashev Type ${newLevel} Achieved`,
+        body: `${civ.name} on ${body.name} has ascended to a Kardashev Type ${newLevel} civilization — harnessing the energy of ${newLevel === 1 ? 'their entire planet' : newLevel === 2 ? 'their star' : 'their galaxy'}.`,
+        severity: newLevel >= 2 ? 'critical' : 'major',
       });
     }
 
@@ -154,9 +165,9 @@ export default class CivilizationSystem {
 
     this._queueEvent(body, simulationTime, {
       name: 'Civilization Emerges',
-      title: 'First Civilization',
-      body: `The ${speciesName} on ${body.name} have formed the first civilization: ${civName}.`,
-      severity: 'major',
+      title: '🏛️ First Civilization',
+      body: `The ${speciesName} on ${body.name} have formed their first civilization: ${civName}. The age of intelligence begins.`,
+      severity: 'historic',
     });
 
     if (empireSystem) {

@@ -9,6 +9,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { CAMERA_NEAR, CAMERA_FAR, BLOOM_INTENSITY, ARENA_RADIUS_AU, VIEW_LEVEL, UNIVERSE_RADIUS_MLY } from '@utils/constants';
 import { temperatureToColor } from '@utils/math';
+import { encodeBiosphereToTexture } from '@engine/biosphereGrid.js';
 
 export default class SceneManager {
   constructor(container) {
@@ -18,6 +19,13 @@ export default class SceneManager {
     this.rogueMarkers = new Map(); // body.id -> universe-space marker for escaped bodies
     this.selectedBody = null;
     this.hoveredBody = null;
+
+    // Visual orbit cap: at high time scales (fast-forward) the N-body integration
+    // advances too many orbits per frame to visualise clearly.  We track a separate
+    // visual angle per planet and advance it at a capped angular velocity so that
+    // every orbit takes at least MIN_ORBIT_PERIOD_S seconds of real wall-clock time.
+    this._visualOrbitPhases = new Map(); // bodyId -> current visual angle (radians)
+    this._frameDelta = 1 / 60;           // last real-time frame duration (seconds)
 
     this.init();
   }
@@ -1203,8 +1211,46 @@ export default class SceneManager {
       this.scene.add(group);
     }
 
-    // Update position
-    group.position.copy(body.position);
+    // ── Visual orbit cap ──────────────────────────────────────────────────────
+    // At very high time scales (fast-forward) the N-body integrator caps its
+    // physics step, but may still advance many planet orbits per rendered frame.
+    // To keep orbits legible we maintain a *visual* angle that advances at most
+    // one full orbit per MIN_ORBIT_PERIOD_S seconds of real time — regardless of
+    // how fast the simulation clock is running.
+    const MIN_ORBIT_PERIOD_S = 1.5; // one orbit takes ≥ 1.5 s of real time
+    const MAX_VISUAL_OMEGA   = (2 * Math.PI) / MIN_ORBIT_PERIOD_S; // rad / real-s
+
+    if (
+      this._fastForwardMode &&
+      body.type === 'planet' &&
+      body.parentBody?.alive &&
+      body.orbitalDistance > 0
+    ) {
+      // Seed visual phase from current N-body true anomaly on first contact.
+      if (!this._visualOrbitPhases.has(body.id)) {
+        this._visualOrbitPhases.set(body.id, body.trueAnomaly ?? 0);
+      }
+      const va = this._visualOrbitPhases.get(body.id) + MAX_VISUAL_OMEGA * this._frameDelta;
+      this._visualOrbitPhases.set(body.id, va);
+
+      // Keplerian position (matches Planet.updateOrbit formula)
+      const par = body.parentBody;
+      const a   = body.orbitalDistance;
+      const e   = Math.min(body.eccentricity || 0, 0.95);
+      const r   = a * (1 - e * e) / (1 + e * Math.cos(va));
+      const inc = body.inclination ?? 0.05;
+      group.position.set(
+        par.position.x + r * Math.cos(va),
+        par.position.y + r * Math.sin(va) * Math.sin(inc),
+        par.position.z + r * Math.sin(va) * Math.cos(inc),
+      );
+    } else {
+      // Normal mode (or star/black hole): follow N-body position directly.
+      // When returning from fast-forward, clear the stale visual phase so the
+      // next fast-forward starts fresh from the N-body state.
+      if (!this._fastForwardMode) this._visualOrbitPhases.delete(body.id);
+      group.position.copy(body.position);
+    }
 
     // Update rotation
     if (group.userData.mainMesh) {
@@ -1213,11 +1259,20 @@ export default class SceneManager {
 
     // Update planet shader uniforms
     if (group.userData.isPlanetShader && group.userData.material?.uniforms) {
-      group.userData.material.uniforms.time.value = this.elapsedTime;
+      const uniforms = group.userData.material.uniforms;
+      uniforms.time.value = this.elapsedTime;
       // Update light direction toward nearest star
       if (this._nearestStarPos) {
         const dir = this._nearestStarPos.clone().sub(body.position).normalize();
-        group.userData.material.uniforms.lightDir.value.copy(dir);
+        uniforms.lightDir.value.copy(dir);
+      }
+      // Live-update biosphere overlay texture
+      if (body.biosphereGrid && group.userData._bioTex) {
+        encodeBiosphereToTexture(body, group.userData._bioData);
+        group.userData._bioTex.needsUpdate = true;
+        uniforms.biosphereOpacity.value = Math.min(1.0, (body.biosphereHealth ?? 0) * 1.5);
+      } else if (uniforms.biosphereOpacity) {
+        uniforms.biosphereOpacity.value = 0.0;
       }
     }
 
@@ -1662,7 +1717,7 @@ export default class SceneManager {
   }
 
   /**
-   * Create planet visual with procedural 3D shader
+   * Create planet visual with procedural 3D shader (biosphere overlay + rich terrain).
    */
   createPlanetMesh(body, group) {
     const geometry = new THREE.SphereGeometry(1, 64, 64);
@@ -1673,14 +1728,22 @@ export default class SceneManager {
 
     const planetType = this._planetTypeIndex(body.subtype);
 
+    // Biosphere overlay DataTexture (32 lon × 16 lat, RGBA float)
+    const bioData = new Float32Array(32 * 16 * 4);
+    const bioTex = new THREE.DataTexture(bioData, 32, 16, THREE.RGBAFormat, THREE.FloatType);
+    bioTex.needsUpdate = true;
+
     const material = new THREE.ShaderMaterial({
       uniforms: {
-        time:        { value: 0 },
-        baseColor:   { value: baseColor },
-        secondColor: { value: secondColor },
-        planetType:  { value: planetType },
-        seed:        { value: Math.random() * 100 },
-        lightDir:    { value: new THREE.Vector3(1, 0.5, 0.5).normalize() },
+        time:             { value: 0 },
+        baseColor:        { value: baseColor },
+        secondColor:      { value: secondColor },
+        planetType:       { value: planetType },
+        seed:             { value: body.surfaceSeed != null ? (body.surfaceSeed % 100) + Math.random() * 0.01 : Math.random() * 100 },
+        lightDir:         { value: new THREE.Vector3(1, 0.5, 0.5).normalize() },
+        waterCoverage:    { value: body.waterCoverage ?? (body.hasWater ? 0.6 : 0.05) },
+        biosphereMap:     { value: bioTex },
+        biosphereOpacity: { value: 0.0 },
       },
       vertexShader: /* glsl */`
         varying vec3 vNormal;
@@ -1723,7 +1786,6 @@ export default class SceneManager {
           vPosition = position;
 
           vec3 displaced = position;
-          // Slight terrain displacement for rocky/lava worlds
           if (planetType < 0.5 || (planetType > 0.5 && planetType < 1.5) || (planetType > 3.5 && planetType < 4.5)) {
             float n = snoise(position * 6.0 + seed) * 0.015;
             displaced = position + normal * n;
@@ -1744,6 +1806,9 @@ export default class SceneManager {
         uniform float planetType;
         uniform float seed;
         uniform vec3 lightDir;
+        uniform float waterCoverage;
+        uniform sampler2D biosphereMap;
+        uniform float biosphereOpacity;
 
         vec3 mod289(vec3 x){return x-floor(x*(1.0/289.0))*289.0;}
         vec4 mod289(vec4 x){return x-floor(x*(1.0/289.0))*289.0;}
@@ -1770,6 +1835,21 @@ export default class SceneManager {
           return 42.0*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
         }
 
+        // FBM helper (2 octaves)
+        float fbm2(vec3 p) {
+          return snoise(p) * 0.65 + snoise(p * 2.1 + 1.7) * 0.35;
+        }
+
+        // Hue to RGB (GLSL)
+        vec3 hue2rgb(float h) {
+          float hh = fract(h) * 6.0;
+          vec3 c;
+          c.r = abs(hh - 3.0) - 1.0;
+          c.g = 2.0 - abs(hh - 2.0);
+          c.b = 2.0 - abs(hh - 4.0);
+          return clamp(c, 0.0, 1.0);
+        }
+
         void main(){
           vec3 viewDir = normalize(-vPosition);
           float NdotV = max(dot(vNormal, viewDir), 0.0);
@@ -1778,60 +1858,84 @@ export default class SceneManager {
           vec3 color;
 
           if (planetType < 0.5) {
-            // Rocky world - terrain noise with craters
+            // Rocky world
             float terrain = snoise(P * 4.0) * 0.5 + 0.5;
             float detail  = snoise(P * 12.0) * 0.3;
             float craters = smoothstep(0.65, 0.72, snoise(P * 9.0)) * 0.4;
             color = mix(baseColor * 0.6, baseColor * 1.3, terrain + detail);
             color -= vec3(craters);
             color = max(color, vec3(0.02));
+
           } else if (planetType < 1.5) {
-            // Earth-like - oceans, continents, polar caps, clouds
-            float continent = snoise(P * 3.0);
-            float detail    = snoise(P * 9.0) * 0.15;
-            float landMask  = smoothstep(-0.05, 0.1, continent + detail);
-            vec3 ocean = vec3(0.06, 0.15, 0.55);
-            vec3 land  = mix(vec3(0.2, 0.45, 0.15), vec3(0.55, 0.45, 0.25),
-                             smoothstep(0.0, 0.4, continent));
-            vec3 desert = vec3(0.7, 0.6, 0.35);
-            float desertMask = smoothstep(0.3, 0.5, continent + detail);
-            land = mix(land, desert, desertMask * 0.5);
-            color = mix(ocean, land, landMask);
+            // Earth-like: richer biome terrain driven by waterCoverage
+            float continent = fbm2(P * 3.0);
+            float detail    = snoise(P * 9.0) * 0.12;
+            float landBias  = mix(0.38, -0.32, waterCoverage);
+            float landMask  = smoothstep(landBias - 0.10, landBias + 0.10, continent + detail);
+
+            // Depth-graded ocean: shallow shelf lighter, deep darker
+            float shelfNoise = snoise(P * 5.5) * 0.5 + 0.5;
+            float shelfMask  = smoothstep(landBias - 0.28, landBias - 0.05, continent + detail);
+            vec3 deepOcean    = vec3(0.03, 0.09, 0.42);
+            vec3 shallowOcean = vec3(0.09, 0.28, 0.62);
+            vec3 ocean = mix(deepOcean, shallowOcean, shelfMask * (0.5 + shelfNoise * 0.5));
+
+            // Biome zones: equatorial forest, mid-lat grass/savanna, high-lat tundra
+            float absLat = abs(vPosition.y);
+            float forestMask  = smoothstep(0.35, 0.15, absLat) * smoothstep(0.0, 0.25, landMask);
+            float savannaMask = smoothstep(0.55, 0.35, absLat) * (1.0 - forestMask);
+            float tundraMask  = smoothstep(0.52, 0.68, absLat);
+            vec3 forestColor  = mix(vec3(0.12, 0.38, 0.10), vec3(0.20, 0.48, 0.16), snoise(P * 8.0) * 0.5 + 0.5);
+            vec3 savannaColor = mix(vec3(0.48, 0.44, 0.18), vec3(0.60, 0.52, 0.22), snoise(P * 6.0) * 0.5 + 0.5);
+            vec3 desertColor  = vec3(0.72, 0.60, 0.30);
+            float desertMask  = smoothstep(0.25, 0.50, continent + detail) * smoothstep(0.0, 0.3, landMask);
+            vec3 landColor    = forestColor;
+            landColor = mix(landColor, savannaColor, savannaMask * 0.7);
+            landColor = mix(landColor, desertColor,  desertMask * 0.5);
+            landColor = mix(landColor, vec3(0.55, 0.52, 0.44), tundraMask * 0.55);
+
+            color = mix(ocean, landColor, landMask);
+
             // Polar ice caps
             float polar = abs(vPosition.y);
-            float ice = smoothstep(0.65, 0.85, polar);
-            color = mix(color, vec3(0.9, 0.95, 1.0), ice);
-            // Cloud layer
-            float clouds = smoothstep(0.2, 0.55, snoise(P * 4.5 + time * 0.015));
-            color = mix(color, vec3(1.0, 1.0, 1.0), clouds * 0.35);
-            // Ocean specular highlight
+            float ice = smoothstep(0.62, 0.82, polar);
+            color = mix(color, vec3(0.92, 0.96, 1.0), ice);
+
+            // Cloud layer (two noise layers for patchiness)
+            float cloud1 = smoothstep(0.18, 0.52, snoise(P * 4.5 + time * 0.015));
+            float cloud2 = smoothstep(0.22, 0.60, snoise(P * 6.0 - time * 0.009));
+            float clouds = max(cloud1, cloud2 * 0.6) * (1.0 - ice * 0.7);
+            color = mix(color, vec3(1.0), clouds * 0.40);
+
+            // Ocean specular
             float spec = pow(max(dot(reflect(-lightDir, vWorldNormal), viewDir), 0.0), 40.0);
-            color += vec3(0.4, 0.5, 0.6) * spec * (1.0 - landMask) * 0.3;
+            color += vec3(0.35, 0.45, 0.65) * spec * (1.0 - landMask) * (1.0 - clouds) * 0.4;
+
           } else if (planetType < 2.5) {
-            // Gas giant - banded atmosphere with storms
+            // Gas giant
             float lat = vPosition.y;
             float warp = snoise(P * 2.5 + time * 0.008) * 0.6;
             float band = sin(lat * 14.0 + warp) * 0.5 + 0.5;
             float turb = snoise(P * 5.0 + vec3(0, time * 0.01, 0)) * 0.25;
             color = mix(baseColor, secondColor, clamp(band + turb, 0.0, 1.0));
-            // Great spot
             float spot = length(vPosition.xz - vec2(0.4, 0.3));
             float spotMask = smoothstep(0.25, 0.15, spot);
             vec3 spotColor = baseColor * 1.4 + vec3(0.15, 0.05, 0.0);
             color = mix(color, spotColor, spotMask * 0.6);
-            // Fine turbulence detail
             float fine = snoise(P * 12.0 + time * 0.02) * 0.08;
             color += fine;
+
           } else if (planetType < 3.5) {
-            // Ice giant - smooth blue-green bands
+            // Ice giant
             float lat = vPosition.y;
             float warp = snoise(P * 2.0) * 0.3;
             float band = sin(lat * 8.0 + warp) * 0.5 + 0.5;
             color = mix(baseColor, secondColor, band * 0.4 + 0.3);
             float wisps = snoise(P * 7.0 + time * 0.005) * 0.1;
             color += wisps;
+
           } else if (planetType < 4.5) {
-            // Lava world - dark crust with glowing magma cracks
+            // Lava world
             float cracks = snoise(P * 6.0);
             float ridge  = 1.0 - abs(cracks);
             float glow   = pow(ridge, 4.0);
@@ -1841,8 +1945,9 @@ export default class SceneManager {
             vec3 hotMagma = vec3(1.2, 0.7, 0.1);
             color = mix(crust, magma, glow * 0.8);
             color += hotMagma * fineGlow;
+
           } else {
-            // Hot Jupiter - turbulent orange/red bands
+            // Hot Jupiter
             float lat = vPosition.y;
             float warp = snoise(P * 3.0 + time * 0.02) * 1.2;
             float band = sin(lat * 10.0 + warp) * 0.5 + 0.5;
@@ -1851,19 +1956,37 @@ export default class SceneManager {
             color += turb;
           }
 
-          // Diffuse lighting from nearest star
+          // ── Biosphere overlay (applies to all rocky/earth-like worlds) ──────────
+          if (biosphereOpacity > 0.01 && planetType < 1.5) {
+            vec4 bio = texture2D(biosphereMap, vUv);
+            if (bio.a > 0.04) {
+              // Decode species hue into a vibrant tint
+              float hueAngle = bio.r * 6.28318530718;
+              vec3 speciesRgb = hue2rgb(bio.r);
+              // Desaturate toward terrain at low biomass; full tint at high biomass
+              vec3 bioTint = mix(color, speciesRgb * 0.78, bio.g * bio.a * biosphereOpacity * 0.50);
+              color = bioTint;
+              // Civilization influence: warm gold-orange overlay
+              if (bio.b > 0.05) {
+                vec3 civGold = vec3(1.0, 0.80, 0.22);
+                color = mix(color, civGold, bio.b * biosphereOpacity * 0.38);
+              }
+            }
+          }
+
+          // Diffuse lighting
           float diffuse = NdotL * 0.6 + 0.4;
           color *= diffuse;
 
-          // Limb darkening for 3D depth
+          // Limb darkening
           float limbDark = pow(NdotV, 0.5);
           color *= limbDark * 0.6 + 0.4;
 
-          // Subtle rim/fresnel
+          // Fresnel rim
           float fresnel = pow(1.0 - NdotV, 3.5);
           color += vec3(0.15, 0.2, 0.35) * fresnel * 0.15;
 
-          // Lava worlds are emissive - exempt from darkening
+          // Lava emissive
           if (planetType > 3.5 && planetType < 4.5) {
             float cracks2 = snoise(P * 6.0);
             float emissive = pow(1.0 - abs(cracks2), 4.0);
@@ -1880,16 +2003,20 @@ export default class SceneManager {
     group.userData.mainMesh = mesh;
     group.userData.material = material;
     group.userData.isPlanetShader = true;
+    group.userData._bioData = bioData;
+    group.userData._bioTex  = bioTex;
 
-    // Atmosphere glow (Fresnel-based BackSide sphere)
+    // Atmosphere glow: two-shell (thick outer + thin inner haze)
     if (body.hasAtmosphere) {
-      const atmoColor = new THREE.Color(body.atmosphereColor || '#88aaff');
-      const atmoOpacity = Math.min(body.atmospherePressure * 0.08, 0.35);
-      const atmoGeom = new THREE.SphereGeometry(1.06, 32, 32);
+      const atmoColor  = new THREE.Color(body.atmosphereColor || '#88aaff');
+      const atmoOpacity = Math.min(body.atmospherePressure * 0.10, 0.55);
+
+      // Outer Fresnel shell
+      const atmoGeom = new THREE.SphereGeometry(1.08, 32, 32);
       const atmoMat = new THREE.ShaderMaterial({
         uniforms: {
           atmoColor: { value: atmoColor },
-          opacity: { value: atmoOpacity },
+          opacity:   { value: atmoOpacity },
         },
         vertexShader: /* glsl */`
           varying vec3 vNormal;
@@ -1909,7 +2036,7 @@ export default class SceneManager {
           void main() {
             vec3 viewDir = normalize(-vPosition);
             float rim = 1.0 - max(dot(vNormal, viewDir), 0.0);
-            float glow = pow(rim, 2.5);
+            float glow = pow(rim, 2.2);
             gl_FragColor = vec4(atmoColor, glow * opacity);
           }
         `,
@@ -1920,6 +2047,43 @@ export default class SceneManager {
       const atmosphere = new THREE.Mesh(atmoGeom, atmoMat);
       group.add(atmosphere);
       group.userData.atmosphere = atmosphere;
+
+      // Inner haze shell (slightly inside, gentler falloff for bulk color)
+      const hazeGeom = new THREE.SphereGeometry(1.025, 32, 32);
+      const hazeMat = new THREE.ShaderMaterial({
+        uniforms: {
+          atmoColor: { value: atmoColor.clone() },
+          opacity:   { value: Math.min(atmoOpacity * 0.45, 0.18) },
+        },
+        vertexShader: /* glsl */`
+          varying vec3 vNormal;
+          varying vec3 vPosition;
+          void main() {
+            vNormal = normalize(normalMatrix * normal);
+            vPosition = (modelViewMatrix * vec4(position, 1.0)).xyz;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: /* glsl */`
+          precision highp float;
+          varying vec3 vNormal;
+          varying vec3 vPosition;
+          uniform vec3 atmoColor;
+          uniform float opacity;
+          void main() {
+            vec3 viewDir = normalize(-vPosition);
+            float rim = 1.0 - max(dot(vNormal, viewDir), 0.0);
+            float haze = pow(rim, 1.4);
+            gl_FragColor = vec4(atmoColor * 1.15, haze * opacity);
+          }
+        `,
+        transparent: true,
+        side: THREE.BackSide,
+        depthWrite: false,
+      });
+      const hazeShell = new THREE.Mesh(hazeGeom, hazeMat);
+      group.add(hazeShell);
+      group.userData.hazeShell = hazeShell;
     }
 
     // Rings (improved with gradient)
@@ -2650,6 +2814,7 @@ export default class SceneManager {
   render(bodies, clusters, allBodies) {
     this.elapsedTime = this.clock.getElapsedTime();
     const frameDelta = Math.min(0.1, Math.max(0, this.clock.getDelta()));
+    this._frameDelta = frameDelta; // make available to updateBodyVisual
 
     // Universe view: render clusters (but still keep body positions updated for smooth transitions)
     if (this._viewLevel === VIEW_LEVEL.UNIVERSE) {

@@ -80,9 +80,9 @@ export default class EmpireSystem {
 
     this._queueEvent(body, simulationTime, {
       name: 'Empire Founded',
-      title: `Empire: ${empire.name}`,
-      body: `${empire.name} has declared itself a sovereign empire, headquartered on ${body.name}.`,
-      severity: 'major',
+      title: `🚀 Empire: ${empire.name}`,
+      body: `${empire.name} has declared itself a sovereign stellar empire, headquartered on ${body.name}. Interstellar expansion begins.`,
+      severity: 'critical',
     });
 
     return empire;
@@ -234,9 +234,9 @@ export default class EmpireSystem {
 
     this._queueEvent(null, simulationTime, {
       name: 'War Declared',
-      title: `War: ${attacker.name} vs ${defender?.name ?? '?'}`,
-      body: `${attacker.name} has declared war on ${defender?.name ?? 'an unknown empire'}.`,
-      severity: 'major',
+      title: `⚔️ War: ${attacker.name} vs ${defender?.name ?? '?'}`,
+      body: `${attacker.name} has declared war on ${defender?.name ?? 'an unknown empire'}. Fleets are mobilizing.`,
+      severity: 'warning',
     });
   }
 

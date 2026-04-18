@@ -24,46 +24,81 @@ const EventNotification = () => {
   );
 };
 
+// Auto-dismiss durations per severity
+const DISMISS_DELAY = {
+  critical:     12000,
+  warning:       9000,
+  historic:      9000,
+  catastrophic: 14000,
+  major:         7000,
+  notable:       6000,
+};
+
+const SEVERITY_ICON = {
+  critical:     '🔴',
+  warning:      '⚠️',
+  historic:     '📜',
+  catastrophic: '💥',
+  major:        '⭐',
+};
+
 const EventToast = ({ event, onDismiss }) => {
   const [visible, setVisible] = useState(false);
   const [exiting, setExiting] = useState(false);
 
-  useEffect(() => {
-    // Animate in
-    setTimeout(() => setVisible(true), 50);
+  const notification = event.notification || {};
+  const severity = notification.severity || 'notable';
+  const delay = DISMISS_DELAY[severity] ?? 6000;
 
-    // Auto dismiss after 6 seconds
+  useEffect(() => {
+    setTimeout(() => setVisible(true), 50);
     const timer = setTimeout(() => {
       setExiting(true);
       setTimeout(onDismiss, 500);
-    }, 6000);
-
+    }, delay);
     return () => clearTimeout(timer);
   }, []);
 
-  const notification = event.notification || {};
-  const isEvolution = event.category === 'evolution';
-  const isLife = event.category === 'life';
-  const borderColor = isEvolution
-    ? '#ffc107'
-    : isLife
-      ? '#55d88b'
-      : (notification.color || '#4488ff');
+  const isEvolution    = event.category === 'evolution';
+  const isLife         = event.category === 'life';
+  const isCivilization = event.category === 'civilization';
+  const isWarning      = severity === 'warning';
+  const isCritical     = severity === 'critical' || severity === 'catastrophic';
+
+  const borderColor = isCritical     ? '#ff4444'
+    : isWarning                      ? '#ff9800'
+    : isCivilization                 ? '#aa77ff'
+    : isEvolution                    ? '#ffc107'
+    : isLife                         ? '#55d88b'
+    : (notification.color || '#4488ff');
+
+  const classes = [
+    'event-toast',
+    visible ? 'visible' : '',
+    exiting ? 'exiting' : '',
+    isEvolution    ? 'evolution'    : '',
+    isLife         ? 'life'         : '',
+    isCivilization ? 'civilization' : '',
+    isWarning      ? 'toast-warning' : '',
+    isCritical     ? 'toast-critical' : '',
+  ].filter(Boolean).join(' ');
 
   return (
     <div
-      className={`event-toast ${visible ? 'visible' : ''} ${exiting ? 'exiting' : ''} ${isEvolution ? 'evolution' : ''} ${isLife ? 'life' : ''}`}
+      className={classes}
       style={{ borderLeftColor: borderColor }}
-      onClick={() => {
-        setExiting(true);
-        setTimeout(onDismiss, 500);
-      }}
+      onClick={() => { setExiting(true); setTimeout(onDismiss, 500); }}
     >
-      <div className="toast-title">{notification.title || event.name}</div>
+      <div className="toast-title">
+        {SEVERITY_ICON[severity] && <span className="toast-severity-icon">{SEVERITY_ICON[severity]} </span>}
+        {notification.title || event.name}
+      </div>
       <div className="toast-body">
         {notification.body?.replace(/\{(\w+)\}/g, event.targetBody?.name || '???') || event.description}
       </div>
-      {notification.severity && <div className="toast-severity">{notification.severity}</div>}
+      {severity !== 'notable' && (
+        <div className={`toast-severity-badge sev-${severity}`}>{severity}</div>
+      )}
     </div>
   );
 };

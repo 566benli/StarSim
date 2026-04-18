@@ -852,6 +852,29 @@ export default class SimEngine {
         if (this.onPhaseChange) this.onPhaseChange(body, change.newPhase);
       }
 
+      // ── Stellar evolution approaching-warning ─────────────────────────────
+      // Star.js sets body._pendingWarning when a phase transition is imminent.
+      if (body._pendingWarning) {
+        const warn = body._pendingWarning;
+        body._pendingWarning = null;
+        const warnEvent = {
+          id: `warn_${Date.now()}_${Math.random()}`,
+          name: warn.title,
+          category: warn.category || 'evolution',
+          targetBody: body,
+          time: this.simulationTime,
+          notification: {
+            title: warn.title,
+            body: warn.body,
+            severity: warn.severity || 'warning',
+          },
+          effects: {},
+        };
+        this.eventHistory.push(warnEvent);
+        this.pendingEvents.push(warnEvent);
+        if (this.onEvent) this.onEvent(warnEvent);
+      }
+
       // ── Process supernova / explosion payloads ─────────────────────────────
       if (body._pendingExplosion) {
         const expl = body._pendingExplosion;

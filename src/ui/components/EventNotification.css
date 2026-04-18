@@ -60,18 +60,82 @@
   margin-top: 6px;
 }
 
-/* Evolution events - golden highlight */
+/* ── Category tints ──────────────────────────────────────────────── */
+
 .event-toast.evolution {
   border-left-color: #ffc107;
   background: rgba(30, 25, 10, 0.95);
   border-color: rgba(255, 193, 7, 0.3);
   box-shadow: 0 0 20px rgba(255, 193, 7, 0.15);
 }
+.event-toast.evolution .toast-title { color: #ffd54f; }
+.event-toast.evolution .toast-body  { color: #fff8e1; }
 
-.event-toast.evolution .toast-title {
-  color: #ffd54f;
+.event-toast.life {
+  border-left-color: #55d88b;
+  background: rgba(10, 28, 18, 0.95);
+  border-color: rgba(85, 216, 139, 0.25);
+}
+.event-toast.life .toast-title { color: #7ae6a8; }
+
+.event-toast.civilization {
+  border-left-color: #aa77ff;
+  background: rgba(20, 10, 35, 0.96);
+  border-color: rgba(170, 119, 255, 0.3);
+  box-shadow: 0 0 20px rgba(170, 119, 255, 0.15);
+}
+.event-toast.civilization .toast-title { color: #cc99ff; }
+.event-toast.civilization .toast-body  { color: #e8d8ff; }
+
+/* ── Severity overrides (take precedence over category) ──────────── */
+
+/* Warning — orange pulse */
+.event-toast.toast-warning {
+  border-left-color: #ff9800 !important;
+  background: rgba(30, 15, 0, 0.96);
+  border-color: rgba(255, 152, 0, 0.4) !important;
+  box-shadow: 0 0 24px rgba(255, 152, 0, 0.25);
+  animation: pulse-warning 2s ease-in-out infinite;
+}
+.event-toast.toast-warning .toast-title { color: #ffb74d; }
+.event-toast.toast-warning .toast-body  { color: #ffe0b2; }
+
+@keyframes pulse-warning {
+  0%, 100% { box-shadow: 0 0 12px rgba(255, 152, 0, 0.2); }
+  50%       { box-shadow: 0 0 28px rgba(255, 152, 0, 0.5); }
 }
 
-.event-toast.evolution .toast-body {
-  color: #fff8e1;
+/* Critical — red with stronger pulse */
+.event-toast.toast-critical {
+  border-left-color: #ff4444 !important;
+  background: rgba(30, 5, 5, 0.97);
+  border-color: rgba(255, 68, 68, 0.5) !important;
+  box-shadow: 0 0 30px rgba(255, 68, 68, 0.3);
+  animation: pulse-critical 1.4s ease-in-out infinite;
 }
+.event-toast.toast-critical .toast-title { color: #ff7070; font-size: 16px; }
+.event-toast.toast-critical .toast-body  { color: #ffcccc; }
+
+@keyframes pulse-critical {
+  0%, 100% { box-shadow: 0 0 16px rgba(255, 68, 68, 0.25); }
+  50%       { box-shadow: 0 0 40px rgba(255, 68, 68, 0.65); }
+}
+
+/* ── Severity badge ──────────────────────────────────────────────── */
+.toast-severity-icon { font-style: normal; }
+
+.toast-severity-badge {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 3px;
+}
+.sev-warning      { background: rgba(255,152,0,0.2);  color: #ff9800; border: 1px solid rgba(255,152,0,0.4); }
+.sev-critical     { background: rgba(255,68,68,0.2);  color: #ff6060; border: 1px solid rgba(255,68,68,0.45); }
+.sev-catastrophic { background: rgba(200,0,0,0.25);   color: #ff4040; border: 1px solid rgba(200,0,0,0.5); }
+.sev-historic     { background: rgba(255,215,0,0.15); color: #ffd700; border: 1px solid rgba(255,215,0,0.35); }
+.sev-major        { background: rgba(100,180,255,0.1);color: #88bbff; border: 1px solid rgba(100,180,255,0.3); }
