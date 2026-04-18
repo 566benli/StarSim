@@ -40,6 +40,10 @@ export default class SimEngine {
   constructor() {
     this.gravitySystems = new Map(); // systemId -> GravitySystem
     this.universe = new Universe();
+    // Bodies that have escaped their GravitySystem and wander in universe space.
+    // Kept here so updateEscapedBodies / getBody / getUniverseStats can find them
+    // even after escGS.removeBody() was called.
+    this._escapedBodies = [];
 
     this.simulationTime = 0;
     this.timeScale = 10;
@@ -217,6 +221,11 @@ export default class SimEngine {
 
   markBodyEscaped(body, { systemId, com } = {}) {
     if (!body?.alive || body.escapedSystem) return;
+    // Register in the rogue store so updateEscapedBodies / getBody keep tracking it
+    // even after it is removed from its GravitySystem.
+    if (!this._escapedBodies.find(b => b.id === body.id)) {
+      this._escapedBodies.push(body);
+    }
 
     const system = systemId ? this.universe.getSystem(systemId) : null;
     const clusterId = system?.clusterId || null;
@@ -256,9 +265,19 @@ export default class SimEngine {
   updateEscapedBodies(dtYears) {
     if (dtYears <= 0) return;
     const dtMly = dtYears / 1e6;
-    const bodies = this.getBodies();
-    for (const body of bodies) {
-      if (!body.alive || !body.escapedSystem) continue;
+    // Move all tracked rogue bodies through universe space.
+    // We iterate _escapedBodies directly because these bodies have been removed
+    // from their GravitySystem (and therefore from getBodies()) but still need
+    // their universePosition updated each frame.
+    const seen = new Set();
+    for (const body of this._escapedBodies) {
+      if (!body.alive) continue;
+      body.universePosition.addScaledVector(body.universeVelocity, dtMly);
+      seen.add(body.id);
+    }
+    // Also handle any escaped body still resident in a GravitySystem (edge case).
+    for (const body of this.getBodies()) {
+      if (!body.alive || !body.escapedSystem || seen.has(body.id)) continue;
       body.universePosition.addScaledVector(body.universeVelocity, dtMly);
     }
   }
@@ -1037,13 +1056,26 @@ export default class SimEngine {
     return all;
   }
 
-  /** Find a body by id across all systems */
+  /** Find a body by id across all systems, including escaped rogues */
   getBody(id) {
     for (const gs of this.gravitySystems.values()) {
       const found = gs.bodies.find(b => b.id === id);
       if (found) return found;
     }
-    return null;
+    return this._escapedBodies.find(b => b.id === id) ?? null;
+  }
+
+  /**
+   * All alive bodies — bound AND escaped.
+   * Use this instead of getBodies() when you need the full picture
+   * (e.g. for rendering rogue markers, universe stats).
+   */
+  getAllBodies() {
+    const all = this.getBodies();
+    for (const b of this._escapedBodies) {
+      if (b.alive && !all.find(x => x.id === b.id)) all.push(b);
+    }
+    return all;
   }
 
   /** Bodies in a specific star system */
@@ -1125,8 +1157,8 @@ export default class SimEngine {
         alive: c.alive,
         position: { x: c.position.x, y: c.position.y, z: c.position.z },
       })),
-      rogueBodies: bodies
-        .filter((b) => b.alive && b.escapedSystem)
+      rogueBodies: this._escapedBodies
+        .filter((b) => b.alive)
         .map((b) => ({
           id: b.id,
           name: b.name,
@@ -1223,6 +1255,7 @@ export default class SimEngine {
     this.lastEventCheck = 0;
     this._lastLifeUpdate = 0;
     this._lastCivUpdate  = 0;
+    this._escapedBodies  = [];
     this.empireSystem.reset();
     this.civilizationSystem.pendingEvents = [];
     this.civilizationSystem._allBodies = [];

@@ -186,40 +186,32 @@ export default class GravitySystem {
   }
 
   /**
-   * Boundary enforcement with rubber-band zone:
-   * - Inside warningRadius: normal physics
-   * - Between warningRadius and boundaryRadius: apply restoring deceleration toward COM
-   * - Beyond boundaryRadius: destroy
+   * Boundary enforcement — physics-based escape detection only.
+   *
+   * The old "rubber-band" damping zone (80%–100% of boundary radius) caused
+   * planets to get permanently stuck at the edge: large time-steps killed
+   * outward velocity and the near-zero gravity of a remnant star could not
+   * restart motion.  Now we let N-body physics determine whether an orbit is
+   * bound or unbound.  A truly bound planet will naturally return; an unbound
+   * one (e.g. after stellar mass-loss) will drift outward until it crosses the
+   * hard boundary and escapes cleanly.
    */
   detectBoundary(bodies, com) {
-    const R = this.boundaryRadius;
-    const Rw = this.warningRadius;
-    const R2 = R * R;
+    const R2 = this.boundaryRadius * this.boundaryRadius;
     for (const body of bodies) {
       if (!body.alive) continue;
       if (body.escapedSystem) continue;
       const dx = body.position.x - com.x;
       const dy = body.position.y - com.y;
       const dz = body.position.z - com.z;
-      const distSq = dx * dx + dy * dy + dz * dz;
-
-      if (distSq > R2) {
-        body.logEvent({ type: 'boundary', message: `${body.name} crossed the system boundary and escaped into deep space.` });
+      if (dx * dx + dy * dy + dz * dz > R2) {
+        body.logEvent({
+          type: 'boundary',
+          message: `${body.name} crossed the system boundary and escaped into deep space.`,
+        });
         if (this.onBoundaryExceeded) {
-          this.onBoundaryExceeded(body, {
-            centerOfMass: { x: com.x, y: com.y, z: com.z },
-          });
+          this.onBoundaryExceeded(body, { centerOfMass: { x: com.x, y: com.y, z: com.z } });
         }
-      } else if (distSq > Rw * Rw) {
-        const dist = Math.sqrt(distSq);
-        const fraction = (dist - Rw) / (R - Rw); // 0 at Rw, 1 at R
-        const dampStrength = 0.15 + 0.85 * fraction; // progressive damping
-        body.velocity.multiplyScalar(1 - dampStrength * 0.3);
-        // Gentle pull toward COM
-        const pullStrength = 0.05 * fraction;
-        body.velocity.x -= (dx / dist) * pullStrength * body.velocity.length();
-        body.velocity.y -= (dy / dist) * pullStrength * body.velocity.length();
-        body.velocity.z -= (dz / dist) * pullStrength * body.velocity.length();
       }
     }
   }
