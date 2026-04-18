@@ -1,5 +1,5 @@
 /**
- * StarSim Web App Full Test - Creates actual objects
+ * Genesis Error Web App Full Test - Creates actual objects
  */
 
 const puppeteer = require('puppeteer');
@@ -86,8 +86,8 @@ async function clickPresetCardByText(page, searchText, description) {
   return false;
 }
 
-async function testStarSim() {
-  console.log('\n🚀 StarSim Full Test - Creating Objects & Testing Time Controls\n');
+async function testGenesisErrorFull() {
+  console.log('\n🚀 Genesis Error Full Test - Creating Objects & Testing Time Controls\n');
   console.log('═══════════════════════════════════════════════════════════\n');
   
   const browser = await puppeteer.launch({
@@ -100,7 +100,7 @@ async function testStarSim() {
   
   try {
     // === STEP 1: Load App ===
-    console.log('📍 STEP 1: Loading StarSim');
+    console.log('📍 STEP 1: Loading Genesis Error');
     await page.goto('http://localhost:8080', { waitUntil: 'networkidle0' });
     await waitForReact(page);
     await sleep(2000);
@@ -476,4 +476,4 @@ async function testStarSim() {
   }
 }
 
-testStarSim().catch(console.error);
+testGenesisErrorFull().catch(console.error);

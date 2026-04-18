@@ -11,7 +11,7 @@ ssh.connect('66.42.51.85', username='root', password=r'H{z4@WW-#7LQPgP}', timeou
 print('Connected!\n')
 
 env_content = (
-    "# StarSim Central Terminal - Production Environment\n"
+    "# Genesis Error Central Terminal - Production Environment\n"
     "NODE_ENV=production\n"
     "PORT=3777\n"
     "\n"
@@ -23,25 +23,25 @@ env_content = (
     "SMTP_SECURE=false\n"
     "SMTP_USER=li7917016@gmail.com\n"
     "SMTP_PASS=ficoitxczhcljrsy\n"
-    'SMTP_FROM="StarSim Terminal" <li7917016@gmail.com>\n'
+    'SMTP_FROM="Genesis Error Terminal" <li7917016@gmail.com>\n'
     "\n"
     "APP_URL=http://66.42.51.85\n"
 )
 
 # Write .env
 sftp = ssh.open_sftp()
-with sftp.file('/opt/starsim-terminal/.env', 'w') as f:
+with sftp.file('/opt/genesis-error-terminal/.env', 'w') as f:
     f.write(env_content)
 sftp.close()
 print('[1] .env written with SMTP config')
 
 # Verify contents
-_, so, _ = ssh.exec_command('cat /opt/starsim-terminal/.env')
+_, so, _ = ssh.exec_command('cat /opt/genesis-error-terminal/.env')
 print(so.read().decode())
 
 # Restart PM2
 print('[2] Restarting server...')
-_, so, se = ssh.exec_command('cd /opt/starsim-terminal && pm2 restart starsim-terminal')
+_, so, se = ssh.exec_command('cd /opt/genesis-error-terminal && pm2 restart genesis-error-terminal')
 so.channel.recv_exit_status()
 out = so.read().decode().strip()
 for line in out.split('\n')[-5:]:
@@ -57,7 +57,7 @@ print('  ' + so.read().decode().strip())
 
 # Check PM2 logs for SMTP readiness
 print('\n[4] Recent logs:')
-_, so, _ = ssh.exec_command('pm2 logs starsim-terminal --lines 10 --nostream 2>&1')
+_, so, _ = ssh.exec_command('pm2 logs genesis-error-terminal --lines 10 --nostream 2>&1')
 print(so.read().decode().strip())
 
 ssh.close()

@@ -1,15 +1,15 @@
 @echo off
 echo ========================================
-echo 🚀 StarSim Universal Launcher
+echo 🚀 Genesis Error Universal Launcher
 echo ========================================
 echo.
 
-echo 🔧 Starting StarSim...
+echo 🔧 Starting Genesis Error...
 echo This launcher works in all environments
 echo.
 
 REM Try to run the PowerShell launcher
-powershell -ExecutionPolicy Bypass -File StarSim-Final-Launcher.ps1
+powershell -ExecutionPolicy Bypass -File GenesisError-Final-Launcher.ps1
 
 if %errorlevel% neq 0 (
     echo.

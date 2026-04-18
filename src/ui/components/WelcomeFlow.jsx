@@ -12,7 +12,7 @@ const ONB = (name) => `./assets/onboarding/${name}`;
 
 const STEPS = [
   {
-    title: 'Welcome to StarSim',
+    title: 'Welcome to Genesis Error',
     body: "You'll build and evolve your own universe of stars, planets, and compact objects. This short tour covers the essentials \u2014 you can skip anytime.",
     image: ONB('onb-0-welcome.svg'),
     imageAlt: 'Illustration: star, planets, and orbit curve in space',

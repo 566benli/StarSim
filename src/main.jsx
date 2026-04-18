@@ -1,5 +1,5 @@
 /**
- * StarSim - Application Entry Point
+ * Genesis Error - Application Entry Point
  */
 import React from 'react';
 import { createRoot } from 'react-dom/client';

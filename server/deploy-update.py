@@ -7,7 +7,7 @@ sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 VPS_IP = '66.42.51.85'
 VPS_PASS = r'H{z4@WW-#7LQPgP}'
 LOCAL_SERVER = r'c:\Users\Administrator\Desktop\StarSim\server'
-REMOTE_DIR = '/opt/starsim-terminal'
+REMOTE_DIR = '/opt/genesis-error-terminal'
 
 ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -59,7 +59,7 @@ print(f'  {out}')
 
 # Restart server
 print('\n[4] Restarting server...')
-stdin, stdout, stderr = ssh.exec_command(f'cd {REMOTE_DIR} && pm2 restart starsim-terminal')
+stdin, stdout, stderr = ssh.exec_command(f'cd {REMOTE_DIR} && pm2 restart genesis-error-terminal')
 stdout.channel.recv_exit_status()
 for line in stdout.read().decode().strip().split('\n')[-5:]:
     print(f'  {line}')

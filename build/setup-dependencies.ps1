@@ -1,7 +1,7 @@
-# StarSim Dependency Setup Script
+# Genesis Error Dependency Setup Script
 # Ensures all dependencies are installed and configured properly
 
-Write-Host "🔧 StarSim Dependency Setup" -ForegroundColor Cyan
+Write-Host "🔧 Genesis Error Dependency Setup" -ForegroundColor Cyan
 Write-Host "=" * 40 -ForegroundColor Yellow
 
 # Check Node.js
@@ -27,10 +27,10 @@ try {
 # Check if we're in the right directory
 Write-Host "`n📁 Checking project directory..." -ForegroundColor Yellow
 if (!(Test-Path "package.json")) {
-    Write-Host "❌ package.json not found! Please run this script from the StarSim project root" -ForegroundColor Red
+    Write-Host "❌ package.json not found! Please run this script from the Genesis Error project root" -ForegroundColor Red
     exit 1
 }
-Write-Host "✅ In StarSim project directory" -ForegroundColor Green
+Write-Host "✅ In Genesis Error project directory" -ForegroundColor Green
 
 # Install dependencies if needed
 Write-Host "`n📦 Checking node_modules..." -ForegroundColor Yellow
@@ -72,10 +72,10 @@ if ($electronFound) {
 }
 
 # Build the project
-Write-Host "`n📦 Building StarSim..." -ForegroundColor Yellow
+Write-Host "`n📦 Building Genesis Error..." -ForegroundColor Yellow
 try {
     npm run build:all
-    Write-Host "✅ StarSim built successfully" -ForegroundColor Green
+    Write-Host "✅ Genesis Error built successfully" -ForegroundColor Green
 } catch {
     Write-Host "❌ Build failed: $($_.Exception.Message)" -ForegroundColor Red
     exit 1
@@ -83,17 +83,17 @@ try {
 
 # Check if exe was created
 Write-Host "`n📦 Checking exe creation..." -ForegroundColor Yellow
-if (Test-Path "dist-electron\StarSim.exe") {
-    Write-Host "✅ StarSim.exe created successfully" -ForegroundColor Green
+if (Test-Path "dist-electron\GenesisError.exe") {
+    Write-Host "✅ GenesisError.exe created successfully" -ForegroundColor Green
 } else {
-    Write-Host "❌ StarSim.exe not found" -ForegroundColor Red
+    Write-Host "❌ GenesisError.exe not found" -ForegroundColor Red
     exit 1
 }
 
 Write-Host "`n🎉 Setup Complete!" -ForegroundColor Green
-Write-Host "You can now run StarSim.exe from the dist-electron folder" -ForegroundColor White
+Write-Host "You can now run GenesisError.exe from the dist-electron folder" -ForegroundColor White
 Write-Host "`nUsage:" -ForegroundColor Cyan
-Write-Host "  Double-click: dist-electron\StarSim.exe" -ForegroundColor White
+Write-Host "  Double-click: dist-electron\GenesisError.exe" -ForegroundColor White
 Write-Host "  Or run: npm run check-sync" -ForegroundColor White
 
 Write-Host "`nPress any key to continue..." -ForegroundColor Gray

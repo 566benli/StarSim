@@ -1,10 +1,10 @@
-# StarSim Build Synchronization Guide
+# Genesis Error Build Synchronization Guide
 
 ## ⚠️ CRITICAL NOTICE
 **ALWAYS run `npm run build:all` after ANY code changes!** This ensures both web and exe versions stay perfectly synchronized. Failure to do this will result in version mismatches and inconsistent behavior.
 
 ## Overview
-This guide ensures that both the Electron executable (.exe) and web versions of StarSim remain synchronized when making modifications.
+This guide ensures that both the Electron executable (.exe) and web versions of Genesis Error remain synchronized when making modifications.
 
 ## 🔄 Synchronization Requirements
 
@@ -62,8 +62,8 @@ npm run package:dir
 
 ### Version Locations:
 - **Web Version**: `dist/index.html` (serve with `npm run serve:web`)
-- **Exe Version**: `dist-electron/StarSim.exe` (run directly)
-- **Unpacked Exe**: `dist-electron/win-unpacked/StarSim.exe`
+- **Exe Version**: `dist-electron/GenesisError.exe` (run directly)
+- **Unpacked Exe**: `dist-electron/win-unpacked/GenesisError.exe`
 
 ## Testing Both Versions
 
@@ -76,7 +76,7 @@ npm run serve:web
 ### Electron Version Testing:
 ```bash
 npm run electron
-# Or run dist-electron/StarSim.exe directly
+# Or run dist-electron/GenesisError.exe directly
 ```
 
 ### Development Mode:
@@ -90,7 +90,7 @@ npm run electron-dev
 ### ✅ Main Screen
 - Proper application window with cosmic theme
 - Custom titlebar (frameless window)
-- Loading screen with StarSim branding
+- Loading screen with Genesis Error branding
 
 ### ✅ Save Functionality
 - Save button (💾) in the UI
@@ -126,11 +126,11 @@ Both versions should have identical:
 
 ## File Structure
 ```
-StarSim/
+Genesis Error/
 ├── src/                    # Source code
 ├── dist/                   # Built web version
 ├── dist-electron/          # Built Electron executables
-│   ├── StarSim.exe        # Portable executable
+│   ├── GenesisError.exe        # Portable executable
 │   └── win-unpacked/      # Unpacked executable folder
 ├── build-all.ps1          # Sync build script
 └── package.json           # Build configurations

@@ -1,13 +1,13 @@
-# StarSim — Innovative Design Notes: Five-Layer Simulation Architecture
+# Genesis Error — Innovative Design Notes: Five-Layer Simulation Architecture
 
 > Saved from project vision session. These notes define the long-term roadmap and key
-> design directions for StarSim's development, organized into five progressive layers.
+> design directions for Genesis Error's development, organized into five progressive layers.
 
 ---
 
 ## Overview
 
-StarSim aspires to be a scientifically rigorous yet accessible universe sandbox —
+Genesis Error aspires to be a scientifically rigorous yet accessible universe sandbox —
 something between a game and a true astrophysical simulator. The architecture is
 organized into five ascending layers of complexity, each building on the previous.
 
@@ -149,4 +149,4 @@ The **Layer 1** refactor is the immediate priority, specifically:
 
 ---
 
-*Last updated: 2026-03-19 — StarSim physics upgrade session*
+*Last updated: 2026-03-19 — Genesis Error physics upgrade session*

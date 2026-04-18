@@ -10,7 +10,7 @@ function createWindow() {
     height: 720,
     minWidth: 800,
     minHeight: 600,
-    title: 'StarSim - Cosmic Simulator',
+    title: 'Genesis Error (创世错误) - Cosmic Simulator',
     icon: getIconPath(),
     center: true,            // Ensure window opens on-screen
     frame: true,             // Use system frame so window is visible/draggable (custom titlebar can be added later)
@@ -28,7 +28,7 @@ function createWindow() {
 
   // Show window once content is ready (avoids white flash)
   mainWindow.once('ready-to-show', () => {
-    console.log('[StarSim] ready-to-show fired');
+    console.log('[GenesisError] ready-to-show fired');
     mainWindow.show();
     mainWindow.focus();
   });
@@ -36,7 +36,7 @@ function createWindow() {
   // Fallback: if ready-to-show never fires (GPU issues, load delay), show after 2s
   setTimeout(() => {
     if (mainWindow && !mainWindow.isVisible()) {
-      console.log('[StarSim] Fallback show after timeout');
+      console.log('[GenesisError] Fallback show after timeout');
       mainWindow.show();
       mainWindow.focus();
     }
@@ -44,7 +44,7 @@ function createWindow() {
 
   // Log when page finishes loading
   mainWindow.webContents.on('did-finish-load', () => {
-    console.log('[StarSim] did-finish-load fired');
+    console.log('[GenesisError] did-finish-load fired');
     if (process.argv.includes('--debug')) mainWindow.webContents.openDevTools({ mode: 'detach' });
   });
 
@@ -56,7 +56,7 @@ function createWindow() {
   }
 
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
-    console.error('[StarSim] did-fail-load:', errorCode, errorDescription, validatedURL);
+    console.error('[GenesisError] did-fail-load:', errorCode, errorDescription, validatedURL);
   });
 
   // In development, load from webpack dev server
@@ -77,21 +77,21 @@ function createWindow() {
     const indexPath = candidates.find(p => { try { return fs.existsSync(p); } catch { return false; } }) || candidates[0];
 
     if (!fs.existsSync(indexPath)) {
-      dialog.showErrorBox('StarSim - ERR_NOT_FOUND', `index.html not found.\n\nTried:\n${candidates.join('\n')}\n\nRun "npm run build:all" from the project folder.`);
+      dialog.showErrorBox('Genesis Error — ERR_NOT_FOUND', `index.html not found.\n\nTried:\n${candidates.join('\n')}\n\nRun "npm run build:all" from the project folder.`);
       return;
     }
 
     const fileUrl = pathToFileURL(indexPath).href;
     mainWindow.loadURL(fileUrl).catch(() => {
       mainWindow.loadFile(indexPath).catch(err => {
-        dialog.showErrorBox('StarSim - Load Error', `${err.message}\n\nPath: ${indexPath}`);
+        dialog.showErrorBox('Genesis Error — Load Error', `${err.message}\n\nPath: ${indexPath}`);
       });
     });
   }
 
   mainWindow.webContents.on('render-process-gone', (event, details) => {
-    console.error('[StarSim] Render process gone:', details.reason);
-    dialog.showErrorBox('StarSim - Renderer Crashed',
+    console.error('[GenesisError] Render process gone:', details.reason);
+    dialog.showErrorBox('Genesis Error — Renderer Crashed',
       `The renderer process has crashed.\nReason: ${details.reason}\n\nPlease restart the application.`
     );
   });
@@ -120,11 +120,11 @@ function getIconPath() {
 }
 
 app.whenReady().then(() => {
-  console.log('[StarSim] App ready, creating window...');
+  console.log('[GenesisError] App ready, creating window...');
 
-  console.log('[StarSim] Is packaged:', app.isPackaged);
-  console.log('[StarSim] App path:', app.getAppPath());
-  console.log('[StarSim] __dirname:', __dirname);
+  console.log('[GenesisError] Is packaged:', app.isPackaged);
+  console.log('[GenesisError] App path:', app.getAppPath());
+  console.log('[GenesisError] __dirname:', __dirname);
   createWindow();
 });
 

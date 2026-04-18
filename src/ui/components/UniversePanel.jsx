@@ -9,7 +9,7 @@ import { formatNumber, formatTime } from '@utils/math';
 import { VIEW_LEVEL } from '@utils/constants';
 import './UniversePanel.css';
 
-const PANEL_STORAGE_KEY = 'starsim-universepanel-position';
+const PANEL_STORAGE_KEY = 'genesiserror-universepanel-position';
 
 const UniversePanel = ({
   universeStats,

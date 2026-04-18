@@ -1,6 +1,6 @@
 const puppeteer = require('puppeteer');
 
-const ONBOARDING_DONE_KEY = 'starsim_onboarding_v1_done';
+const ONBOARDING_DONE_KEY = 'genesiserror_onboarding_v1_done';
 const BASE_URL = process.env.STARSIM_URL || 'http://127.0.0.1:8080';
 
 const scenarios = [
@@ -120,16 +120,16 @@ async function run() {
   try {
     await page.evaluateOnNewDocument((key) => {
       try {
-        localStorage.setItem('starsim-auth-dismissed', '1');
+        localStorage.setItem('genesiserror-auth-dismissed', '1');
         localStorage.setItem(key, '1');
       } catch {}
     }, ONBOARDING_DONE_KEY);
 
     await page.goto(BASE_URL, { waitUntil: 'networkidle0' });
-    await page.waitForFunction(() => !!window.__STAR_SIM_DEBUG__, { timeout: 20000 });
+    await page.waitForFunction(() => !!window.__GENESIS_ERROR_DEBUG__, { timeout: 20000 });
 
     await page.evaluate(() => {
-      window.__STAR_SIM_DEBUG__.seedLifeScenario({
+      window.__GENESIS_ERROR_DEBUG__.seedLifeScenario({
         starPresetId: 'sun_like',
         planets: [
           {
@@ -153,7 +153,7 @@ async function run() {
     await setRangeValue(page, 'input[data-life-key="intelligenceRateMultiplier"]', 12);
     await wait(200);
 
-    const tuning = await page.evaluate(() => window.__STAR_SIM_DEBUG__.getEngine().getLifeTuning());
+    const tuning = await page.evaluate(() => window.__GENESIS_ERROR_DEBUG__.getEngine().getLifeTuning());
     if (tuning.lifeRateMultiplier < 10 || tuning.intelligenceRateMultiplier < 10) {
       throw new Error(`Life tuning controls did not apply correctly: ${JSON.stringify(tuning)}`);
     }
@@ -161,14 +161,14 @@ async function run() {
 
     for (const scenario of scenarios) {
       await page.evaluate((seed) => {
-        window.__STAR_SIM_DEBUG__.seedLifeScenario(seed);
+        window.__GENESIS_ERROR_DEBUG__.seedLifeScenario(seed);
       }, scenario.seed);
 
       await page.evaluate((years) => {
-        window.__STAR_SIM_DEBUG__.simulateYears({ years, stepYears: 1e5 });
+        window.__GENESIS_ERROR_DEBUG__.simulateYears({ years, stepYears: 1e5 });
       }, scenario.years);
 
-      const planets = await page.evaluate(() => window.__STAR_SIM_DEBUG__.snapshotPlanets());
+      const planets = await page.evaluate(() => window.__GENESIS_ERROR_DEBUG__.snapshotPlanets());
       const gotLife = planets.some((planet) => planet.hasLife);
       if (scenario.expectLife !== gotLife) {
         throw new Error(

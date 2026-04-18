@@ -1,6 +1,6 @@
 # Stellar Reference Data
 
-StarSim keeps its **own physics module** (`Star.js`, `math.js`) for real-time evolution. We augment visualization with reference data from published stellar evolution.
+Genesis Error keeps its **own physics module** (`Star.js`, `math.js`) for real-time evolution. We augment visualization with reference data from published stellar evolution.
 
 ## Data Sources
 

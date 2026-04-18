@@ -30,17 +30,17 @@ const BASE_URL = process.env.STARSIM_URL || 'http://127.0.0.1:8080';
   try {
     await page.evaluateOnNewDocument(() => {
       try {
-        localStorage.setItem('starsim-auth-dismissed', '1');
-        localStorage.setItem('starsim_onboarding_v1_done', '1');
+        localStorage.setItem('genesiserror-auth-dismissed', '1');
+        localStorage.setItem('genesiserror_onboarding_v1_done', '1');
       } catch {}
     });
     await page.goto(BASE_URL, { waitUntil: 'networkidle0', timeout: 30000 });
-    await page.waitForFunction(() => !!window.__STAR_SIM_DEBUG__, { timeout: 15000 });
+    await page.waitForFunction(() => !!window.__GENESIS_ERROR_DEBUG__, { timeout: 15000 });
 
     // ── Seed a basic system ──────────────────────────────────────────────────
     console.log('\n=== Seeding test system ===');
     const seed = await page.evaluate(() => {
-      return window.__STAR_SIM_DEBUG__.seedLifeScenario({
+      return window.__GENESIS_ERROR_DEBUG__.seedLifeScenario({
         starPresetId: 'sun_like',
         starName: 'TestStar',
         planets: [
@@ -56,7 +56,7 @@ const BASE_URL = process.env.STARSIM_URL || 'http://127.0.0.1:8080';
 
     const noDampingCheck = await page.evaluate(() => {
       // Read the GravitySystem source to verify no damping code exists
-      const eng = window.__STAR_SIM_DEBUG__.getEngine();
+      const eng = window.__GENESIS_ERROR_DEBUG__.getEngine();
       const gs = [...eng.gravitySystems.values()][0];
       if (!gs) return { error: 'no GravitySystem' };
 
@@ -80,7 +80,7 @@ const BASE_URL = process.env.STARSIM_URL || 'http://127.0.0.1:8080';
     console.log('\n=== Test 2: Escape tracking ===');
 
     const escapedResult = await page.evaluate(() => {
-      const eng = window.__STAR_SIM_DEBUG__.getEngine();
+      const eng = window.__GENESIS_ERROR_DEBUG__.getEngine();
       const planet = eng.getBodies().find(b => b.name === 'Wanderer');
       if (!planet) return { error: 'Wanderer not found' };
 
@@ -128,7 +128,7 @@ const BASE_URL = process.env.STARSIM_URL || 'http://127.0.0.1:8080';
     console.log('\n=== Test 3: Rogue body drifts in universe space ===');
 
     const driftResult = await page.evaluate(() => {
-      const eng = window.__STAR_SIM_DEBUG__.getEngine();
+      const eng = window.__GENESIS_ERROR_DEBUG__.getEngine();
       const rogue = eng._escapedBodies.find(b => b.alive);
       if (!rogue) return { error: 'no rogue body' };
 
@@ -167,7 +167,7 @@ const BASE_URL = process.env.STARSIM_URL || 'http://127.0.0.1:8080';
     console.log('\n=== Test 4: getBodies / getAllBodies counts ===');
 
     const countResult = await page.evaluate(() => {
-      const eng = window.__STAR_SIM_DEBUG__.getEngine();
+      const eng = window.__GENESIS_ERROR_DEBUG__.getEngine();
       const bound   = eng.getBodies().length;
       const escaped = eng._escapedBodies.filter(b => b.alive).length;
       const all     = eng.getAllBodies().length;
@@ -181,9 +181,9 @@ const BASE_URL = process.env.STARSIM_URL || 'http://127.0.0.1:8080';
     console.log('\n=== Test 5: InfoPanel for escaped rogue body ===');
 
     await page.evaluate(() => {
-      const eng = window.__STAR_SIM_DEBUG__.getEngine();
+      const eng = window.__GENESIS_ERROR_DEBUG__.getEngine();
       const rogue = eng._escapedBodies.find(b => b.alive);
-      if (rogue) window.__STAR_SIM_DEBUG__.selectBody(rogue.id);
+      if (rogue) window.__GENESIS_ERROR_DEBUG__.selectBody(rogue.id);
     });
     await new Promise(r => setTimeout(r, 600));
 

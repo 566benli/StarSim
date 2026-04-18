@@ -5,7 +5,7 @@ const puppeteer = require('puppeteer');
 const shotsDir = path.join(__dirname, '..', 'test-screenshots');
 if (!fs.existsSync(shotsDir)) fs.mkdirSync(shotsDir, { recursive: true });
 
-const ONBOARDING_DONE_KEY = 'starsim_onboarding_v1_done';
+const ONBOARDING_DONE_KEY = 'genesiserror_onboarding_v1_done';
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function clickByText(page, selector, text) {
@@ -125,7 +125,7 @@ async function run() {
   try {
     await page.evaluateOnNewDocument((key) => {
       try {
-        localStorage.setItem('starsim-auth-dismissed', '1');
+        localStorage.setItem('genesiserror-auth-dismissed', '1');
         localStorage.setItem(key, '1');
       } catch {}
     }, ONBOARDING_DONE_KEY);

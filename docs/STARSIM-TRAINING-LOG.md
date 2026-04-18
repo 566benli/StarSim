@@ -1,18 +1,18 @@
-# StarSim Training Log — Essential Rules to Remember
+# Genesis Error Training Log — Essential Rules to Remember
 
-> **Keep this document in mind for every StarSim development session.**
+> **Keep this document in mind for every Genesis Error development session.**
 
 ---
 
 ## Rule #1: Always Coordinate Online and Offline Versions
 
 **Online version** = Web build served at http://localhost:8080  
-**Offline version** = Electron exe (StarSim.exe) in `dist-electron/`
+**Offline version** = Electron exe (GenesisError.exe) in `dist-electron/`
 
 ### Checklist before any release or testing:
 - [ ] Run `npm run build:all` after ANY code change
 - [ ] Verify web version: `npm run serve:web` → opens at 8080
-- [ ] Verify exe version: Run `dist-electron\StarSim.exe` or `dist-electron\win-unpacked\StarSim.exe`
+- [ ] Verify exe version: Run `dist-electron\GenesisError.exe` or `dist-electron\win-unpacked\GenesisError.exe`
 - [ ] Both must show the same features and behavior
 
 ---
@@ -30,9 +30,9 @@
 
 ## Rule #3: Exe Launch Paths
 
-- **Primary exe (real Electron build):** `dist-electron\win-unpacked\StarSim.exe`
-- **Placeholder/copy:** `dist-electron\StarSim.exe` (runs launcher script)
-- **Launcher (dev):** `Launch-StarSim.bat` or `build\StarSim-Final-Launcher.ps1`
+- **Primary exe (real Electron build):** `dist-electron\win-unpacked\GenesisError.exe`
+- **Placeholder/copy:** `dist-electron\GenesisError.exe` (runs launcher script)
+- **Launcher (dev):** `Launch-GenesisError.bat` or `build\Genesis Error-Final-Launcher.ps1`
 
 ---
 
@@ -57,8 +57,8 @@
 1. **"Electron not found"** → Run `npm install`
 2. **"Web build not found"** → Run `npm run build` or `npm run build:all`
 3. **White/blank window** → Check `dist\index.html` exists; rebuild
-4. **Placeholder exe (batch)** → Double-click `StarSim.cmd` or `Run-StarSim.bat`, NOT StarSim.exe (placeholder .exe is a batch file and fails when double-clicked)
-5. **"Cannot read properties of undefined (reading 'whenReady')"** → `ELECTRON_RUN_AS_NODE` is set! In CMD/PowerShell run: `set ELECTRON_RUN_AS_NODE=` before launching. Or use `Run-StarSim.bat` which clears it automatically.
+4. **Placeholder exe (batch)** → Double-click `GenesisError.cmd` or `Run-GenesisError.bat`, NOT GenesisError.exe (placeholder .exe is a batch file and fails when double-clicked)
+5. **"Cannot read properties of undefined (reading 'whenReady')"** → `ELECTRON_RUN_AS_NODE` is set! In CMD/PowerShell run: `set ELECTRON_RUN_AS_NODE=` before launching. Or use `Run-GenesisError.bat` which clears it automatically.
 
 ---
 
@@ -67,8 +67,8 @@
 ```
 dist/           ← Web build (index.html, bundle.js)
 dist-electron/  ← Exe output
-  win-unpacked/StarSim.exe  ← Real packaged exe
-  StarSim.exe               ← Copy or placeholder
+  win-unpacked/GenesisError.exe  ← Real packaged exe
+  GenesisError.exe               ← Copy or placeholder
 electron/       ← Main process (main.js loads dist/)
 src/            ← Source (webpack builds to dist/)
 ```

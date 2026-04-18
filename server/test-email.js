@@ -22,11 +22,11 @@ dns.lookup('smtp.gmail.com', { family: 4 }, (err, ip) => {
   transporter.sendMail({
     from: process.env.SMTP_FROM || process.env.SMTP_USER,
     to: process.env.SMTP_USER,
-    subject: 'StarSim Central Terminal - Email Test',
+    subject: 'Genesis Error Central Terminal - Email Test',
     html: `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;background:#0a0a1a;color:#e0e0e0;border-radius:12px;">
         <h2 style="color:#00ccff;text-align:center;">Email Delivery Works!</h2>
-        <p style="text-align:center;">Your StarSim Central Terminal can now send password reset emails.</p>
+        <p style="text-align:center;">Your Genesis Error Central Terminal can now send password reset emails.</p>
         <p style="color:#44ff88;text-align:center;font-weight:bold;">Configuration verified successfully.</p>
       </div>
     `,

@@ -67,10 +67,10 @@ router.post('/forgot-password', async (req, res) => {
       });
       const resetUrl = `${req.protocol}://${req.get('host')}/reset-password?token=${token}`;
       await transporter.sendMail({
-        from: process.env.SMTP_FROM || 'StarSim <noreply@starsim.app>', to: email,
-        subject: 'StarSim — Password Reset',
+        from: process.env.SMTP_FROM || 'Genesis Error <noreply@genesiserror.app>', to: email,
+        subject: 'Genesis Error (创世错误) - Password Reset',
         html: `<div style="font-family:sans-serif;max-width:480px;margin:auto;padding:20px;background:#0a0a1a;color:#e0e0ff;border-radius:12px;">
-          <h2 style="color:#00ccff;">StarSim Password Reset</h2>
+          <h2 style="color:#00ccff;">Genesis Error Password Reset</h2>
           <p>Hello <strong>${user.username}</strong>,</p>
           <p>Click the button below to reset your password. This link expires in 1 hour.</p>
           <a href="${resetUrl}" style="display:inline-block;padding:12px 24px;background:#4488ff;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">Reset Password</a>

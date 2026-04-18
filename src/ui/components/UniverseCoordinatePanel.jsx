@@ -64,7 +64,7 @@ export default function UniverseCoordinatePanel({ coords, screenPos, onGoToCoord
 
       <p className="ucp-copy">
         Go here to open an empty system at this coordinate. If a nearby galaxy already exists,
-        StarSim will add a new system there; otherwise it creates a new galaxy first.
+        Genesis Error will add a new system there; otherwise it creates a new galaxy first.
       </p>
 
       <div className="ucp-actions">

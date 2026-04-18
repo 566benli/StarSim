@@ -1,6 +1,6 @@
 module.exports = {
   apps: [{
-    name: 'starsim-terminal',
+    name: 'genesis-error-terminal',
     script: 'server.js',
     instances: 1,
     autorestart: true,

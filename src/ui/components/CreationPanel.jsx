@@ -368,7 +368,7 @@ const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, on
       <div className="creation-panel">
         <div className="creation-header">
           <h1 className="creation-title">
-            <span className="title-star">✦</span> StarSim
+            <span className="title-star">✦</span> Genesis Error
           </h1>
           <p className="creation-subtitle">Build Your Universe</p>
           <p className="creation-hint">

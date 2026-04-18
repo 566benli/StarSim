@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Re-run the full VPS deployment for StarSim Central Terminal."""
+"""Re-run the full VPS deployment for Genesis Error Central Terminal."""
 import paramiko, sys, time
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
@@ -29,7 +29,7 @@ ssh.connect(VPS_IP, username='root', password=VPS_PASS, timeout=15)
 print('Connected!\n')
 
 # Fix line endings
-run(ssh, "cd /opt/starsim-terminal && sed -i 's/\\r$//' deploy.sh server.js database.js ecosystem.config.js package.json 2>/dev/null; sed -i 's/\\r$//' .env.production .env.example 2>/dev/null; echo OK", "Fixing CRLF line endings...")
+run(ssh, "cd /opt/genesis-error-terminal && sed -i 's/\\r$//' deploy.sh server.js database.js ecosystem.config.js package.json 2>/dev/null; sed -i 's/\\r$//' .env.production .env.example 2>/dev/null; echo OK", "Fixing CRLF line endings...")
 
 # Step 1
 run(ssh, 'export DEBIAN_FRONTEND=noninteractive && apt-get update -qq && apt-get upgrade -y -qq', '[1/8] System update...')
@@ -49,14 +49,14 @@ run(ssh, 'npm install -g pm2 --silent 2>/dev/null; pm2 --version', '[3/8] Instal
 run(ssh, 'export DEBIAN_FRONTEND=noninteractive && apt-get install -y -qq nginx', '[4/8] Installing nginx...')
 
 # Step 5
-run(ssh, 'mkdir -p /opt/starsim-terminal/data /opt/starsim-terminal/logs', '[5/8] Ensuring directories...')
+run(ssh, 'mkdir -p /opt/genesis-error-terminal/data /opt/genesis-error-terminal/logs', '[5/8] Ensuring directories...')
 
 # Step 6
 print('  [6/8] Installing Node.js dependencies...')
-run(ssh, 'cd /opt/starsim-terminal && npm install --production 2>&1 | tail -3', '  npm install:')
+run(ssh, 'cd /opt/genesis-error-terminal && npm install --production 2>&1 | tail -3', '  npm install:')
 
 # Create .env if missing
-run(ssh, """cd /opt/starsim-terminal && if [ ! -f .env ]; then
+run(ssh, """cd /opt/genesis-error-terminal && if [ ! -f .env ]; then
   JWT=$(node -e "console.log(require('crypto').randomBytes(48).toString('hex'))")
   cp .env.production .env 2>/dev/null || cp .env.example .env 2>/dev/null || echo 'PORT=3777' > .env
   sed -i "s/CHANGE_ME_TO_A_RANDOM_STRING/$JWT/" .env
@@ -67,7 +67,7 @@ fi""", '  .env config:')
 
 # Step 7
 print('  [7/8] Starting server with PM2...')
-run(ssh, 'cd /opt/starsim-terminal && pm2 delete starsim-terminal 2>/dev/null; pm2 start ecosystem.config.js', '  PM2 start:')
+run(ssh, 'cd /opt/genesis-error-terminal && pm2 delete genesis-error-terminal 2>/dev/null; pm2 start ecosystem.config.js', '  PM2 start:')
 run(ssh, 'pm2 save && pm2 startup systemd -u root --hp /root 2>/dev/null; echo done', '  PM2 save/startup:')
 
 # Step 8
@@ -91,8 +91,8 @@ nginx_conf = r"""server {
     }
 }"""
 # Write nginx config via heredoc
-run(ssh, f"cat > /etc/nginx/sites-available/starsim << 'ENDNGINX'\n{nginx_conf}\nENDNGINX", '  Writing nginx config...')
-run(ssh, 'ln -sf /etc/nginx/sites-available/starsim /etc/nginx/sites-enabled/starsim && rm -f /etc/nginx/sites-enabled/default', '  Linking...')
+run(ssh, f"cat > /etc/nginx/sites-available/genesiserror << 'ENDNGINX'\n{nginx_conf}\nENDNGINX", '  Writing nginx config...')
+run(ssh, 'ln -sf /etc/nginx/sites-available/genesiserror /etc/nginx/sites-enabled/genesiserror && rm -f /etc/nginx/sites-enabled/default', '  Linking...')
 run(ssh, 'nginx -t 2>&1 && systemctl reload nginx && echo OK', '  nginx test+reload:')
 
 # Firewall
@@ -108,7 +108,7 @@ if '"ok"' in out or '"status":"ok"' in out:
     print(f'  API:       http://{VPS_IP}/api/health')
 else:
     print(f'\n  Server response: {out}')
-    run(ssh, 'pm2 logs starsim-terminal --lines 10 --nostream 2>&1', '  PM2 logs:')
+    run(ssh, 'pm2 logs genesis-error-terminal --lines 10 --nostream 2>&1', '  PM2 logs:')
 
 ssh.close()
 print('\nDone.')

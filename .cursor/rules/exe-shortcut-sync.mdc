@@ -3,19 +3,19 @@ description: Exe, desktop shortcut, and webpage must always be built and updated
 alwaysApply: true
 ---
 
-# StarSim: Version & Three-Way Coordination Rule
+# Genesis Error: Version & Three-Way Coordination Rule
 
 ## Core rule
 
-**Exe, webpage (dist/), and desktop shortcut must ALWAYS be the same version.** Single canonical location: `dist-electron/StarSim.exe`. Web serves from `dist/`. Shortcut points to canonical exe only.
+**Exe, webpage (dist/), and desktop shortcut must ALWAYS be the same version.** Single canonical location: `dist-electron/GenesisError.exe`. Web serves from `dist/`. Shortcut points to canonical exe only.
 
 ## Single source of truth
 
 | Output | Location | Notes |
 |--------|----------|-------|
 | **Webpage** | `dist/` | Served by `npm run serve:web`; same bundle as exe |
-| **Exe** | `dist-electron/StarSim.exe` | Canonical. Copied from win-unpacked; never use win-unpacked for shortcut |
-| **Desktop shortcut** | `Desktop/StarSim.lnk` | MUST point to `dist-electron\StarSim.exe` only |
+| **Exe** | `dist-electron/GenesisError.exe` | Canonical. Copied from win-unpacked; never use win-unpacked for shortcut |
+| **Desktop shortcut** | `Desktop/GenesisError.lnk` | MUST point to `dist-electron\GenesisError.exe` only |
 | **BUILD_ID.txt** | `dist/` and `dist-electron/` | Same timestamp = same version |
 
 ## Triggers (run full build)
@@ -33,6 +33,6 @@ alwaysApply: true
 
 ## When sync fails
 
-1. Close StarSim.exe, run `npm run build:all` with full permissions
+1. Close GenesisError.exe, run `npm run build:all` with full permissions
 2. If shortcut points to win-unpacked: run `npm run shortcut`
 3. Never deliver without a complete coordinated build

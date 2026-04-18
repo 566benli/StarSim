@@ -1,5 +1,5 @@
 """
-StarSim Central Terminal — Automated VPS Deployment
+Genesis Error Central Terminal - Automated VPS Deployment
 Uploads server files and runs deploy.sh via SSH (no interactive password needed).
 """
 import paramiko
@@ -11,8 +11,8 @@ import time
 HOST = "66.42.51.85"
 USER = "root"
 PASS = r"H{z4@WW-#7LQPgP}"
-REMOTE_DIR = "/opt/starsim-terminal"
-LOCAL_DIR = r"C:\Users\Administrator\Desktop\starsim-server-deploy"
+REMOTE_DIR = "/opt/genesis-error-terminal"
+LOCAL_DIR = r"C:\Users\Administrator\Desktop\genesis-error-server-deploy"
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
@@ -51,7 +51,7 @@ def run_cmd(ssh, cmd, stream=True):
 
 print()
 print("  ======================================================")
-print("  StarSim Central Terminal — Automated VPS Deployment")
+print("  Genesis Error Central Terminal - Automated VPS Deployment")
 print("  ======================================================")
 print()
 
@@ -97,7 +97,7 @@ verify = run_cmd(ssh, "curl -s http://localhost:3777/api/health 2>/dev/null || e
 if "ok" in verify:
     log("SERVER IS LIVE!")
 else:
-    log("Server may still be starting. Check: pm2 logs starsim-terminal")
+    log("Server may still be starting. Check: pm2 logs genesis-error-terminal")
 
 # Get public IP
 ip = run_cmd(ssh, "curl -s ifconfig.me 2>/dev/null", stream=False).strip()

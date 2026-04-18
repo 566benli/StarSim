@@ -32,18 +32,18 @@ const MAX_WAIT_YEARS = 5e9; // fast-forward up to 5 billion simulated years
   try {
     await page.evaluateOnNewDocument(() => {
       try {
-        localStorage.setItem('starsim-auth-dismissed', '1');
-        localStorage.setItem('starsim_onboarding_v1_done', '1');
+        localStorage.setItem('genesiserror-auth-dismissed', '1');
+        localStorage.setItem('genesiserror_onboarding_v1_done', '1');
       } catch {}
     });
 
     await page.goto(BASE_URL, { waitUntil: 'networkidle0', timeout: 30000 });
-    await page.waitForFunction(() => !!window.__STAR_SIM_DEBUG__, { timeout: 15000 });
+    await page.waitForFunction(() => !!window.__GENESIS_ERROR_DEBUG__, { timeout: 15000 });
 
     // ── Seed a life-optimized system ────────────────────────────────────
     console.log('\n=== Seeding life-garden system ===');
     const seed = await page.evaluate(() => {
-      const dbg = window.__STAR_SIM_DEBUG__;
+      const dbg = window.__GENESIS_ERROR_DEBUG__;
       return dbg.seedLifeScenario({
         starPresetId: 'sun_like',
         starName: 'Civitas',
@@ -60,7 +60,7 @@ const MAX_WAIT_YEARS = 5e9; // fast-forward up to 5 billion simulated years
     console.log('\n=== Fast-forwarding simulation ===');
 
     const civResult = await page.evaluate(async (maxYears) => {
-      const dbg = window.__STAR_SIM_DEBUG__;
+      const dbg = window.__GENESIS_ERROR_DEBUG__;
       const eng = dbg.getEngine();
       if (!eng) return { reached: false, reason: 'no engine' };
 
@@ -110,7 +110,7 @@ const MAX_WAIT_YEARS = 5e9; // fast-forward up to 5 billion simulated years
 
       // Still test the engine APIs
       const engineState = await page.evaluate(() => {
-        const eng = window.__STAR_SIM_DEBUG__?.getEngine();
+        const eng = window.__GENESIS_ERROR_DEBUG__?.getEngine();
         if (!eng) return null;
         return {
           hasCivSystem: typeof eng.getCivilizationSystem === 'function',
@@ -127,7 +127,7 @@ const MAX_WAIT_YEARS = 5e9; // fast-forward up to 5 billion simulated years
 
       // Select that planet
       await page.evaluate((planetName) => {
-        const dbg = window.__STAR_SIM_DEBUG__;
+        const dbg = window.__GENESIS_ERROR_DEBUG__;
         const bodies = dbg.snapshotBodies?.() || [];
         const planet = bodies.find(b => b.name === planetName);
         if (planet) dbg.selectBody(planet.id);
@@ -219,7 +219,7 @@ const MAX_WAIT_YEARS = 5e9; // fast-forward up to 5 billion simulated years
     // ── Engine API checks ────────────────────────────────────────────────
     console.log('\n=== Engine API checks ===');
     const engineCheck = await page.evaluate(() => {
-      const eng = window.__STAR_SIM_DEBUG__?.getEngine();
+      const eng = window.__GENESIS_ERROR_DEBUG__?.getEngine();
       if (!eng) return { ok: false };
       return {
         ok: true,
@@ -236,7 +236,7 @@ const MAX_WAIT_YEARS = 5e9; // fast-forward up to 5 billion simulated years
 
     console.log('\n=== Creature composer + biosphere grid ===');
     const artBio = await page.evaluate(() => {
-      const dbg = window.__STAR_SIM_DEBUG__;
+      const dbg = window.__GENESIS_ERROR_DEBUG__;
       const composer = dbg.creatureComposerTest?.() ?? { error: 'missing' };
       const planets = dbg.snapshotPlanets?.() || [];
       const lifePlanet = planets.find((p) => ['simple', 'complex', 'intelligent'].includes(p.lifeStage));

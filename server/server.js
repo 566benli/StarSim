@@ -1,5 +1,5 @@
 /**
- * StarSim Central Terminal — Express server (production-ready)
+ * Genesis Error Central Terminal - Express server (production-ready)
  *
  * Provides:
  *  - User registration & login (username/password)
@@ -25,7 +25,7 @@ const db = require('./database');
 
 const app = express();
 const PORT = process.env.PORT || 3777;
-const JWT_SECRET = process.env.JWT_SECRET || 'starsim-dev-secret-CHANGE-ME';
+const JWT_SECRET = process.env.JWT_SECRET || 'genesis-error-dev-secret-CHANGE-ME';
 const SALT_ROUNDS = 10;
 
 // ---------------------------------------------------------------------------
@@ -439,12 +439,12 @@ async function sendResetEmail(email, token) {
   const resetUrl = `${process.env.APP_URL || `http://localhost:${PORT}`}/reset?token=${token}`;
 
   await transporter.sendMail({
-    from: process.env.SMTP_FROM || '"StarSim" <noreply@starsim.app>',
+    from: process.env.SMTP_FROM || '"Genesis Error" <noreply@genesiserror.app>',
     to: email,
-    subject: 'StarSim — Password Reset',
+    subject: 'Genesis Error (创世错误) - Password Reset',
     html: `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;background:#0a0a1a;color:#e0e0e0;border-radius:12px;">
-        <h2 style="color:#00ccff;text-align:center;">StarSim Password Reset</h2>
+        <h2 style="color:#00ccff;text-align:center;">Genesis Error Password Reset</h2>
         <p>Click the button below to reset your password. This link expires in 1 hour.</p>
         <div style="text-align:center;margin:24px 0;">
           <a href="${resetUrl}" style="display:inline-block;padding:12px 32px;background:#4a9eff;color:white;text-decoration:none;border-radius:8px;font-weight:bold;">Reset Password</a>
@@ -523,7 +523,7 @@ app.get('*', (req, res) => {
 (async () => {
   await db.init();
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n  ✦  StarSim Central Terminal running at http://0.0.0.0:${PORT}`);
+    console.log(`\n  * Genesis Error Central Terminal running at http://0.0.0.0:${PORT}`);
     console.log(`     Dashboard:  http://localhost:${PORT}`);
     console.log(`     API:        http://localhost:${PORT}/api`);
     console.log(`     Mode:       ${process.env.NODE_ENV || 'development'}\n`);

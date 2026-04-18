@@ -12,7 +12,7 @@ print('Connected!\n')
 
 # Try with spaces in the app password
 env_content = (
-    "# StarSim Central Terminal - Production Environment\n"
+    "# Genesis Error Central Terminal - Production Environment\n"
     "NODE_ENV=production\n"
     "PORT=3777\n"
     "\n"
@@ -24,24 +24,24 @@ env_content = (
     "SMTP_SECURE=false\n"
     "SMTP_USER=li7917016@gmail.com\n"
     "SMTP_PASS=fico itxc zchl jrsy\n"
-    'SMTP_FROM="StarSim Terminal" <li7917016@gmail.com>\n'
+    'SMTP_FROM="Genesis Error Terminal" <li7917016@gmail.com>\n'
     "\n"
     "APP_URL=http://66.42.51.85\n"
 )
 
 sftp = ssh.open_sftp()
-with sftp.file('/opt/starsim-terminal/.env', 'w') as f:
+with sftp.file('/opt/genesis-error-terminal/.env', 'w') as f:
     f.write(env_content)
 sftp.close()
 print('[1] Updated .env with spaces in App Password')
 
 # Clear error log
-ssh.exec_command('> /opt/starsim-terminal/logs/error-0.log')
+ssh.exec_command('> /opt/genesis-error-terminal/logs/error-0.log')
 time.sleep(1)
 
 # Restart
 print('[2] Restarting server...')
-stdin, stdout, stderr = ssh.exec_command('cd /opt/starsim-terminal && pm2 restart starsim-terminal')
+stdin, stdout, stderr = ssh.exec_command('cd /opt/genesis-error-terminal && pm2 restart genesis-error-terminal')
 stdout.channel.recv_exit_status()
 print('  Restarted')
 time.sleep(3)
@@ -60,7 +60,7 @@ time.sleep(5)
 
 # Check error log
 print('\n[4] Error log:')
-stdin, stdout, stderr = ssh.exec_command('cat /opt/starsim-terminal/logs/error-0.log')
+stdin, stdout, stderr = ssh.exec_command('cat /opt/genesis-error-terminal/logs/error-0.log')
 stdout.channel.recv_exit_status()
 err = stdout.read().decode('utf-8', errors='replace').strip()
 if err:
@@ -71,7 +71,7 @@ else:
 
 # Check output log
 print('\n[5] Output log (last 10 lines):')
-stdin, stdout, stderr = ssh.exec_command('tail -10 /opt/starsim-terminal/logs/output-0.log')
+stdin, stdout, stderr = ssh.exec_command('tail -10 /opt/genesis-error-terminal/logs/output-0.log')
 stdout.channel.recv_exit_status()
 print(stdout.read().decode('utf-8', errors='replace').strip())
 

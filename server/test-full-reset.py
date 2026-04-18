@@ -52,7 +52,7 @@ except:
     print(f'  Response: {result[:200]}')
 
 # Step 3: Clear error log before test
-run('> /opt/starsim-terminal/logs/error-0.log')
+run('> /opt/genesis-error-terminal/logs/error-0.log')
 
 # Step 4: Trigger forgot password
 print('\n[3] Triggering password reset for li7917016@gmail.com...')
@@ -68,7 +68,7 @@ print('  Waiting 5s for email delivery...')
 time.sleep(5)
 
 # Step 5: Check for errors
-errors = run('cat /opt/starsim-terminal/logs/error-0.log')
+errors = run('cat /opt/genesis-error-terminal/logs/error-0.log')
 if errors:
     print(f'\n  EMAIL ERROR: {errors[:300]}')
     print('\n  TEST FAILED - email sending had errors')
@@ -78,7 +78,7 @@ else:
 # Step 6: Get the reset token from database
 print('\n[4] Retrieving reset token from database...')
 token_result = run(
-    "cd /opt/starsim-terminal && node -e \""
+    "cd /opt/genesis-error-terminal && node -e \""
     "const db = require('./database');"
     "(async()=>{await db.init();"
     "const row = db.one('SELECT token, expires_at FROM reset_tokens WHERE used=0 ORDER BY id DESC LIMIT 1');"
@@ -90,7 +90,7 @@ try:
     reset_token = token_data['token']
     print(f'  Token: {reset_token[:8]}...{reset_token[-8:]}')
     print(f'  Expires: {token_data["expires_at"]}')
-    print(f'  Reset URL: https://starsim-terminal.duckdns.org/reset?token={reset_token}')
+    print(f'  Reset URL: https://genesis-error-terminal.duckdns.org/reset?token={reset_token}')
 except:
     print(f'  Raw: {token_result[:300]}')
     reset_token = None

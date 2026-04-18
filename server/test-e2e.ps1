@@ -1,5 +1,5 @@
 ##############################################################################
-#  StarSim Central Terminal — End-to-End Test
+#  Genesis Error Central Terminal - End-to-End Test
 #  Tests BOTH user perspective AND terminal perspective
 ##############################################################################
 $base = "http://localhost:3777"

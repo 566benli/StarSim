@@ -1,5 +1,5 @@
 ##############################################################################
-#  StarSim Central Terminal — Capacity / Stress Test
+#  Genesis Error Central Terminal - Capacity / Stress Test
 #  Creates many users + saves and measures performance
 ##############################################################################
 $base = "http://localhost:3777"
@@ -107,7 +107,7 @@ for ($i = 0; $i -lt [Math]::Min(3, $stats.topCreators.Count); $i++) {
 }
 
 # ── Phase 5: Database file size ──────────────────────────────────────
-$dbPath = "c:\Users\Administrator\Desktop\StarSim\server\data\starsim.db"
+$dbPath = "c:\Users\Administrator\Desktop\StarSim\server\data\genesiserror.db"
 $dbSize = (Get-Item $dbPath).Length
 $dbSizeKB = [math]::Round($dbSize / 1024, 1)
 $dbSizeMB = [math]::Round($dbSize / 1048576, 2)

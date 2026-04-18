@@ -1,5 +1,5 @@
 @echo off
-echo 🚀 StarSim Setup and Launcher
+echo 🚀 Genesis Error Setup and Launcher
 echo ==============================
 echo.
 
@@ -14,15 +14,15 @@ if %errorlevel% neq 0 (
 )
 
 echo.
-echo ✅ Setup complete! Launching StarSim...
+echo ✅ Setup complete! Launching Genesis Error...
 echo.
 
 REM Launch the exe
-if exist "dist-electron\StarSim.exe" (
-    echo 🌟 Starting StarSim.exe...
-    call "dist-electron\StarSim.exe"
+if exist "dist-electron\GenesisError.exe" (
+    echo 🌟 Starting GenesisError.exe...
+    call "dist-electron\GenesisError.exe"
 ) else (
-    echo ❌ StarSim.exe not found!
+    echo ❌ GenesisError.exe not found!
     echo Press any key to exit...
     pause >nul
 )

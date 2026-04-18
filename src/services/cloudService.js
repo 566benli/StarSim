@@ -1,16 +1,16 @@
 /**
- * CloudService — API client for StarSim Central Terminal.
+ * CloudService — API client for Genesis Error Central Terminal.
  * Manages authentication (JWT) and cloud save/load.
  * Falls back gracefully when the server is unreachable.
  */
 
-const STORAGE_TOKEN_KEY = 'starsim-cloud-token';
-const STORAGE_USER_KEY = 'starsim-cloud-user';
-const STORAGE_SERVER_KEY = 'starsim-server-url';
+const STORAGE_TOKEN_KEY = 'genesiserror-cloud-token';
+const STORAGE_USER_KEY = 'genesiserror-cloud-user';
+const STORAGE_SERVER_KEY = 'genesiserror-server-url';
 
 // Production URL — set this to your VPS address once deployed.
 // Users can override via localStorage for development/testing.
-const DEFAULT_SERVER_URL = 'https://starsim-terminal.duckdns.org';
+const DEFAULT_SERVER_URL = 'https://genesis-error-terminal.duckdns.org';
 
 let _serverUrl = DEFAULT_SERVER_URL;
 let _token = null;

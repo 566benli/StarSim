@@ -1,6 +1,6 @@
 # MESA Reference & Our Physics
 
-StarSim keeps its own physics module for real-time simulation while drawing conceptual inspiration from **MESA** (Modules for Experiments in Stellar Astrophysics).
+Genesis Error keeps its own physics module for real-time simulation while drawing conceptual inspiration from **MESA** (Modules for Experiments in Stellar Astrophysics).
 
 ## What We Keep (Our Essence)
 
@@ -22,7 +22,7 @@ Our relations are **qualitatively correct** and suitable for interactive simulat
 
 ## HR Diagram
 
-The HR diagram in StarSim uses our `mainSequenceLuminosity` and `mainSequenceTemperature` to draw the reference main sequence. Individual stars are plotted at their evolved (T, L). This matches our simulation physics.
+The HR diagram in Genesis Error uses our `mainSequenceLuminosity` and `mainSequenceTemperature` to draw the reference main sequence. Individual stars are plotted at their evolved (T, L). This matches our simulation physics.
 
 ## References
 

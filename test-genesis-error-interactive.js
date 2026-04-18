@@ -1,5 +1,5 @@
 /**
- * StarSim Web App Interactive Test Script
+ * Genesis Error Web App Interactive Test Script
  * Better handling of React-based dynamic UI
  */
 
@@ -124,8 +124,8 @@ async function getPageInfo(page) {
   });
 }
 
-async function testStarSim() {
-  console.log('🚀 Starting StarSim Web App Interactive Test...\n');
+async function testGenesisErrorInteractive() {
+  console.log('🚀 Starting Genesis Error Web App Interactive Test...\n');
   
   const browser = await puppeteer.launch({
     headless: false,
@@ -386,4 +386,4 @@ async function testStarSim() {
   }
 }
 
-testStarSim().catch(console.error);
+testGenesisErrorInteractive().catch(console.error);

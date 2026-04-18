@@ -1,5 +1,5 @@
 /**
- * Deploy StarSim Central Terminal to VPS
+ * Deploy Genesis Error Central Terminal to VPS
  * Uploads files via SFTP, then runs deploy.sh via SSH
  */
 const { Client } = require('ssh2');
@@ -13,7 +13,7 @@ const VPS = {
   username: 'root',
   password: 'H{z4@WW-#7LQPgP}',
 };
-const REMOTE_DIR = '/opt/starsim-terminal';
+const REMOTE_DIR = '/opt/genesis-error-terminal';
 const LOCAL_DIR = path.join(__dirname, 'server');
 
 const FILES = [
@@ -28,7 +28,7 @@ const FILES = [
 ];
 
 async function main() {
-  console.log('\n  ✦  StarSim VPS Deployment\n');
+  console.log('\n  ✦  Genesis Error VPS Deployment\n');
 
   // Step 1: Upload files via SFTP
   console.log('[1/3] Uploading files via SFTP...');

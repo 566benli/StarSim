@@ -1,11 +1,11 @@
 /**
- * API service for communicating with the StarSim Central Terminal server.
+ * API service for communicating with the Genesis Error Central Terminal server.
  * Handles authentication tokens and cloud simulation storage.
  */
 
-const SERVER_URL_KEY = 'starsim-server-url';
-const AUTH_TOKEN_KEY = 'starsim-auth-token';
-const AUTH_USER_KEY  = 'starsim-auth-user';
+const SERVER_URL_KEY = 'genesiserror-server-url';
+const AUTH_TOKEN_KEY = 'genesiserror-auth-token';
+const AUTH_USER_KEY  = 'genesiserror-auth-user';
 
 function getServerUrl() {
   return localStorage.getItem(SERVER_URL_KEY) || 'http://localhost:4000';

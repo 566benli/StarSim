@@ -1,12 +1,12 @@
-# StarSim Synchronization Checker
+# Genesis Error Synchronization Checker
 # Verifies exe, web (dist), and desktop shortcut all point to the same version
 
-Write-Host "🔍 Checking StarSim version synchronization..." -ForegroundColor Cyan
+Write-Host "🔍 Checking Genesis Error version synchronization..." -ForegroundColor Cyan
 
 $projectRoot = Get-Location
 $webExists = Test-Path "dist\index.html"
-$exeExists = Test-Path "dist-electron\StarSim.exe"
-$canonicalExe = "$projectRoot\dist-electron\StarSim.exe"
+$exeExists = Test-Path "dist-electron\GenesisError.exe"
+$canonicalExe = "$projectRoot\dist-electron\GenesisError.exe"
 
 if (-not $webExists) {
     Write-Host "❌ ERROR: Web version not found! Run 'npm run build:all'" -ForegroundColor Red
@@ -29,7 +29,7 @@ if (Test-Path "dist-electron\BUILD_ID.txt") { $exeBuildId = (Get-Content "dist-e
 # Desktop shortcut target check
 $shortcutTarget = $null
 $Desktop = [Environment]::GetFolderPath("Desktop")
-$shortcutPath = "$Desktop\StarSim.lnk"
+$shortcutPath = "$Desktop\GenesisError.lnk"
 if (Test-Path $shortcutPath) {
     try {
         $WshShell = New-Object -ComObject WScript.Shell
@@ -42,7 +42,7 @@ if (Test-Path $shortcutPath) {
 
 # Check if exe is a placeholder or real exe
 $exeIsPlaceholder = $false
-$exeContent = Get-Content "dist-electron\StarSim.exe" -ErrorAction SilentlyContinue
+$exeContent = Get-Content "dist-electron\GenesisError.exe" -ErrorAction SilentlyContinue
 if ($exeContent -and $exeContent[0] -match "@echo off") {
     $exeIsPlaceholder = $true
 }
@@ -72,7 +72,7 @@ if ($shortcutTarget) {
     if ($normShortcut -eq $normCanonical) {
         Write-Host "  🔗 Shortcut target: ✅ Points to canonical exe" -ForegroundColor Green
         $shortcutCorrect = $true
-    } elseif ($shortcutTarget -match "StarSim-Launcher\.ps1") {
+    } elseif ($shortcutTarget -match "GenesisError-Launcher\.ps1") {
         Write-Host "  🔗 Shortcut target: ✅ Placeholder launcher (uses dist/)" -ForegroundColor Green
         $shortcutCorrect = $true
     } elseif ($shortcutTarget -match "win-unpacked") {

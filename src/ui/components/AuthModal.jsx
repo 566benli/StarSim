@@ -1,5 +1,5 @@
 /**
- * AuthModal — Login / Register / Forgot-password overlay for StarSim.
+ * AuthModal — Login / Register / Forgot-password overlay for Genesis Error.
  * Appears on first launch and is accessible from the toolbar.
  */
 import React, { useState } from 'react';
@@ -88,7 +88,7 @@ const AuthModal = ({ onClose, onAuth }) => {
         {mode === 'register' && (
           <>
             <h2 className="auth-title">Create Account</h2>
-            <p className="auth-subtitle">Join the StarSim explorer network</p>
+            <p className="auth-subtitle">Join the Genesis Error explorer network</p>
             <div className="auth-field">
               <label>Username</label>
               <input value={username} onChange={e => setUsername(e.target.value)}

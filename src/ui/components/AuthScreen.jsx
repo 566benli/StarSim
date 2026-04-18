@@ -69,7 +69,7 @@ const AuthScreen = ({ onAuthenticated, onOffline }) => {
       <div className="auth-card">
         <div className="auth-logo">
           <span className="auth-logo-icon">&#x2728;</span>
-          <h1>StarSim</h1>
+          <h1>Genesis Error</h1>
           <p className="auth-tagline">Central Terminal</p>
         </div>
 

@@ -13,7 +13,7 @@ const path = require('path');
   page.on('pageerror', err => console.log('[PAGE ERROR]', err.message));
 
   await page.goto('http://localhost:8080', { waitUntil: 'networkidle0', timeout: 30000 });
-  await page.waitForFunction(() => window.__STAR_SIM_DEBUG__, { timeout: 15000 });
+  await page.waitForFunction(() => window.__GENESIS_ERROR_DEBUG__, { timeout: 15000 });
 
   let failures = 0;
   function assert(cond, msg) {
@@ -25,7 +25,7 @@ const path = require('path');
   console.log('\n=== Setting up Life Garden + simulating 25M years ===');
 
   await page.evaluate(() => {
-    const dbg = window.__STAR_SIM_DEBUG__;
+    const dbg = window.__GENESIS_ERROR_DEBUG__;
     dbg.seedLifeScenario({
       planets: [
         { name: 'Eden', presetId: 'earth_like', overrides: { temperature: 310, atmosphere: 1.0, hasWater: true, magneticField: 1.2, atmosphereComposition: { N2: 0.72, CO2: 0.18, CH4: 0.08, Ar: 0.02 } } },
@@ -37,7 +37,7 @@ const path = require('path');
 
   // ── Check planet data ───────────────────────────────────────────────
   const planets = await page.evaluate(() => {
-    return window.__STAR_SIM_DEBUG__.snapshotPlanets().map(p => ({
+    return window.__GENESIS_ERROR_DEBUG__.snapshotPlanets().map(p => ({
       name: p.name, lifeStage: p.lifeStage,
       treeSize: (p.evolutionTree || []).length,
       alive: (p.evolutionTree || []).filter(s => s.extinctAt === null).length,
@@ -56,12 +56,12 @@ const path = require('path');
   console.log('\n=== Selecting planet to check InfoPanel + Evolution Tree UI ===');
 
   const selected = await page.evaluate(() => {
-    const engine = window.__STAR_SIM_DEBUG__.getEngine();
+    const engine = window.__GENESIS_ERROR_DEBUG__.getEngine();
     const bodies = engine.getBodies();
     const planet = bodies.find(b => b.type === 'planet' && b.name === 'Eden');
     if (!planet) return null;
 
-    window.__STAR_SIM_DEBUG__.getStoreState().setSelectedBody(planet);
+    window.__GENESIS_ERROR_DEBUG__.getStoreState().setSelectedBody(planet);
     return { name: planet.name, lifeStage: planet.lifeStage, treeSize: (planet.evolutionTree || []).length };
   });
   console.log('  Selected:', selected);
@@ -151,10 +151,10 @@ const path = require('path');
   // ── Test empty state: select a planet with no life ──────────────────
   console.log('\n=== Testing empty state (no life planet) ===');
   const emptyResult = await page.evaluate(() => {
-    const engine = window.__STAR_SIM_DEBUG__.getEngine();
+    const engine = window.__GENESIS_ERROR_DEBUG__.getEngine();
     if (engine?.pause) engine.pause();
     const bodies = engine.getBodies();
-    const store = window.__STAR_SIM_DEBUG__.getStoreState();
+    const store = window.__GENESIS_ERROR_DEBUG__.getStoreState();
     const noLifePlanet = bodies.find(b => b.type === 'planet' && (!b.evolutionTree || b.evolutionTree.length === 0));
     if (!noLifePlanet) {
       const planet = bodies.find(b => b.type === 'planet' && b.name === 'Eden')

@@ -3,7 +3,7 @@ description: Pull before work, verify in terminal (build + check-sync), push aft
 alwaysApply: true
 ---
 
-# StarSim: GitHub sync + terminal verification (mandatory)
+# Genesis Error: GitHub sync + terminal verification (mandatory)
 
 ## Core rule (user requirement)
 
@@ -22,7 +22,7 @@ alwaysApply: true
    - `npm install` if dependencies or lockfile changed, or if unsure.
    - `npm run build:all` — must complete successfully (web + exe + sync).
    - `npm run check-sync` — must report versions synchronized.
-2. **Optional self-checks** when touching sim/UI: `npm run test-launch`, or launch `dist-electron\StarSim.exe`, or `npm run serve:web` if the task requires runtime proof.
+2. **Optional self-checks** when touching sim/UI: `npm run test-launch`, or launch `dist-electron\GenesisError.exe`, or `npm run serve:web` if the task requires runtime proof.
 3. **Only then** consider the procedure complete.
 
 ## After verification passes

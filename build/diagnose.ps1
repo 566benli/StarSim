@@ -1,7 +1,7 @@
-# StarSim Diagnostic Script
-# Helps troubleshoot issues with running StarSim
+# Genesis Error Diagnostic Script
+# Helps troubleshoot issues with running Genesis Error
 
-Write-Host "🔍 StarSim Diagnostic Tool" -ForegroundColor Cyan
+Write-Host "🔍 Genesis Error Diagnostic Tool" -ForegroundColor Cyan
 Write-Host "=" * 30 -ForegroundColor Yellow
 
 # Check current directory
@@ -16,7 +16,7 @@ $checks = @(
     @{Name="electron folder"; Path="electron"},
     @{Name="src folder"; Path="src"},
     @{Name="dist folder"; Path="dist"},
-    @{Name="exe file"; Path="dist-electron\StarSim.exe"}
+    @{Name="exe file"; Path="dist-electron\GenesisError.exe"}
 )
 
 foreach ($check in $checks) {
@@ -91,12 +91,12 @@ if (!(Test-Path "dist")) {
     Write-Host "  • Run: npm run build" -ForegroundColor Yellow
 }
 
-if (!(Test-Path "dist-electron\StarSim.exe")) {
+if (!(Test-Path "dist-electron\GenesisError.exe")) {
     Write-Host "  • Run: npm run build:all" -ForegroundColor Yellow
 }
 
-Write-Host "  • To run StarSim: Double-click dist-electron\StarSim.exe" -ForegroundColor White
-Write-Host "  • Alternative: Run Setup-StarSim.bat" -ForegroundColor White
+Write-Host "  • To run Genesis Error: Double-click dist-electron\GenesisError.exe" -ForegroundColor White
+Write-Host "  • Alternative: Run Setup-GenesisError.bat" -ForegroundColor White
 
 Write-Host "`nPress Enter to exit..." -ForegroundColor Gray
 Read-Host

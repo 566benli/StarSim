@@ -1,10 +1,10 @@
-# Universe Sandbox–style inspiration (StarSim)
+# Universe Sandbox–style inspiration (Genesis Error)
 
-StarSim is an **independent** project. We **do not** fetch, copy, or redistribute code or assets from *Universe Sandbox* or any commercial simulator.
+Genesis Error is an **independent** project. We **do not** fetch, copy, or redistribute code or assets from *Universe Sandbox* or any commercial simulator.
 
 For **design and UX goals** only, we use the same broad ideas many astronomy sandboxes share:
 
-| Idea | How StarSim approaches it |
+| Idea | How Genesis Error approaches it |
 |------|---------------------------|
 | Clear orbit sense | **Trails** behind moving stars/planets (longer history in system view; focused bodies in body view) |
 | Click-to-inspect | **Raycast** on body meshes → **Info panel** with properties and **Focus** |

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Set up HTTPS with Certbot on VPS for starsim-terminal.duckdns.org."""
+"""Set up HTTPS with Certbot on VPS for genesis-error-terminal.duckdns.org."""
 import paramiko, sys, time
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
-DOMAIN = 'starsim-terminal.duckdns.org'
+DOMAIN = 'genesis-error-terminal.duckdns.org'
 
 ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -50,7 +50,7 @@ nginx_conf = f"""server {{
 }}"""
 
 sftp = ssh.open_sftp()
-with sftp.file('/etc/nginx/sites-available/starsim', 'w') as f:
+with sftp.file('/etc/nginx/sites-available/genesiserror', 'w') as f:
     f.write(nginx_conf)
 sftp.close()
 
@@ -76,18 +76,18 @@ if code != 0:
 # Step 4: Verify nginx config after certbot
 print(f'\n[4/5] Verifying final nginx config...')
 run('nginx -t 2>&1')
-run('cat /etc/nginx/sites-available/starsim | head -30')
+run('cat /etc/nginx/sites-available/genesiserror | head -30')
 
 # Step 5: Update server .env with HTTPS URL
 print(f'\n[5/5] Updating APP_URL to HTTPS...')
 run(
-    f"sed -i 's|APP_URL=http://66.42.51.85|APP_URL=https://{DOMAIN}|' /opt/starsim-terminal/.env",
+    f"sed -i 's|APP_URL=http://66.42.51.85|APP_URL=https://{DOMAIN}|' /opt/genesis-error-terminal/.env",
     '  Updating .env:'
 )
-run('grep APP_URL /opt/starsim-terminal/.env')
+run('grep APP_URL /opt/genesis-error-terminal/.env')
 
 # Restart server with new APP_URL
-run('cd /opt/starsim-terminal && pm2 restart starsim-terminal', '  Restarting server:')
+run('cd /opt/genesis-error-terminal && pm2 restart genesis-error-terminal', '  Restarting server:')
 time.sleep(3)
 
 # Final verification

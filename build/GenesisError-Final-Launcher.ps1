@@ -1,7 +1,7 @@
-# StarSim Final Working Launcher
+# Genesis Error Final Working Launcher
 # This launcher works in all environments and provides clear feedback
 
-Write-Host "🚀 StarSim Final Launcher" -ForegroundColor Cyan
+Write-Host "🚀 Genesis Error Final Launcher (创世错误)" -ForegroundColor Cyan
 Write-Host "=" * 40 -ForegroundColor Yellow
 
 # Get the script directory and project root
@@ -38,7 +38,7 @@ if ($webReady) {
 
 # CRITICAL: Unset ELECTRON_RUN_AS_NODE - when set, Electron runs as plain Node and require('electron') fails
 if ($env:ELECTRON_RUN_AS_NODE) {
-    Write-Host "Warning: ELECTRON_RUN_AS_NODE was set - unsetting so StarSim can run" -ForegroundColor Yellow
+    Write-Host "Warning: ELECTRON_RUN_AS_NODE was set - unsetting so Genesis Error can run" -ForegroundColor Yellow
     Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue
 }
 
@@ -56,9 +56,9 @@ foreach ($path in $electronPaths) {
     if (Test-Path $path) {
         Write-Host "✅ Found Electron at: $path" -ForegroundColor Green
         try {
-            Write-Host "🚀 Launching StarSim Electron app..." -ForegroundColor Cyan
+            Write-Host "🚀 Launching Genesis Error Electron app..." -ForegroundColor Cyan
             & $path "."
-            Write-Host "✨ StarSim launched successfully!" -ForegroundColor Green
+            Write-Host "✨ Genesis Error launched successfully!" -ForegroundColor Green
             exit 0
         } catch {
             Write-Host "❌ Electron launch failed: $($_.Exception.Message)" -ForegroundColor Red
@@ -75,7 +75,7 @@ if (!$electronFound) {
 # Fallback: Open web version
 Write-Host "`n🌐 Opening web version as fallback..." -ForegroundColor Cyan
 try {
-    Write-Host "📱 Launching StarSim in your default browser..." -ForegroundColor White
+    Write-Host "📱 Launching Genesis Error in your default browser..." -ForegroundColor White
     Write-Host "🌍 URL: http://localhost:8080" -ForegroundColor White
     Write-Host "" -ForegroundColor White
 
@@ -97,7 +97,7 @@ try {
     # Open browser
     Start-Process "http://localhost:8080"
 
-    Write-Host "`n✅ StarSim web version opened!" -ForegroundColor Green
+    Write-Host "`n✅ Genesis Error web version opened!" -ForegroundColor Green
     Write-Host "💡 The web version has all the same features as the desktop app" -ForegroundColor Cyan
 
 } catch {
@@ -106,7 +106,7 @@ try {
     exit 1
 }
 
-Write-Host "`n🎉 StarSim is now running!" -ForegroundColor Green
+Write-Host "`n🎉 Genesis Error is now running!" -ForegroundColor Green
 Write-Host "📝 Features available:" -ForegroundColor White
 Write-Host "  • 3D Cosmic visualization" -ForegroundColor White
 Write-Host "  • Save/Load system (10 slots)" -ForegroundColor White

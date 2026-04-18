@@ -57,17 +57,17 @@ async function runSystem(browser, cfg) {
     // Dismiss onboarding so we get straight into the sim
     await page.evaluateOnNewDocument(() => {
       try {
-        localStorage.setItem('starsim-auth-dismissed', '1');
-        localStorage.setItem('starsim_onboarding_v1_done', '1');
+        localStorage.setItem('genesiserror-auth-dismissed', '1');
+        localStorage.setItem('genesiserror_onboarding_v1_done', '1');
       } catch {}
     });
 
     await page.goto(BASE_URL, { waitUntil: 'networkidle0', timeout: 30000 });
-    await page.waitForFunction(() => !!window.__STAR_SIM_DEBUG__, { timeout: 15000 });
+    await page.waitForFunction(() => !!window.__GENESIS_ERROR_DEBUG__, { timeout: 15000 });
 
     // ── Seed the chosen system ──────────────────────────────────────────
     const seed = await page.evaluate((c) => {
-      return window.__STAR_SIM_DEBUG__.seedLifeScenario({
+      return window.__GENESIS_ERROR_DEBUG__.seedLifeScenario({
         starPresetId: c.starPresetId,
         starName:     c.starName,
         planets:      c.planets,
@@ -80,7 +80,7 @@ async function runSystem(browser, cfg) {
 
     // ── Advance simulation a few ticks so bodies have positions ─────────
     await page.evaluate(() => {
-      const dbg = window.__STAR_SIM_DEBUG__;
+      const dbg = window.__GENESIS_ERROR_DEBUG__;
       for (let i = 0; i < 120; i++) dbg.tick?.();
     });
     await new Promise(r => setTimeout(r, 400));
@@ -91,7 +91,7 @@ async function runSystem(browser, cfg) {
     console.log(`\n  --- Test 1: selectBody(planet) → InfoPanel ---`);
 
     const planetSelect = await page.evaluate(() => {
-      const dbg = window.__STAR_SIM_DEBUG__;
+      const dbg = window.__GENESIS_ERROR_DEBUG__;
       const bodies = (dbg.snapshotBodies?.() || []).filter(b => b.type === 'planet');
       if (!bodies.length) return { found: false, reason: 'no planets' };
       const target = bodies[0];
@@ -119,7 +119,7 @@ async function runSystem(browser, cfg) {
     console.log(`\n  --- Test 1b: selectBody(star) → InfoPanel updates ---`);
 
     const starSelectT1 = await page.evaluate((starName) => {
-      const dbg = window.__STAR_SIM_DEBUG__;
+      const dbg = window.__GENESIS_ERROR_DEBUG__;
       const bodies = dbg.snapshotBodies?.() || [];
       const star = bodies.find(b => b.type === 'star' && b.name === starName) ||
                    bodies.find(b => b.type === 'star');
@@ -143,7 +143,7 @@ async function runSystem(browser, cfg) {
 
     // Star should already be selected from test 1b
     const starSelect = await page.evaluate((starName) => {
-      const dbg = window.__STAR_SIM_DEBUG__;
+      const dbg = window.__GENESIS_ERROR_DEBUG__;
       const bodies = dbg.snapshotBodies?.() || [];
       const star = bodies.find(b => b.type === 'star' && b.name === starName) ||
                    bodies.find(b => b.type === 'star');
@@ -217,7 +217,7 @@ async function runSystem(browser, cfg) {
 
       // Advance simulation significantly
       await page.evaluate(() => {
-        const dbg = window.__STAR_SIM_DEBUG__;
+        const dbg = window.__GENESIS_ERROR_DEBUG__;
         for (let i = 0; i < 300; i++) dbg.tick?.();
       });
       await new Promise(r => setTimeout(r, 600));

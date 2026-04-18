@@ -6,6 +6,7 @@ dist/
 dist-electron/
 
 # Packaged exe / archives
+GenesisError.exe
 StarSim.exe
 *.rar
 releases/
@@ -16,6 +17,7 @@ releases/
 
 # Logs
 *.log
+GenesisError-Logs/
 StarSim-Logs/
 
 # OS junk

@@ -3,7 +3,7 @@ description: Always sync local project from latest shared GitHub version before 
 alwaysApply: true
 ---
 
-# StarSim: GitHub Latest-First Rule
+# Genesis Error: GitHub Latest-First Rule
 
 ## Core rule
 

@@ -22,7 +22,7 @@ app.get('/api/stats', (_req, res) => {
 // ───── Password reset page (served as HTML) ─────
 app.get('/reset-password', (_req, res) => {
   res.send(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>StarSim — Reset Password</title>
+<title>Genesis Error (创世错误) - Reset Password</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Segoe UI',system-ui,sans-serif;background:#0a0a1a;color:#e0e0ff;display:flex;justify-content:center;align-items:center;min-height:100vh}
@@ -68,7 +68,7 @@ app.get('/terminal', (_req, res) => {
 db.load();
 app.listen(PORT, () => {
   console.log(`\n  ╔══════════════════════════════════════════╗`);
-  console.log(`  ║  StarSim Central Terminal                ║`);
+  console.log(`  ║  Genesis Error Central Terminal          ║`);
   console.log(`  ║  Server running on port ${String(PORT).padEnd(17)}║`);
   console.log(`  ║                                          ║`);
   console.log(`  ║  API:      http://localhost:${PORT}/api     ║`);

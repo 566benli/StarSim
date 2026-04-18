@@ -1,5 +1,5 @@
 /**
- * StarSim Web App Test Script
+ * Genesis Error Web App Test Script
  * Tests the time control features including high-speed presets and WARP mode
  */
 
@@ -17,8 +17,8 @@ async function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function testStarSim() {
-  console.log('🚀 Starting StarSim Web App Test...\n');
+async function testGenesisErrorWeb() {
+  console.log('🚀 Starting Genesis Error Web App Test...\n');
   
   const browser = await puppeteer.launch({
     headless: false, // Set to true for headless mode
@@ -344,4 +344,4 @@ async function testStarSim() {
 }
 
 // Run the test
-testStarSim().catch(console.error);
+testGenesisErrorWeb().catch(console.error);

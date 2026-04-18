@@ -1,4 +1,4 @@
-# StarSim Portable Release Packager
+# Genesis Error Portable Release Packager
 # Creates a shareable package that includes the synced desktop and web builds.
 
 param(
@@ -7,14 +7,14 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "Preparing StarSim portable release package..." -ForegroundColor Cyan
+Write-Host "Preparing Genesis Error portable release package..." -ForegroundColor Cyan
 
 $projectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 Set-Location $projectRoot
 
 $distWeb = Join-Path $projectRoot "dist"
 $distElectron = Join-Path $projectRoot "dist-electron"
-$exePath = Join-Path $distElectron "StarSim.exe"
+$exePath = Join-Path $distElectron "GenesisError.exe"
 $buildIdPath = Join-Path $distWeb "BUILD_ID.txt"
 
 if (!(Test-Path (Join-Path $distWeb "index.html"))) {
@@ -22,7 +22,7 @@ if (!(Test-Path (Join-Path $distWeb "index.html"))) {
     if ($FailIfMissing) { throw $msg } else { Write-Host $msg -ForegroundColor Yellow; exit 1 }
 }
 if (!(Test-Path $exePath)) {
-    $msg = "Desktop exe missing at dist-electron/StarSim.exe. Run 'npm run build:all' first."
+    $msg = "Desktop exe missing at dist-electron/GenesisError.exe. Run 'npm run build:all' first."
     if ($FailIfMissing) { throw $msg } else { Write-Host $msg -ForegroundColor Yellow; exit 1 }
 }
 
@@ -36,10 +36,10 @@ if ([string]::IsNullOrWhiteSpace($buildId)) {
 $safeBuildId = ($buildId -replace "[:/\\\s]", "-")
 
 $releaseRoot = Join-Path $projectRoot "releases"
-$releaseName = "StarSim-Portable-$safeBuildId"
+$releaseName = "GenesisError-Portable-$safeBuildId"
 $releaseDir = Join-Path $releaseRoot $releaseName
 $zipPath = Join-Path $releaseRoot "$releaseName.zip"
-$latestZipPath = Join-Path $releaseRoot "StarSim-Portable-latest.zip"
+$latestZipPath = Join-Path $releaseRoot "GenesisError-Portable-latest.zip"
 
 New-Item -ItemType Directory -Path $releaseRoot -Force | Out-Null
 if (Test-Path $releaseDir) { Remove-Item $releaseDir -Recurse -Force }
@@ -55,29 +55,29 @@ Copy-Item (Join-Path $distElectron "*") (Join-Path $releaseDir "app") -Recurse -
 Write-Host "  Copying web build payload..." -ForegroundColor Gray
 Copy-Item (Join-Path $distWeb "*") (Join-Path $releaseDir "web") -Recurse -Force
 
-$launcherPath = Join-Path $releaseDir "Start-StarSim.bat"
+$launcherPath = Join-Path $releaseDir "Start-GenesisError.bat"
 @'
 @echo off
 cd /d "%~dp0"
-if exist "app\StarSim.exe" (
-  start "" "app\StarSim.exe"
+if exist "app\GenesisError.exe" (
+  start "" "app\GenesisError.exe"
 ) else (
-  echo StarSim executable not found in app\StarSim.exe
+  echo Genesis Error executable not found in app\GenesisError.exe
   pause
 )
 '@ | Out-File -FilePath $launcherPath -Encoding ascii -Force
 
 $readmePath = Join-Path $releaseDir "docs\PORTABLE-README.txt"
 @"
-StarSim Portable Package
-========================
+Genesis Error Portable Package (创世错误)
+=========================================
 
 Build ID: $buildId
 
 How to run:
 1) Unzip this package anywhere on Windows.
-2) Double-click Start-StarSim.bat
-   - or run app\StarSim.exe directly.
+2) Double-click Start-GenesisError.bat
+   - or run app\GenesisError.exe directly.
 
 Contents:
 - app\ : desktop portable executable and runtime files
@@ -92,7 +92,7 @@ This package is produced from synchronized build outputs:
 "@ | Out-File -FilePath $readmePath -Encoding ascii -Force
 
 $manifest = [ordered]@{
-    product = "StarSim"
+    product = "Genesis Error"
     build_id = $buildId
     created_utc = [DateTime]::UtcNow.ToString("o")
     source = @{
@@ -100,8 +100,8 @@ $manifest = [ordered]@{
         desktop = "dist-electron"
     }
     files = @{
-        launcher = "Start-StarSim.bat"
-        desktop_exe = "app/StarSim.exe"
+        launcher = "Start-GenesisError.bat"
+        desktop_exe = "app/GenesisError.exe"
         web_index = "web/index.html"
     }
 }

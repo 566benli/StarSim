@@ -19,8 +19,8 @@ async function run() {
   try {
     await page.evaluateOnNewDocument(() => {
       try {
-        localStorage.setItem('starsim-auth-dismissed', '1');
-        localStorage.setItem('starsim_onboarding_v1_done', '1');
+        localStorage.setItem('genesiserror-auth-dismissed', '1');
+        localStorage.setItem('genesiserror_onboarding_v1_done', '1');
       } catch {}
     });
 
@@ -77,7 +77,7 @@ async function run() {
 
     // Verify we're in a running simulation
     const simRunning = await page.evaluate(() => {
-      const debug = window.__STAR_SIM_DEBUG__;
+      const debug = window.__GENESIS_ERROR_DEBUG__;
       if (!debug) return null;
       const engine = debug.getEngine();
       return {
@@ -103,7 +103,7 @@ async function run() {
 
     // Go back to setup and test another example
     await page.evaluate(() => {
-      const debug = window.__STAR_SIM_DEBUG__;
+      const debug = window.__GENESIS_ERROR_DEBUG__;
       const engine = debug.getEngine();
       engine.pause();
     });
@@ -126,7 +126,7 @@ async function run() {
     await wait(1500);
 
     const compactState = await page.evaluate(() => {
-      const debug = window.__STAR_SIM_DEBUG__;
+      const debug = window.__GENESIS_ERROR_DEBUG__;
       if (!debug) return null;
       const engine = debug.getEngine();
       return {

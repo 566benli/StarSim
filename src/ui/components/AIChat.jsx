@@ -21,7 +21,7 @@ const AIChat = ({ aiAgent, onClose }) => {
     if (chatMessages.length === 0) {
       addChatMessage({
         role: 'assistant',
-        content: `Hey there! I'm your cosmic guide in StarSim. Ask me anything about the universe, your simulation, or what those parameter sliders do!\n\nSome things to try:\n- "What happens when a star dies?"\n- "Tell me about my star system"\n- "What would happen if I added a black hole?"\n- "Speed up time to see evolution"`,
+        content: `Hey there! I'm your cosmic guide in Genesis Error. Ask me anything about the universe, your simulation, or what those parameter sliders do!\n\nSome things to try:\n- "What happens when a star dies?"\n- "Tell me about my star system"\n- "What would happen if I added a black hole?"\n- "Speed up time to see evolution"`,
       });
     }
   }, []);
@@ -72,7 +72,7 @@ const AIChat = ({ aiAgent, onClose }) => {
       <div className="chat-header">
         <div className="chat-title">
           <span className="chat-icon">🤖</span>
-          StarSim AI Assistant
+          Genesis Error AI Assistant
         </div>
         <button className="chat-close" onClick={onClose}>✕</button>
       </div>

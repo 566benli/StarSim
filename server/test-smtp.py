@@ -44,7 +44,7 @@ print('\n[3] Waiting 5s for email delivery...')
 time.sleep(5)
 
 print('\n[4] Server logs:')
-run('pm2 logs starsim-terminal --lines 25 --nostream 2>&1')
+run('pm2 logs genesis-error-terminal --lines 25 --nostream 2>&1')
 
 ssh.close()
 print('\n\nDone! Check your inbox at li7917016@gmail.com for the reset email.')

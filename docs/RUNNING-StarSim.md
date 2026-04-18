@@ -1,17 +1,17 @@
-# 🚀 How to Run StarSim
+# 🚀 How to Run Genesis Error
 
 ## ✅ Quick Start (Easiest Method)
 
 ### Option 1: One-Click Setup (Recommended)
 ```bash
 # Run this once to set everything up
-.\Setup-StarSim.bat
+.\Setup-GenesisError.bat
 ```
 This will:
 - ✅ Check all dependencies
 - ✅ Install missing components
 - ✅ Build both web and exe versions
-- ✅ Launch StarSim automatically
+- ✅ Launch Genesis Error automatically
 
 ### Option 2: Manual Setup
 ```bash
@@ -21,20 +21,20 @@ npm install
 # 2. Build both versions
 npm run build:all
 
-# 3. Launch StarSim
+# 3. Launch Genesis Error
 npm run serve:web
 # OR
-.\dist-electron\StarSim.cmd
+.\dist-electron\GenesisError.cmd
 ```
 
 ## 🎯 Available Launchers
 
-After setup, you can run StarSim using any of these methods:
+After setup, you can run Genesis Error using any of these methods:
 
 ### Desktop App Launchers:
-- `dist-electron\StarSim.cmd` ⭐ **(Recommended)**
-- `dist-electron\StarSim.bat`
-- `dist-electron\StarSim.exe` ⚠️ **(May show compatibility warnings)**
+- `dist-electron\GenesisError.cmd` ⭐ **(Recommended)**
+- `dist-electron\GenesisError.bat`
+- `dist-electron\GenesisError.exe` ⚠️ **(May show compatibility warnings)**
 
 ### Web Version:
 ```bash
@@ -74,7 +74,7 @@ The launcher will automatically fall back to opening the web version in your bro
 
 ## 🎮 Features Available
 
-Once running, StarSim includes:
+Once running, Genesis Error includes:
 - 🌌 **3D Cosmic Visualization**
 - 💾 **Save/Load System** (10 slots)
 - 🤖 **AI Assistant**
@@ -91,4 +91,4 @@ The system automatically ensures:
 
 ---
 
-**🎉 Enjoy exploring the cosmos with StarSim!**
+**🎉 Enjoy exploring the cosmos with Genesis Error!**

@@ -1,11 +1,11 @@
-# StarSim Exe Placeholder Creator
+# Genesis Error Exe Placeholder Creator
 # Creates a guaranteed exe file that can be updated and replaced
 
 param(
-    [string]$OutputPath = "dist-electron\StarSim.exe"
+    [string]$OutputPath = "dist-electron\GenesisError.exe"
 )
 
-Write-Host "🔧 Creating StarSim Exe Placeholder..." -ForegroundColor Cyan
+Write-Host "🔧 Creating Genesis Error Exe Placeholder..." -ForegroundColor Cyan
 
 # Ensure output directory exists
 $outputDir = Split-Path $OutputPath -Parent
@@ -16,13 +16,13 @@ if (!(Test-Path $outputDir)) {
 
 # Create a PowerShell script that acts like an exe launcher (production: loads from dist/)
 $launcherScript = @"
-# StarSim Executable Launcher - loads built dist/ (production mode)
+# Genesis Error Executable Launcher - loads built dist/ (production mode)
 param([string[]]`$Passthru)
 
 `$projectRoot = Split-Path -Parent `$PSScriptRoot
 Set-Location `$projectRoot
 
-Write-Host "Starting StarSim Desktop Application..." -ForegroundColor Cyan
+Write-Host "Starting Genesis Error Desktop Application..." -ForegroundColor Cyan
 
 `$distExists = Test-Path "dist\index.html"
 if (-not `$distExists) {
@@ -56,7 +56,7 @@ if (-not `$electronExe) {
     exit 1
 }
 
-Write-Host "Launching StarSim..." -ForegroundColor Green
+Write-Host "Launching Genesis Error..." -ForegroundColor Green
 try {
     & `$electronExe "`$projectRoot\electron\main.js"
 } catch {
@@ -69,11 +69,11 @@ try {
 # Create a batch file that calls the PowerShell script
 $batchScript = @"
 @echo off
-powershell -ExecutionPolicy Bypass -File "%~dp0StarSim-Launcher.ps1" %*
+powershell -ExecutionPolicy Bypass -File "%~dp0GenesisError-Launcher.ps1" %*
 "@
 
 # Save the PowerShell launcher
-$launcherPath = Join-Path $outputDir "StarSim-Launcher.ps1"
+$launcherPath = Join-Path $outputDir "GenesisError-Launcher.ps1"
 $launcherScript | Out-File -FilePath $launcherPath -Encoding UTF8 -Force
 
 # Save the batch launcher
@@ -84,7 +84,7 @@ $batchScript | Out-File -FilePath $batchPath -Encoding ASCII -Force
 $cmdPath = $OutputPath -replace '\.exe$', '.cmd'
 $cmdScript = @"
 @echo off
-powershell -ExecutionPolicy Bypass -File "%~dp0StarSim-Launcher.ps1" %*
+powershell -ExecutionPolicy Bypass -File "%~dp0GenesisError-Launcher.ps1" %*
 "@
 $cmdScript | Out-File -FilePath $cmdPath -Encoding ASCII -Force
 
@@ -93,7 +93,7 @@ $cmdScript | Out-File -FilePath $cmdPath -Encoding ASCII -Force
 $exePath = $OutputPath
 $exeScript = @"
 @echo off
-powershell -ExecutionPolicy Bypass -File "%~dp0StarSim-Launcher.ps1" %*
+powershell -ExecutionPolicy Bypass -File "%~dp0GenesisError-Launcher.ps1" %*
 "@
 $exeScript | Out-File -FilePath $exePath -Encoding ASCII -Force
 
@@ -104,7 +104,7 @@ Set-ItemProperty -Path $batchPath -Name LastWriteTime -Value $currentTime
 Set-ItemProperty -Path $cmdPath -Name LastWriteTime -Value $currentTime
 Set-ItemProperty -Path $exePath -Name LastWriteTime -Value $currentTime
 
-Write-Host "✅ StarSim exe placeholder created successfully!" -ForegroundColor Green
+Write-Host "✅ Genesis Error exe placeholder created successfully!" -ForegroundColor Green
 Write-Host "📁 Location: $cmdPath" -ForegroundColor White
 Write-Host "📅 Created: $currentTime" -ForegroundColor White
 Write-Host "🔗 Launches: Web version through Electron" -ForegroundColor Gray

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Comprehensive test of all StarSim Central Terminal functions."""
+"""Comprehensive test of all Genesis Error Central Terminal functions."""
 import paramiko, sys, time, json
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
@@ -39,7 +39,7 @@ def check(name, condition, detail=''):
         print(f'  FAIL  {name} {detail}')
 
 print('=' * 65)
-print('  STARSIM CENTRAL TERMINAL — COMPREHENSIVE TEST')
+print('  STARSIM CENTRAL TERMINAL �?COMPREHENSIVE TEST')
 print('=' * 65)
 
 # ─────────────────────────────────────────────────────────────
@@ -123,7 +123,7 @@ check('User count > 0', r.get('userCount', 0) > 0)
 check('Has topCreators', isinstance(r.get('topCreators'), list))
 
 # ─────────────────────────────────────────────────────────────
-print('\n--- 9. ADMIN API — ACCESS CONTROL ---')
+print('\n--- 9. ADMIN API �?ACCESS CONTROL ---')
 r = api('GET', '/admin/users', token=normal_token)
 check('Normal user BLOCKED from admin/users', r.get('error') == 'Admin access required', str(r))
 
@@ -134,7 +134,7 @@ r = api('GET', '/admin/users')
 check('Unauthenticated BLOCKED from admin/users', r.get('error') == 'No token')
 
 # ─────────────────────────────────────────────────────────────
-print('\n--- 10. ADMIN API — FULL ACCESS ---')
+print('\n--- 10. ADMIN API �?FULL ACCESS ---')
 r = api('GET', '/admin/users', token=admin_token)
 check('Admin can list all users', isinstance(r.get('users'), list) and len(r['users']) > 0, str(r.get('error', '')))
 all_users = r.get('users', [])
@@ -145,7 +145,7 @@ r = api('GET', '/admin/saves', token=admin_token)
 check('Admin can list all saves', isinstance(r.get('saves'), list), str(r.get('error', '')))
 
 # ─────────────────────────────────────────────────────────────
-print('\n--- 11. ADMIN — PROMOTE / DEMOTE ---')
+print('\n--- 11. ADMIN �?PROMOTE / DEMOTE ---')
 normal_id = normal_user.get('id')
 if normal_id:
     r = api('PUT', f'/admin/users/{normal_id}/promote', token=admin_token)
@@ -163,7 +163,7 @@ if normal_id:
     check('User is now regular again', demoted and demoted[0].get('is_admin') == 0, str(demoted))
 
 # ─────────────────────────────────────────────────────────────
-print('\n--- 12. ADMIN — SELF-PROTECTION ---')
+print('\n--- 12. ADMIN �?SELF-PROTECTION ---')
 admin_me = api('GET', '/auth/me', token=admin_token)
 admin_id = admin_me.get('user', {}).get('id')
 if admin_id:
@@ -176,18 +176,18 @@ if admin_id:
 # ─────────────────────────────────────────────────────────────
 print('\n--- 13. PASSWORD RESET FLOW ---')
 # Clear error log
-run('> /opt/starsim-terminal/logs/error-0.log')
+run('> /opt/genesis-error-terminal/logs/error-0.log')
 
 r = api('POST', '/auth/forgot', {'email': 'normal1@test.com'})
 check('Forgot password accepted', 'message' in r, str(r))
 
 time.sleep(4)
-errors = run('cat /opt/starsim-terminal/logs/error-0.log')
+errors = run('cat /opt/genesis-error-terminal/logs/error-0.log')
 check('No SMTP errors', len(errors.strip()) == 0, errors[:100] if errors else '')
 
 # Get reset token
 tok_result = run(
-    "cd /opt/starsim-terminal && node -e \""
+    "cd /opt/genesis-error-terminal && node -e \""
     "const db=require('./database');"
     "(async()=>{await db.init();"
     "const r=db.one('SELECT token FROM reset_tokens WHERE used=0 ORDER BY id DESC LIMIT 1');"
@@ -238,10 +238,10 @@ check('/terminal title is "Central Terminal"', 'Central Terminal' in title_term,
 
 # ─────────────────────────────────────────────────────────────
 print('\n--- 16. HTTPS ---')
-code = run("curl -s -o /dev/null -w '%{http_code}' https://starsim-terminal.duckdns.org/api/health")
+code = run("curl -s -o /dev/null -w '%{http_code}' https://genesis-error-terminal.duckdns.org/api/health")
 check('HTTPS health returns 200', code == '200', code)
 
-code = run("curl -s -o /dev/null -w '%{http_code}' http://starsim-terminal.duckdns.org/api/health")
+code = run("curl -s -o /dev/null -w '%{http_code}' http://genesis-error-terminal.duckdns.org/api/health")
 check('HTTP redirects (301)', code == '301', code)
 
 # ─────────────────────────────────────────────────────────────

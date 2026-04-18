@@ -5,12 +5,12 @@ const puppeteer = require('puppeteer');
   const page = await browser.newPage();
   await page.goto('http://localhost:8080', { waitUntil: 'networkidle0', timeout: 30000 });
 
-  await page.waitForFunction(() => window.__STAR_SIM_DEBUG__, { timeout: 15000 });
+  await page.waitForFunction(() => window.__GENESIS_ERROR_DEBUG__, { timeout: 15000 });
 
   console.log('=== Testing Evolution Tree ===');
 
   const seedResult = await page.evaluate(() => {
-    const dbg = window.__STAR_SIM_DEBUG__;
+    const dbg = window.__GENESIS_ERROR_DEBUG__;
     return dbg.seedLifeScenario({
       planets: [
         {
@@ -31,12 +31,12 @@ const puppeteer = require('puppeteer');
 
   console.log('Simulating 5M years...');
   const sim1 = await page.evaluate(() => {
-    return window.__STAR_SIM_DEBUG__.simulateYears({ years: 5e6, stepYears: 5e4 });
+    return window.__GENESIS_ERROR_DEBUG__.simulateYears({ years: 5e6, stepYears: 5e4 });
   });
   console.log('Sim result:', JSON.stringify(sim1)?.slice(0, 200));
 
   let snapshot = await page.evaluate(() => {
-    const planets = window.__STAR_SIM_DEBUG__.snapshotPlanets();
+    const planets = window.__GENESIS_ERROR_DEBUG__.snapshotPlanets();
     return planets.map(p => ({
       name: p.name,
       lifeStage: p.lifeStage,
@@ -55,11 +55,11 @@ const puppeteer = require('puppeteer');
 
   console.log('\nSimulating 20M more years...');
   await page.evaluate(() => {
-    return window.__STAR_SIM_DEBUG__.simulateYears({ years: 20e6, stepYears: 1e5 });
+    return window.__GENESIS_ERROR_DEBUG__.simulateYears({ years: 20e6, stepYears: 1e5 });
   });
 
   snapshot = await page.evaluate(() => {
-    const planets = window.__STAR_SIM_DEBUG__.snapshotPlanets();
+    const planets = window.__GENESIS_ERROR_DEBUG__.snapshotPlanets();
     return planets.map(p => ({
       name: p.name,
       lifeStage: p.lifeStage,
@@ -78,7 +78,7 @@ const puppeteer = require('puppeteer');
 
   // Print species detail
   const detail = await page.evaluate(() => {
-    const planets = window.__STAR_SIM_DEBUG__.snapshotPlanets();
+    const planets = window.__GENESIS_ERROR_DEBUG__.snapshotPlanets();
     const alive = planets.find(p => (p.evolutionTree || []).length > 0);
     if (!alive) return null;
     return {
@@ -112,7 +112,7 @@ const puppeteer = require('puppeteer');
 
   // Validate species structure
   const validation = await page.evaluate(() => {
-    const planets = window.__STAR_SIM_DEBUG__.snapshotPlanets();
+    const planets = window.__GENESIS_ERROR_DEBUG__.snapshotPlanets();
     const errors = [];
     for (const p of planets) {
       for (const sp of (p.evolutionTree || [])) {

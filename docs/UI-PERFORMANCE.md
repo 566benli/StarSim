@@ -1,8 +1,8 @@
-# StarSim UI performance notes
+# Genesis Error UI performance notes
 
 ## Why not Unity for UI?
 
-StarSim ships as **Electron + React + Three.js (WebGL)**. The 3D view is already GPU-accelerated. Dropping in the Unity runtime for overlays would add a second heavy runtime, complicate the build, and duplicate input/rendering paths without a clear win for 2D panels.
+Genesis Error ships as **Electron + React + Three.js (WebGL)**. The 3D view is already GPU-accelerated. Dropping in the Unity runtime for overlays would add a second heavy runtime, complicate the build, and duplicate input/rendering paths without a clear win for 2D panels.
 
 Patterns that give **Unity-like responsiveness** in this stack:
 

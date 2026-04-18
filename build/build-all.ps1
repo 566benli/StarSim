@@ -1,8 +1,8 @@
-# StarSim Build Script - Ensures exe and web versions stay in sync
+# Genesis Error Build Script - Ensures exe and web versions stay in sync
 # This script ALWAYS rebuilds both versions to maintain synchronization
 # RULE: Run npm install before each rebuild to ensure preliminaries are in place
 
-Write-Host "🚀 Building StarSim - Keeping exe and web versions in sync..." -ForegroundColor Cyan
+Write-Host "🚀 Building Genesis Error (创世错误) — Keeping exe and web versions in sync..." -ForegroundColor Cyan
 Write-Host "⚠️  IMPORTANT: This rebuilds BOTH web and exe versions every time!" -ForegroundColor Yellow
 
 # Step 0: Install all preliminaries (RULE - ensures exe can run)
@@ -31,7 +31,7 @@ if (Test-Path "dist-electron") {
         Remove-Item "dist-electron" -Recurse -Force -ErrorAction Stop
         Write-Host "  ✅ Cleaned exe build (dist-electron/)" -ForegroundColor Gray
     } catch {
-        Write-Host "  ⚠️  Could not clean dist-electron (StarSim.exe may be running - close it and retry)" -ForegroundColor Yellow
+        Write-Host "  ⚠️  Could not clean dist-electron (GenesisError.exe may be running - close it and retry)" -ForegroundColor Yellow
         Write-Host "     Proceeding - electron-builder may overwrite files" -ForegroundColor Gray
     }
 }
@@ -62,7 +62,7 @@ try {
     npx electron-builder --win --dir
     if ($LASTEXITCODE -eq 0) {
         # Check if the exe was actually created
-        if (Test-Path "dist-electron\win-unpacked\StarSim.exe") {
+        if (Test-Path "dist-electron\win-unpacked\GenesisError.exe") {
             Copy-Item "dist-electron\win-unpacked\*" "dist-electron\" -Recurse -Force
             # Sync BUILD_ID to exe folder (same version as web)
             Copy-Item "dist\BUILD_ID.txt" "dist-electron\BUILD_ID.txt" -Force -ErrorAction SilentlyContinue
@@ -86,7 +86,7 @@ if (-not $exeBuildSuccess) {
     Write-Host "  🔄 Creating exe placeholder to ensure synchronization..." -ForegroundColor Cyan
     try {
         & "$PSScriptRoot\create-exe-placeholder.ps1"
-        if (Test-Path "dist-electron\StarSim.exe") {
+        if (Test-Path "dist-electron\GenesisError.exe") {
             Copy-Item "dist\BUILD_ID.txt" "dist-electron\BUILD_ID.txt" -Force -ErrorAction SilentlyContinue
             $exeBuildSuccess = $true
             Write-Host "  ✅ Exe placeholder created successfully" -ForegroundColor Green
@@ -101,7 +101,7 @@ if (-not $exeBuildSuccess) {
 # Step 4: Verify synchronization
 Write-Host "✅ Verifying version synchronization..." -ForegroundColor Blue
 
-$exeExists = Test-Path "dist-electron\StarSim.exe"
+$exeExists = Test-Path "dist-electron\GenesisError.exe"
 $webExists = Test-Path "dist\index.html"
 
 # Check web version
@@ -118,8 +118,8 @@ if ($webExists) {
 # Check exe version
 if ($exeExists) {
     Write-Host "🎉 SUCCESS: Exe version built successfully!" -ForegroundColor Green
-    Write-Host "📁 Exe version: $(Resolve-Path dist-electron\StarSim.exe)" -ForegroundColor Gray
-    $exeTimestamp = (Get-Item "dist-electron\StarSim.exe").LastWriteTime
+    Write-Host "📁 Exe version: $(Resolve-Path dist-electron\GenesisError.exe)" -ForegroundColor Gray
+    $exeTimestamp = (Get-Item "dist-electron\GenesisError.exe").LastWriteTime
     Write-Host "📅 Exe built: $exeTimestamp" -ForegroundColor Gray
 
     # Check if versions are synchronized (within 1 minute)
@@ -151,7 +151,7 @@ if (Test-Path "build/ensure-exe-placement.ps1") {
 }
 
 # ALWAYS update desktop shortcut when exe exists
-if (Test-Path "dist-electron\StarSim.exe") {
+if (Test-Path "dist-electron\GenesisError.exe") {
     Write-Host "  🔗 Updating desktop shortcut..." -ForegroundColor Cyan
     try {
         & "build/create-desktop-shortcut.ps1"
@@ -174,7 +174,7 @@ if ([string]::IsNullOrWhiteSpace($webBuildIdNow) -or [string]::IsNullOrWhiteSpac
     Write-Host "   web BUILD_ID: $webBuildIdNow" -ForegroundColor Yellow
     Write-Host "   exe BUILD_ID: $exeBuildIdNow" -ForegroundColor Yellow
     Write-Host "   Portable package was NOT updated to avoid shipping mismatched versions." -ForegroundColor Yellow
-    Write-Host "   Close StarSim.exe and re-run: npm run build:all" -ForegroundColor Yellow
+    Write-Host "   Close GenesisError.exe and re-run: npm run build:all" -ForegroundColor Yellow
     exit 1
 }
 
@@ -204,12 +204,12 @@ if ($webExists -and $exeBuildSuccess) {
 
 Write-Host "`n📝 Usage:" -ForegroundColor Cyan
 if ($exeExists) {
-    Write-Host "  🖥️  Desktop App: Run 'dist-electron\StarSim.exe'" -ForegroundColor White
+    Write-Host "  🖥️  Desktop App: Run 'dist-electron\GenesisError.exe'" -ForegroundColor White
 }
 Write-Host "  🌐 Web Version: Run 'npm run serve:web' (opens http://localhost:8080)" -ForegroundColor White
 Write-Host "  🛠️  Development: Run 'npm run electron-dev'" -ForegroundColor White
 Write-Host "  🔄 Rebuild All: Run 'npm run build:all' (ALWAYS rebuilds both)" -ForegroundColor White
-Write-Host "  📤 Share Package: Send 'releases\StarSim-Portable-latest.zip'" -ForegroundColor White
+Write-Host "  📤 Share Package: Send 'releases\GenesisError-Portable-latest.zip'" -ForegroundColor White
 
 Write-Host "`n⚠️  IMPORTANT:" -ForegroundColor Yellow
 Write-Host "  • Run 'npm run build:all' AFTER EVERY CODE CHANGE" -ForegroundColor White

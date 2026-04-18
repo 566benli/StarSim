@@ -1,7 +1,7 @@
 {
-  "name": "starsim-server",
+  "name": "genesis-error-server",
   "version": "1.0.0",
-  "description": "StarSim Central Terminal - User accounts, cloud saves, and global dashboard",
+  "description": "Genesis Error Central Terminal (创世错误) — User accounts, cloud saves, and global dashboard",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

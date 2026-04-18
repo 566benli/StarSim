@@ -34,17 +34,17 @@ async function run() {
 
   await page.evaluateOnNewDocument(() => {
     try {
-      localStorage.setItem('starsim-auth-dismissed', '1');
-      localStorage.setItem('starsim_onboarding_v1_done', '1');
+      localStorage.setItem('genesiserror-auth-dismissed', '1');
+      localStorage.setItem('genesiserror_onboarding_v1_done', '1');
     } catch {}
   });
 
   await page.goto(BASE_URL, { waitUntil: 'networkidle0' });
-  await page.waitForFunction(() => !!window.__STAR_SIM_DEBUG__, { timeout: 15000 });
+  await page.waitForFunction(() => !!window.__GENESIS_ERROR_DEBUG__, { timeout: 15000 });
 
   // ── Screenshot 1: Seed a system and show overview ──
   await page.evaluate(() => {
-    window.__STAR_SIM_DEBUG__.seedLifeScenario({
+    window.__GENESIS_ERROR_DEBUG__.seedLifeScenario({
       starPresetId: 'sun_like',
       starName: 'Sol Alpha',
       lifePreset: 'chaotic',
@@ -95,7 +95,7 @@ async function run() {
 
   // ── Screenshot 5: Simulate 15M years – life should emerge ──
   await page.evaluate(() => {
-    window.__STAR_SIM_DEBUG__.simulateYears({ years: 1.5e7, stepYears: 5e4 });
+    window.__GENESIS_ERROR_DEBUG__.simulateYears({ years: 1.5e7, stepYears: 5e4 });
   });
   await wait(200);
 
@@ -111,7 +111,7 @@ async function run() {
 
   // ── Screenshot 6: Simulate more to get complex/intelligent life ──
   await page.evaluate(() => {
-    window.__STAR_SIM_DEBUG__.simulateYears({ years: 2.5e7, stepYears: 1e5 });
+    window.__GENESIS_ERROR_DEBUG__.simulateYears({ years: 2.5e7, stepYears: 1e5 });
   });
   await wait(200);
   await page.evaluate(() => {
@@ -177,7 +177,7 @@ async function run() {
   console.log('Shot 11: Life simulation disabled');
 
   // Snapshot planet data for the summary
-  const finalPlanets = await page.evaluate(() => window.__STAR_SIM_DEBUG__.snapshotPlanets());
+  const finalPlanets = await page.evaluate(() => window.__GENESIS_ERROR_DEBUG__.snapshotPlanets());
   console.log('\nFinal planet states:');
   for (const p of finalPlanets) {
     console.log(`  ${p.name}: stage=${p.lifeStage}, hab=${p.habitabilityScore.toFixed(3)}, health=${p.biosphereHealth.toFixed(3)}, bio=${p.biodiversity.toFixed(3)}, complex=${p.complexityScore.toFixed(3)}, intel=${p.intelligencePotential.toFixed(3)}`);

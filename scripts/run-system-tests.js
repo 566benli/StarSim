@@ -1,5 +1,5 @@
 /**
- * StarSim Automated System Tests
+ * Genesis Error Automated System Tests
  * Tests multiple parameterized universes and system configurations.
  * Run via: node scripts/run-system-tests.js
  *
@@ -230,7 +230,7 @@ function stepYears(eng, years) {
 
 // =============================================================================
 console.log('═══════════════════════════════════════════════════════');
-console.log('  StarSim Automated System Tests');
+console.log('  Genesis Error Automated System Tests');
 console.log('═══════════════════════════════════════════════════════\n');
 
 // ─────────────────────────────────────────────────────────────────────────────

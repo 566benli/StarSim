@@ -10,7 +10,7 @@ import { useStore } from '../store';
 import { VIEW_LEVEL } from '@utils/constants';
 import './Minimap.css';
 
-const STORAGE_KEY = 'starsim-minimap-position';
+const STORAGE_KEY = 'genesiserror-minimap-position';
 
 const loadPosition = () => {
   try {

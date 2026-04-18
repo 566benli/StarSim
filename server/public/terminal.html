@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>StarSim — Central Terminal</title>
+<title>Genesis Error — Central Terminal</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--bg:#060612;--bg2:#0d0d24;--bg3:#14142e;--card:#181838;--border:#2a2a5a;--text:#e0e0f0;--dim:#8888aa;--accent:#00ccff;--accent2:#4a9eff;--green:#44ff88;--orange:#ffaa44;--red:#ff4466;--purple:#aa66ff;--gold:#ffd700;--radius:12px}
@@ -160,7 +160,7 @@ footer{text-align:center;color:var(--dim);font-size:.85em;padding:40px 0 24px;bo
     </div>
   </div>
 
-  <footer>StarSim Central Terminal &mdash; Operator Console</footer>
+  <footer>Genesis Error Central Terminal &mdash; Operator Console</footer>
 </div>
 
 <!-- Login Modal -->
@@ -170,7 +170,7 @@ footer{text-align:center;color:var(--dim);font-size:.85em;padding:40px 0 24px;bo
 
 <script>
 const API = window.location.origin + '/api';
-let token = localStorage.getItem('starsim-terminal-token');
+let token = localStorage.getItem('genesiserror-terminal-token');
 let currentUser = null;
 
 // Starfield
@@ -222,7 +222,7 @@ async function doLogin() {
       document.getElementById('loginError').classList.remove('hidden');
       return;
     }
-    token = data.token; localStorage.setItem('starsim-terminal-token', token);
+    token = data.token; localStorage.setItem('genesiserror-terminal-token', token);
     currentUser = data.user; closeModal(); showTerminal();
   } catch (e) {
     document.getElementById('loginError').textContent = e.message;
@@ -232,7 +232,7 @@ async function doLogin() {
 
 function logout() {
   token = null; currentUser = null;
-  localStorage.removeItem('starsim-terminal-token');
+  localStorage.removeItem('genesiserror-terminal-token');
   document.getElementById('accessDenied').classList.remove('hidden');
   document.getElementById('terminalContent').classList.add('hidden');
 }
@@ -330,9 +330,9 @@ async function checkAuth() {
   if (!token) return;
   try {
     const data = await apiCall('/auth/me');
-    if (!data.user.isAdmin) { token = null; localStorage.removeItem('starsim-terminal-token'); return; }
+    if (!data.user.isAdmin) { token = null; localStorage.removeItem('genesiserror-terminal-token'); return; }
     currentUser = data.user; showTerminal();
-  } catch { token = null; localStorage.removeItem('starsim-terminal-token'); }
+  } catch { token = null; localStorage.removeItem('genesiserror-terminal-token'); }
 }
 
 // Helpers

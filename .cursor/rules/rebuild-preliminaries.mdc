@@ -3,7 +3,7 @@ description: Install prerequisites before each rebuild so the exe can run
 alwaysApply: true
 ---
 
-# StarSim: Rebuild Preliminaries Rule
+# Genesis Error: Rebuild Preliminaries Rule
 
 ## Core rule
 
@@ -21,7 +21,7 @@ The `build-all.ps1` script already includes Step 0: `npm install` before cleanin
 
 ## When rebuild still fails
 
-1. **Close StarSim.exe** – an open process may lock files
+1. **Close GenesisError.exe** – an open process may lock files
 2. **Run `npm run build:all`** – install + build in one go
 3. **If EPERM (spawn app-builder.exe) occurs** – the build may be running in a sandbox. Run the build with full permissions (e.g. external PowerShell/CMD, or request "all" permissions in Cursor)
 4. **If EPERM persists** – try from an elevated prompt (Run as Administrator) or temporarily exclude the project folder from antivirus

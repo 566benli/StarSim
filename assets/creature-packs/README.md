@@ -1,6 +1,6 @@
 # Creature image packs
 
-StarSim can compose creature portraits from **layered PNG/SVG parts** plus a `manifest.json`. Until you add a pack with `variants`, the game uses a **deterministic procedural canvas** (same species id always yields the same portrait).
+Genesis Error can compose creature portraits from **layered PNG/SVG parts** plus a `manifest.json`. Until you add a pack with `variants`, the game uses a **deterministic procedural canvas** (same species id always yields the same portrait).
 
 ## Directory layout
 

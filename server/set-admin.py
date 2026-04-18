@@ -16,19 +16,19 @@ def run(cmd):
 
 # Step 1: Remove admin from everyone
 print('[1] Removing admin from all users...')
-run("cd /opt/starsim-terminal && node -e \"const db=require('./database');(async()=>{await db.init();db.run('UPDATE users SET is_admin=0');console.log('done')})()\"")
+run("cd /opt/genesis-error-terminal && node -e \"const db=require('./database');(async()=>{await db.init();db.run('UPDATE users SET is_admin=0');console.log('done')})()\"")
 
 # Step 2: Set admin for the user with email li7917016@gmail.com
 print('[2] Promoting li7917016@gmail.com to admin...')
-run("cd /opt/starsim-terminal && node -e \"const db=require('./database');(async()=>{await db.init();db.run('UPDATE users SET is_admin=1 WHERE email=?',['li7917016@gmail.com']);console.log('done')})()\"")
+run("cd /opt/genesis-error-terminal && node -e \"const db=require('./database');(async()=>{await db.init();db.run('UPDATE users SET is_admin=1 WHERE email=?',['li7917016@gmail.com']);console.log('done')})()\"")
 
 # Step 3: Update .env so ADMIN_USERS only has SmtpTester (the account with that email)
 print('[3] Updating ADMIN_USERS in .env...')
-run("cd /opt/starsim-terminal && sed -i '/^ADMIN_USERS/d' .env && echo 'ADMIN_USERS=SmtpTester' >> .env")
+run("cd /opt/genesis-error-terminal && sed -i '/^ADMIN_USERS/d' .env && echo 'ADMIN_USERS=SmtpTester' >> .env")
 
 # Step 4: Restart server
 print('[4] Restarting server...')
-out = run('cd /opt/starsim-terminal && pm2 restart starsim-terminal')
+out = run('cd /opt/genesis-error-terminal && pm2 restart genesis-error-terminal')
 for line in out.split('\n')[-5:]:
     print(f'  {line}')
 
@@ -36,7 +36,7 @@ time.sleep(3)
 
 # Step 5: Verify
 print('\n[5] Verifying user roles:')
-result = run("cd /opt/starsim-terminal && node -e \"const db=require('./database');(async()=>{await db.init();const rows=db.all('SELECT id,username,email,is_admin FROM users');console.log(JSON.stringify(rows))})()\"")
+result = run("cd /opt/genesis-error-terminal && node -e \"const db=require('./database');(async()=>{await db.init();const rows=db.all('SELECT id,username,email,is_admin FROM users');console.log(JSON.stringify(rows))})()\"")
 import json
 users = json.loads(result)
 for u in users:

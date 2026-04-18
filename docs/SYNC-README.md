@@ -1,4 +1,4 @@
-# 🚨 CRITICAL: StarSim Version Synchronization
+# 🚨 CRITICAL: Genesis Error Version Synchronization
 
 ## ⚠️ MANDATORY REQUIREMENT
 
@@ -6,9 +6,9 @@
 
 ## The Problem
 
-When you update StarSim code, there are TWO versions that need to stay in sync:
+When you update Genesis Error code, there are TWO versions that need to stay in sync:
 - **Web Version** (`dist/` folder)
-- **Exe Version** (`dist-electron/StarSim.exe`)
+- **Exe Version** (`dist-electron/GenesisError.exe`)
 
 If you don't rebuild both, one version will have old code while the other has new code.
 
@@ -47,7 +47,7 @@ npm run check-sync
 
 ### Step 4: Test Both Versions
 - **Web**: `npm run serve:web` (http://localhost:8080)
-- **Exe**: Run `dist-electron/StarSim.exe` (if available)
+- **Exe**: Run `dist-electron/GenesisError.exe` (if available)
 
 ## Consequences of Not Following This
 

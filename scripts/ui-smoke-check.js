@@ -65,7 +65,7 @@ async function run() {
   try {
     await page.evaluateOnNewDocument(() => {
       try {
-        localStorage.setItem('starsim-auth-dismissed', '1');
+        localStorage.setItem('genesiserror-auth-dismissed', '1');
       } catch {}
     });
 

@@ -1,11 +1,11 @@
-# StarSim Portable Release Workflow
+# Genesis Error Portable Release Workflow
 
 This project now auto-generates a portable package that you can send directly to other users.
 
 ## What to send
 
-- `releases/StarSim-Portable-latest.zip` (stable latest package)
-- Optional versioned archive: `releases/StarSim-Portable-<BUILD_ID>.zip`
+- `releases/GenesisError-Portable-latest.zip` (stable latest package)
+- Optional versioned archive: `releases/GenesisError-Portable-<BUILD_ID>.zip`
 
 ## Guaranteed sync behavior
 
@@ -33,6 +33,6 @@ Each package contains:
 
 - `app/` portable desktop executable and runtime files
 - `web/` synchronized web build
-- `Start-StarSim.bat` quick launcher
+- `Start-GenesisError.bat` quick launcher
 - `release-manifest.json` build metadata
 - `docs/PORTABLE-README.txt` usage notes

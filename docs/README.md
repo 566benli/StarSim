@@ -1,4 +1,4 @@
-# StarSim - Interactive Cosmic Simulator
+# Genesis Error - Interactive Cosmic Simulator
 
 An interactive stellar evolution and cosmic exploration simulator. Create stars, planets, and black holes, then watch them evolve over billions of years. Dive inside celestial bodies with Explorer Mode, and chat with an AI assistant about the cosmos.
 
@@ -65,7 +65,7 @@ An interactive stellar evolution and cosmic exploration simulator. Create stars,
 ## Project Structure
 
 ```
-StarSim/
+Genesis Error/
 ├── electron/               # Electron main process
 │   ├── main.js             # Window management, IPC
 │   └── preload.js          # Context bridge
@@ -121,7 +121,7 @@ StarSim/
 
 ```bash
 # Clone the repository
-cd StarSim
+cd Genesis Error
 
 # Install dependencies
 npm install

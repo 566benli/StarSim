@@ -12,7 +12,7 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, info) {
-    console.error('[StarSim] UI Error:', error, info.componentStack);
+    console.error('[GenesisError] UI Error:', error, info.componentStack);
   }
 
   render() {
@@ -29,7 +29,7 @@ class ErrorBoundary extends React.Component {
           padding: 40, fontFamily: 'Segoe UI', textAlign: 'center', zIndex: 99999,
         }}>
           <div style={{ fontSize: 64, marginBottom: 16 }}>✦</div>
-          <h1 style={{ fontSize: 24, marginBottom: 12, color: '#00ccff' }}>StarSim</h1>
+          <h1 style={{ fontSize: 24, marginBottom: 12, color: '#00ccff' }}>Genesis Error</h1>
           <p style={{ fontSize: 16, color: '#8888bb', maxWidth: 500, marginBottom: 16 }}>
             Something went wrong while loading the application.
           </p>
@@ -41,7 +41,7 @@ class ErrorBoundary extends React.Component {
           )}
           {isNetwork && (
             <p style={{ fontSize: 14, color: '#ffaa44', maxWidth: 500, marginBottom: 16 }}>
-              A network error occurred. StarSim works offline — this may resolve on restart.
+              A network error occurred. Genesis Error works offline — this may resolve on restart.
             </p>
           )}
           <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>

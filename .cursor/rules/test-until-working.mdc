@@ -3,7 +3,7 @@ description: Always test exe and new tools until they work before marking comple
 alwaysApply: true
 ---
 
-# StarSim: Test-Until-Working Rule
+# Genesis Error: Test-Until-Working Rule
 
 ## Core rule
 
@@ -17,14 +17,14 @@ Run these steps **before** considering any exe/shortcut/build work done:
 
 1. **Build**: `npm run build:all`
 2. **Sync check**: `npm run check-sync` — must show "All versions synchronized"
-3. **Launch exe**: `dist-electron\StarSim.exe` — window must open (no ERR_NOT_FOUND)
+3. **Launch exe**: `dist-electron\GenesisError.exe` — window must open (no ERR_NOT_FOUND)
 4. **Verify tools**: In-app self-check for orbits; view projections; time scale controls
 
 ## What to verify
 
 | Check | How |
 |-------|-----|
-| Exe opens | StarSim window appears, no error dialog |
+| Exe opens | Genesis Error window appears, no error dialog |
 | Multi-planet orbits | Add star + planets, start sim, orbits move |
 | View projections | ◇ ⬆ ▬ ◐ buttons switch camera |
 | Time scale | Slider responds; FPS stays smooth |
@@ -32,7 +32,7 @@ Run these steps **before** considering any exe/shortcut/build work done:
 
 ## If something fails
 
-1. Close all StarSim processes
+1. Close all Genesis Error processes
 2. Run `npm run build:all` again (from a normal terminal if electron-builder gets EPERM) (from a normal terminal; sandbox may cause electron-builder EPERM)
 3. Retry the verification sequence
 4. Fix root cause before delivering

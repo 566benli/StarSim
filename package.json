@@ -1,7 +1,7 @@
 {
-  "name": "starsim",
+  "name": "genesis-error",
   "version": "0.1.0",
-  "description": "StarSim - An interactive stellar evolution and cosmic exploration simulator",
+  "description": "Genesis Error (创世错误) — An interactive stellar evolution and cosmic exploration simulator",
   "main": "electron/main.js",
   "scripts": {
     "dev": "webpack serve --mode development",
@@ -37,7 +37,7 @@
     "space",
     "game"
   ],
-  "author": "StarSim Team",
+  "author": "Genesis Error Team",
   "license": "MIT",
   "dependencies": {
     "@react-three/drei": "^10.0.0",
@@ -76,8 +76,8 @@
     "webpack-dev-server": "^5.2.0"
   },
   "build": {
-    "appId": "com.starsim.app",
-    "productName": "StarSim",
+    "appId": "com.genesiserror.app",
+    "productName": "Genesis Error",
     "forceCodeSigning": false,
     "asar": true,
     "asarUnpack": [
@@ -100,6 +100,7 @@
       }
     ],
     "win": {
+      "executableName": "GenesisError",
       "target": [
         {
           "target": "nsis",
@@ -115,7 +116,7 @@
         }
       ],
       "icon": "assets/icon.ico",
-      "artifactName": "StarSim-${version}-Setup.${ext}",
+      "artifactName": "GenesisError-${version}-Setup.${ext}",
       "signAndEditExecutable": false
     },
     "nsis": {
@@ -124,10 +125,10 @@
       "allowToChangeInstallationDirectory": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "StarSim"
+      "shortcutName": "Genesis Error"
     },
     "portable": {
-      "artifactName": "StarSim-${version}-Portable.${ext}"
+      "artifactName": "GenesisError-${version}-Portable.${ext}"
     },
     "mac": {
       "target": "dmg",

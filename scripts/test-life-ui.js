@@ -15,17 +15,17 @@ async function run() {
   try {
     await page.evaluateOnNewDocument(() => {
       try {
-        localStorage.setItem('starsim-auth-dismissed', '1');
-        localStorage.setItem('starsim_onboarding_v1_done', '1');
+        localStorage.setItem('genesiserror-auth-dismissed', '1');
+        localStorage.setItem('genesiserror_onboarding_v1_done', '1');
       } catch {}
     });
 
     await page.goto(BASE_URL, { waitUntil: 'networkidle0' });
-    await page.waitForFunction(() => !!window.__STAR_SIM_DEBUG__, { timeout: 15000 });
+    await page.waitForFunction(() => !!window.__GENESIS_ERROR_DEBUG__, { timeout: 15000 });
     console.log('[OK] Debug API available');
 
     const seedResult = await page.evaluate(() => {
-      return window.__STAR_SIM_DEBUG__.seedLifeScenario({
+      return window.__GENESIS_ERROR_DEBUG__.seedLifeScenario({
         starPresetId: 'sun_like',
         starName: 'Sol Alpha',
         planets: [
@@ -99,8 +99,8 @@ async function run() {
 
     // --- Simulate years and check life ---
     const sim10M = await page.evaluate(() => {
-      window.__STAR_SIM_DEBUG__.simulateYears({ years: 1e7, stepYears: 5e4 });
-      return window.__STAR_SIM_DEBUG__.snapshotPlanets();
+      window.__GENESIS_ERROR_DEBUG__.simulateYears({ years: 1e7, stepYears: 5e4 });
+      return window.__GENESIS_ERROR_DEBUG__.snapshotPlanets();
     });
     console.log('[OK] After 10M years:');
     for (const p of sim10M) {
@@ -108,8 +108,8 @@ async function run() {
     }
 
     const sim30M = await page.evaluate(() => {
-      window.__STAR_SIM_DEBUG__.simulateYears({ years: 2e7, stepYears: 1e5 });
-      return window.__STAR_SIM_DEBUG__.snapshotPlanets();
+      window.__GENESIS_ERROR_DEBUG__.simulateYears({ years: 2e7, stepYears: 1e5 });
+      return window.__GENESIS_ERROR_DEBUG__.snapshotPlanets();
     });
     console.log('[OK] After 30M years total:');
     for (const p of sim30M) {
@@ -128,7 +128,7 @@ async function run() {
       input.dispatchEvent(new Event('change', { bubbles: true }));
     });
     await new Promise((r) => setTimeout(r, 100));
-    const afterSlider = await page.evaluate(() => window.__STAR_SIM_DEBUG__.getEngine().getLifeTuning());
+    const afterSlider = await page.evaluate(() => window.__GENESIS_ERROR_DEBUG__.getEngine().getLifeTuning());
     if (afterSlider.intelligenceRateMultiplier !== 15) throw new Error(`Slider set to 15 but got ${afterSlider.intelligenceRateMultiplier}`);
     console.log('[OK] Slider adjustment applied (intelligence=15)');
 
@@ -138,7 +138,7 @@ async function run() {
       if (resetBtn) resetBtn.click();
     });
     await new Promise((r) => setTimeout(r, 200));
-    const afterReset = await page.evaluate(() => window.__STAR_SIM_DEBUG__.getEngine().getLifeTuning());
+    const afterReset = await page.evaluate(() => window.__GENESIS_ERROR_DEBUG__.getEngine().getLifeTuning());
     if (afterReset.intelligenceRateMultiplier !== 1.2) throw new Error(`After reset expected 1.2 but got ${afterReset.intelligenceRateMultiplier}`);
     console.log('[OK] Reset preset works (intelligence back to 1.2)');
 
@@ -148,7 +148,7 @@ async function run() {
       if (toggle && toggle.checked) toggle.click();
     });
     await new Promise((r) => setTimeout(r, 100));
-    const disabledState = await page.evaluate(() => window.__STAR_SIM_DEBUG__.getEngine().getLifeTuning());
+    const disabledState = await page.evaluate(() => window.__GENESIS_ERROR_DEBUG__.getEngine().getLifeTuning());
     if (disabledState.enabled !== false) throw new Error('Expected enabled=false after toggle off');
     console.log('[OK] Disable toggle works (enabled=false)');
 
@@ -157,14 +157,14 @@ async function run() {
       if (toggle && !toggle.checked) toggle.click();
     });
     await new Promise((r) => setTimeout(r, 100));
-    const reenabledState = await page.evaluate(() => window.__STAR_SIM_DEBUG__.getEngine().getLifeTuning());
+    const reenabledState = await page.evaluate(() => window.__GENESIS_ERROR_DEBUG__.getEngine().getLifeTuning());
     if (reenabledState.enabled !== true) throw new Error('Expected enabled=true after toggle on');
     console.log('[OK] Re-enable toggle works (enabled=true)');
 
     // --- Change to realistic preset ---
     await page.select('#life-preset-select', 'realistic');
     await new Promise((r) => setTimeout(r, 200));
-    const realisticState = await page.evaluate(() => window.__STAR_SIM_DEBUG__.getEngine().getLifeTuning());
+    const realisticState = await page.evaluate(() => window.__GENESIS_ERROR_DEBUG__.getEngine().getLifeTuning());
     if (realisticState.lifeRateMultiplier !== 0.35) throw new Error(`Realistic lifeRate should be 0.35, got ${realisticState.lifeRateMultiplier}`);
     console.log('[OK] Realistic preset applied (lifeRate=0.35)');
 

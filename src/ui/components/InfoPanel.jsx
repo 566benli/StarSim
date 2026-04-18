@@ -12,7 +12,7 @@ import EvolutionTreeButton from './EvolutionTree';
 import TechTree from './TechTree';
 import './InfoPanel.css';
 
-const PANEL_STORAGE_KEY = 'starsim-infopanel-position';
+const PANEL_STORAGE_KEY = 'genesiserror-infopanel-position';
 
 /**
  * Phase-specific descriptions and science facts

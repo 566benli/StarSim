@@ -1,7 +1,7 @@
 /**
  * Save Service - Abstracts save/load for Electron and web (localStorage)
  */
-const STORAGE_PREFIX = 'starsim_slot_';
+const STORAGE_PREFIX = 'genesiserror_slot_';
 
 async function getSlotsElectron() {
   if (!window.electronAPI?.getSaveSlots) return null;

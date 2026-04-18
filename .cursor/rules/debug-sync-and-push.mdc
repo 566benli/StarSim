@@ -3,7 +3,7 @@ description: Enforce synchronized builds, exe testing, and push-after-debug work
 alwaysApply: true
 ---
 
-# StarSim: Mandatory Debug Workflow
+# Genesis Error: Mandatory Debug Workflow
 
 These rules are mandatory for every code change session.
 
@@ -18,6 +18,6 @@ These rules are mandatory for every code change session.
    - Repeat test-and-fix until no blocking issue remains.
 
 3. **Push updates back to GitHub after each debug/update cycle**
-   - When debugging/updating for the session is done, push all necessary updates to `566benli/StarSim`.
+   - When debugging/updating for the session is done, push all necessary updates to `566benli/StarSim` (Genesis Error codebase).
    - Ensure required dependency and lockfile changes are included when relevant.
-   - Do not finish the cycle without updating the original StarSim project.
+   - Do not finish the cycle without updating the Genesis Error project on GitHub.

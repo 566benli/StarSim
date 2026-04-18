@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document analyzes what enables or hinders proper multi-planet orbital simulation in StarSim, compares with reference implementations, and documents the changes made.
+This document analyzes what enables or hinders proper multi-planet orbital simulation in Genesis Error, compares with reference implementations, and documents the changes made.
 
 ---
 
@@ -17,7 +17,7 @@ This document analyzes what enables or hinders proper multi-planet orbital simul
 
 ### Comparison with CSS-Tricks Gravity Simulator
 
-| Aspect | CSS-Tricks | StarSim |
+| Aspect | CSS-Tricks | Genesis Error |
 |--------|------------|---------|
 | Integrator | Euler (position → accel → velocity) | Velocity Verlet |
 | G value | ~39.5 (AU, M☉, years) | 4π² ≈ 39.478 ✓ |
@@ -72,7 +72,7 @@ For production-quality multi-planet systems, reference data from **NASA JPL HORI
 
 ## 5. Manual Verification
 
-1. Run `dist-electron\StarSim.exe` (or `StarSim.exe` from project root)
+1. Run `dist-electron\GenesisError.exe` (or `GenesisError.exe` from project root)
 2. Add 1 star (e.g. Sun-like), add 2–3 planets (e.g. Earth-like, Gas Giant)
 3. Click **Launch Simulation**
 4. Confirm planets orbit the star (trails and motion visible)

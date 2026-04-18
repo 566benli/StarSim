@@ -1,4 +1,4 @@
-# StarSim Physics Module – Core Overview
+# Genesis Error Physics Module – Core Overview
 
 ## 1. GravitySystem (`src/engine/GravitySystem.js`)
 

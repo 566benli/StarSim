@@ -1,19 +1,28 @@
 /**
- * Database layer â€” SQLite via sql.js (pure WASM, no native deps).
- * Data persists to server/data/starsim.db.
+ * Database layer â€?SQLite via sql.js (pure WASM, no native deps).
+ * Data persists to server/data/genesiserror.db (legacy starsim.db is migrated once on first boot).
  */
 const path = require('path');
 const fs = require('fs');
 const initSqlJs = require('sql.js');
 
 const DATA_DIR = path.join(__dirname, 'data');
-const DB_PATH = path.join(DATA_DIR, 'starsim.db');
+const LEGACY_DB_PATH = path.join(DATA_DIR, 'starsim.db');
+const DB_PATH = path.join(DATA_DIR, 'genesiserror.db');
 
 let db = null;
 
 async function init() {
   if (db) return db;
   fs.mkdirSync(DATA_DIR, { recursive: true });
+
+  if (!fs.existsSync(DB_PATH) && fs.existsSync(LEGACY_DB_PATH)) {
+    try {
+      fs.copyFileSync(LEGACY_DB_PATH, DB_PATH);
+    } catch (e) {
+      console.warn('[database] Could not migrate legacy starsim.db:', e.message);
+    }
+  }
 
   const SQL = await initSqlJs();
 

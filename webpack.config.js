@@ -56,7 +56,7 @@ module.exports = (env = {}, argv) => {
     plugins: [
       new HtmlWebpackPlugin({
         template: './src/index.html',
-        title: 'StarSim - Cosmic Simulator',
+        title: 'Genesis Error (创世错误) — Cosmic Simulator',
         favicon: './assets/icon.png',
       }),
       new CopyWebpackPlugin({

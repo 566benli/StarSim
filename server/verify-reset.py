@@ -16,7 +16,7 @@ def run(cmd):
 # Check all users
 print('All users in database:')
 r = run(
-    'cd /opt/starsim-terminal && node -e "'
+    'cd /opt/genesis-error-terminal && node -e "'
     "const db = require('./database');"
     "(async()=>{await db.init();"
     "const rows = db.all('SELECT id,username,email FROM users');"

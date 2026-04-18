@@ -1,8 +1,8 @@
-# StarSim Life Evolution Implementation Plan
+# Genesis Error Life Evolution Implementation Plan
 
 ## Purpose
 
-This document turns the Life Evolution concept into a practical implementation plan for StarSim.
+This document turns the Life Evolution concept into a practical implementation plan for Genesis Error.
 
 The goal is to add life evolution in a way that is:
 
@@ -14,7 +14,7 @@ The goal is to add life evolution in a way that is:
 
 ## Current Baseline
 
-StarSim already contains the first hooks needed for life simulation:
+Genesis Error already contains the first hooks needed for life simulation:
 
 - `Planet.js` has habitability checks, abiogenesis probability, and life extinction
 - `RadiationSystem.js` computes radiation flux, UV, X-ray, and aberrance probability
@@ -600,7 +600,7 @@ Possible additions:
 
 ### Risk: Too random
 
-If life feels arbitrary, the system will not match StarSim's physics-first identity.
+If life feels arbitrary, the system will not match Genesis Error's physics-first identity.
 
 Mitigation:
 
@@ -647,7 +647,7 @@ This is the smallest version that creates a real framework rather than another t
 
 ## Summary
 
-The Life Evolution concept is a strong fit for StarSim, but it should be implemented as a dedicated, tunable subsystem rather than as extra if-statements inside planet logic.
+The Life Evolution concept is a strong fit for Genesis Error, but it should be implemented as a dedicated, tunable subsystem rather than as extra if-statements inside planet logic.
 
 The key decision is:
 
@@ -655,4 +655,4 @@ The key decision is:
 - centralize every gameplay balance value in a dedicated config file
 - keep intelligence as a milestone hook for future civilization systems
 
-If implemented this way, Life Evolution can become one of StarSim's defining systems while remaining practical to tune and extend.
+If implemented this way, Life Evolution can become one of Genesis Error's defining systems while remaining practical to tune and extend.

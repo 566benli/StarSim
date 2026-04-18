@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>StarSim — My Dashboard</title>
+<title>Genesis Error — My Dashboard</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--bg:#060612;--bg2:#0d0d24;--bg3:#14142e;--card:#181838;--border:#2a2a5a;--text:#e0e0f0;--dim:#8888aa;--accent:#00ccff;--accent2:#4a9eff;--green:#44ff88;--orange:#ffaa44;--red:#ff4466;--purple:#aa66ff;--radius:12px}
@@ -88,7 +88,7 @@ footer{text-align:center;color:var(--dim);font-size:.85em;padding:40px 0 24px;bo
 
 <div class="container">
   <header>
-    <h1>StarSim</h1>
+    <h1>Genesis Error</h1>
     <p>Your personal space — saves, stats, and account management.</p>
   </header>
 
@@ -110,7 +110,7 @@ footer{text-align:center;color:var(--dim);font-size:.85em;padding:40px 0 24px;bo
   <div id="welcomeSection">
     <div class="welcome-card">
       <h2>Welcome, Explorer</h2>
-      <p>Log in or create an account to sync your StarSim universes across devices.<br>
+      <p>Log in or create an account to sync your Genesis Error universes across devices.<br>
       Your saves, statistics, and progress — all in one place.</p>
       <div class="btn-group">
         <button class="btn btn-primary" onclick="showModal('login')">Log In</button>
@@ -143,11 +143,11 @@ footer{text-align:center;color:var(--dim);font-size:.85em;padding:40px 0 24px;bo
     <div class="section">
       <h2>🌌 My Universes</h2>
       <div class="save-grid" id="mySavesGrid"></div>
-      <p id="noSavesMsg" class="empty-msg hidden">No cloud saves yet. Save a simulation from StarSim to see it here!</p>
+      <p id="noSavesMsg" class="empty-msg hidden">No cloud saves yet. Save a simulation from Genesis Error to see it here!</p>
     </div>
   </div>
 
-  <footer>StarSim &mdash; Explore, simulate, discover.</footer>
+  <footer>Genesis Error &mdash; Explore, simulate, discover.</footer>
 </div>
 
 <!-- Auth Modal -->
@@ -157,7 +157,7 @@ footer{text-align:center;color:var(--dim);font-size:.85em;padding:40px 0 24px;bo
 
 <script>
 const API = window.location.origin + '/api';
-let token = localStorage.getItem('starsim-token');
+let token = localStorage.getItem('genesiserror-token');
 let currentUser = null;
 
 // Starfield
@@ -233,7 +233,7 @@ async function doLogin() {
       method: 'POST',
       body: { username: document.getElementById('loginUser').value, password: document.getElementById('loginPass').value }
     });
-    token = data.token; localStorage.setItem('starsim-token', token);
+    token = data.token; localStorage.setItem('genesiserror-token', token);
     currentUser = data.user; closeModal(); updateUI();
   } catch (e) { showError('loginError', e.message); }
 }
@@ -244,7 +244,7 @@ async function doRegister() {
       method: 'POST',
       body: { username: document.getElementById('regUser').value, email: document.getElementById('regEmail').value || undefined, password: document.getElementById('regPass').value }
     });
-    token = data.token; localStorage.setItem('starsim-token', token);
+    token = data.token; localStorage.setItem('genesiserror-token', token);
     currentUser = data.user; closeModal(); updateUI();
   } catch (e) { showError('regError', e.message); }
 }
@@ -260,7 +260,7 @@ async function doForgot() {
 
 function logout() {
   token = null; currentUser = null;
-  localStorage.removeItem('starsim-token');
+  localStorage.removeItem('genesiserror-token');
   updateUI();
 }
 
@@ -319,7 +319,7 @@ async function checkAuth() {
   try {
     const data = await apiCall('/auth/me');
     currentUser = data.user; updateUI();
-  } catch { token = null; localStorage.removeItem('starsim-token'); }
+  } catch { token = null; localStorage.removeItem('genesiserror-token'); }
 }
 
 // Helpers
@@ -349,7 +349,7 @@ function checkResetPage() {
   const resetToken = params.get('token');
   if (!window.location.pathname.startsWith('/reset') || !resetToken) return;
   document.querySelector('.container').innerHTML = `
-    <header><h1>StarSim</h1><p>Password Reset</p></header>
+    <header><h1>Genesis Error</h1><p>Password Reset</p></header>
     <div style="max-width:420px;margin:40px auto;">
       <div class="modal" style="border:1px solid var(--border);border-radius:var(--radius);padding:32px;">
         <h2 style="text-align:center;color:var(--accent);margin-bottom:20px;">Set New Password</h2>
