@@ -2888,7 +2888,7 @@ export default class SceneManager {
   /**
    * Render universe-level cluster meshes
    */
-  renderUniverse(clusters, allBodies) {
+  renderUniverse(clusters, allBodies, nebulas) {
     if (!clusters) return;
     for (const cluster of clusters) {
       if (cluster.alive) {
@@ -2898,6 +2898,12 @@ export default class SceneManager {
     const rogueBodies = (allBodies || []).filter((body) => body.alive && body.escapedSystem);
     for (const body of rogueBodies) {
       this.updateRogueMarker(body);
+    }
+    // Nebula visuals
+    if (nebulas) {
+      for (const neb of nebulas) {
+        if (neb.alive) this._updateNebulaVisual(neb);
+      }
     }
     // Remove dead cluster meshes
     this._clusterMeshes.forEach((group, id) => {
@@ -2915,6 +2921,87 @@ export default class SceneManager {
         this.rogueMarkers.delete(id);
       }
     });
+    // Remove dead nebula meshes
+    if (this._nebulaMeshes) {
+      this._nebulaMeshes.forEach((mesh, id) => {
+        if (!nebulas || !nebulas.find(n => n.id === id && n.alive)) {
+          this.scene.remove(mesh);
+          this._disposeObject(mesh);
+          this._nebulaMeshes.delete(id);
+        }
+      });
+    }
+  }
+
+  /** Render a universe-scale nebula as a semi-transparent soft glow sphere with a label */
+  _updateNebulaVisual(neb) {
+    if (!this._nebulaMeshes) this._nebulaMeshes = new Map();
+
+    const UNIV_SCALE = this._universeScale || 10;
+    const scaledPos = new THREE.Vector3(
+      neb.position.x * UNIV_SCALE,
+      (neb.position.y || 0) * UNIV_SCALE,
+      neb.position.z * UNIV_SCALE,
+    );
+    const scaledR = neb.radius * UNIV_SCALE;
+
+    let group = this._nebulaMeshes.get(neb.id);
+    if (!group) {
+      group = new THREE.Group();
+      group.userData._nebulaId = neb.id;
+
+      // Outer glow shell
+      const geo = new THREE.SphereGeometry(1, 16, 12);
+      const hexColor = neb.color || '#cc88ff';
+      const col = new THREE.Color(hexColor);
+      const mat = new THREE.MeshBasicMaterial({
+        color: col,
+        transparent: true,
+        opacity: 0.06,
+        side: THREE.BackSide,
+        depthWrite: false,
+      });
+      const outerMesh = new THREE.Mesh(geo, mat);
+      outerMesh.scale.setScalar(scaledR * 1.2);
+      group.add(outerMesh);
+
+      // Inner brighter core
+      const innerGeo = new THREE.SphereGeometry(1, 12, 8);
+      const innerMat = new THREE.MeshBasicMaterial({
+        color: col,
+        transparent: true,
+        opacity: 0.11,
+        depthWrite: false,
+      });
+      const innerMesh = new THREE.Mesh(innerGeo, innerMat);
+      innerMesh.scale.setScalar(scaledR * 0.55);
+      group.add(innerMesh);
+
+      // Label sprite
+      const canvas = document.createElement('canvas');
+      canvas.width = 256; canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, 256, 64);
+      ctx.font = 'italic 18px sans-serif';
+      ctx.fillStyle = hexColor;
+      ctx.globalAlpha = 0.8;
+      ctx.fillText(neb.name, 10, 40);
+      const tex = new THREE.CanvasTexture(canvas);
+      const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
+      const sprite = new THREE.Sprite(spriteMat);
+      sprite.scale.set(scaledR * 1.8, scaledR * 0.45, 1);
+      sprite.position.set(0, scaledR * 1.3, 0);
+      group.add(sprite);
+
+      this.scene.add(group);
+      this._nebulaMeshes.set(neb.id, group);
+    }
+
+    group.position.copy(scaledPos);
+
+    // Pulse the inner opacity gently
+    const pulse = 0.09 + Math.sin(this.elapsedTime * 0.4 + neb.id.charCodeAt(0) * 0.1) * 0.02;
+    group.children[1].material.opacity = pulse * neb.gasMass;
   }
 
   /**
@@ -2928,7 +3015,7 @@ export default class SceneManager {
 
     // Universe view: render clusters (but still keep body positions updated for smooth transitions)
     if (this._viewLevel === VIEW_LEVEL.UNIVERSE) {
-      this.renderUniverse(clusters || [], allBodies || bodies || []);
+      this.renderUniverse(clusters || [], allBodies || bodies || [], this._universeNebulas || []);
 
       // Silently update body positions so transition back to system is seamless
       if (bodies) {

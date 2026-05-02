@@ -27,7 +27,34 @@ const DEFAULT_UNIVERSE_PARAMS = {
   planetFormRate: 1.0,
   lifeEnabled: true,
   lifeDifficulty: 1.0,
+  // Cosmology
+  omega: 1.0,
+  hubbleConstant: 0.07,
+  initialTemperature: 2.7,
+  initialNebulas: 2,
+  initialRogueStars: 0,
 };
+
+const COSMOLOGY_PRESETS = [
+  {
+    id: 'open',
+    label: 'Open Universe',
+    desc: 'Ω = 0.3 · Expands forever, sparse, many rogue formations',
+    omega: 0.3, hubbleConstant: 0.09, initialTemperature: 2.7, initialNebulas: 4,
+  },
+  {
+    id: 'flat',
+    label: 'Flat Universe',
+    desc: 'Ω = 1.0 · Balanced expansion, default behaviour',
+    omega: 1.0, hubbleConstant: 0.07, initialTemperature: 2.7, initialNebulas: 2,
+  },
+  {
+    id: 'closed',
+    label: 'Closed Universe',
+    desc: 'Ω = 1.5 · Ends in a Big Crunch, dense, rapid enrichment',
+    omega: 1.5, hubbleConstant: 0.06, initialTemperature: 2.7, initialNebulas: 1,
+  },
+];
 
 const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, onSaveSimulation, onDeleteSlot, onReplayWelcome, onLaunchExample }) => {
   const {
@@ -247,6 +274,66 @@ const CreationPanel = ({ onStartSimulation, onLoadSimulation, onLoadFromSlot, on
               onChange={(e) => setUniverseParams(p => ({ ...p, lifeDifficulty: +e.target.value }))} />
             <span className="uparam-val">{universeParams.lifeDifficulty.toFixed(1)}x</span>
           </div>
+          {/* ── Cosmology section ──────────────────────────────────────── */}
+          <div className="uparam-section-title">Cosmology</div>
+          <div className="uparam-presets">
+            {COSMOLOGY_PRESETS.map(p => (
+              <button
+                key={p.id}
+                type="button"
+                title={p.desc}
+                className={`uparam-preset-btn${universeParams.omega === p.omega ? ' active' : ''}`}
+                onClick={() => setUniverseParams(prev => ({
+                  ...prev,
+                  omega: p.omega,
+                  hubbleConstant: p.hubbleConstant,
+                  initialTemperature: p.initialTemperature,
+                  initialNebulas: p.initialNebulas,
+                }))}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <div className="uparam-row">
+            <label>Density Parameter (Ω)</label>
+            <input type="range" min="0.05" max="2.5" step="0.05"
+              value={universeParams.omega}
+              onChange={(e) => setUniverseParams(p => ({ ...p, omega: +e.target.value }))} />
+            <span className="uparam-val">{universeParams.omega.toFixed(2)}{universeParams.omega < 1 ? ' (Open)' : universeParams.omega > 1 ? ' (Closed)' : ' (Flat)'}</span>
+          </div>
+          <div className="uparam-row">
+            <label>Expansion Rate (H₀)</label>
+            <input type="range" min="0.01" max="0.20" step="0.005"
+              value={universeParams.hubbleConstant}
+              onChange={(e) => setUniverseParams(p => ({ ...p, hubbleConstant: +e.target.value }))} />
+            <span className="uparam-val">{universeParams.hubbleConstant.toFixed(3)} Gyr⁻¹</span>
+          </div>
+          <div className="uparam-row">
+            <label>Initial Temperature (K)</label>
+            <input type="range" min="2.7" max="5000" step="10"
+              value={universeParams.initialTemperature}
+              onChange={(e) => setUniverseParams(p => ({ ...p, initialTemperature: +e.target.value }))} />
+            <span className="uparam-val">{universeParams.initialTemperature < 100 ? universeParams.initialTemperature.toFixed(1) : Math.round(universeParams.initialTemperature)} K{universeParams.initialTemperature > 3000 ? ' (Plasma)' : universeParams.initialTemperature > 300 ? ' (Recombination)' : ''}</span>
+          </div>
+
+          {/* ── Nebula & seeding section ───────────────────────────────── */}
+          <div className="uparam-section-title">Initial Seeding</div>
+          <div className="uparam-row">
+            <label>Initial Nebulas</label>
+            <input type="range" min="0" max="8" step="1"
+              value={universeParams.initialNebulas}
+              onChange={(e) => setUniverseParams(p => ({ ...p, initialNebulas: +e.target.value }))} />
+            <span className="uparam-val">{universeParams.initialNebulas}</span>
+          </div>
+          <div className="uparam-row">
+            <label>Rogue Stars at Start</label>
+            <input type="range" min="0" max="10" step="1"
+              value={universeParams.initialRogueStars}
+              onChange={(e) => setUniverseParams(p => ({ ...p, initialRogueStars: +e.target.value }))} />
+            <span className="uparam-val">{universeParams.initialRogueStars}</span>
+          </div>
+
           <button
             type="button"
             className="uparam-reset"

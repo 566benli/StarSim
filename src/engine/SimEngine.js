@@ -266,20 +266,45 @@ export default class SimEngine {
   updateEscapedBodies(dtYears) {
     if (dtYears <= 0) return;
     const dtMly = dtYears / 1e6;
+    const univR = this.universe.boundaryRadius || 50;
+
     // Move all tracked rogue bodies through universe space.
-    // We iterate _escapedBodies directly because these bodies have been removed
-    // from their GravitySystem (and therefore from getBodies()) but still need
-    // their universePosition updated each frame.
     const seen = new Set();
     for (const body of this._escapedBodies) {
       if (!body.alive) continue;
       body.universePosition.addScaledVector(body.universeVelocity, dtMly);
       seen.add(body.id);
+
+      // Eliminate bodies that cross the universe boundary
+      if (body.universePosition.length() > univR) {
+        const event = {
+          id: `void_${Date.now()}_${Math.random()}`,
+          name: 'Lost to the Void',
+          category: 'destruction',
+          targetBody: body,
+          time: this.simulationTime,
+          notification: {
+            title: 'Lost to the Void',
+            body: `${body.name} drifted beyond the universe horizon and was consumed by the void.`,
+            color: '#554466',
+          },
+        };
+        this.eventHistory.push(event);
+        this.pendingEvents.push(event);
+        if (this.onEvent) this.onEvent(event);
+        body.destroy();
+      }
     }
+    // Prune dead bodies from _escapedBodies
+    this._escapedBodies = this._escapedBodies.filter(b => b.alive);
+
     // Also handle any escaped body still resident in a GravitySystem (edge case).
     for (const body of this.getBodies()) {
       if (!body.alive || !body.escapedSystem || seen.has(body.id)) continue;
       body.universePosition.addScaledVector(body.universeVelocity, dtMly);
+      if (body.universePosition.length() > univR) {
+        body.destroy();
+      }
     }
   }
 
@@ -602,8 +627,38 @@ export default class SimEngine {
     this.universe.evolveComposition(fullSimDt, aliveBodies);
     this.universe.updateStats(aliveBodies);
 
+    // Cosmological evolution: scale factor, temperature, phase
+    this.universe.updateCosmology(fullSimDt);
+    this.universe.updateNebulas(fullSimDt);
+
+    // Big Crunch: destroy everything and halt
+    if (this.universe._bigCrunch) {
+      this.universe._bigCrunch = false; // prevent re-trigger
+      for (const b of this.getBodies()) { if (b.alive) b.destroy(); }
+      for (const b of this._escapedBodies) { if (b.alive) b.destroy(); }
+      this._escapedBodies = [];
+      const crunchEvent = {
+        id: `bigcrunch_${Date.now()}`,
+        name: 'Big Crunch',
+        category: 'universe',
+        time: this.simulationTime,
+        notification: {
+          title: 'The Big Crunch',
+          body: 'The universe has re-collapsed. All matter has returned to the singularity.',
+          color: '#ff3300',
+        },
+      };
+      this.eventHistory.push(crunchEvent);
+      this.pendingEvents.push(crunchEvent);
+      if (this.onEvent) this.onEvent(crunchEvent);
+      this.paused = true;
+    }
+
+    // Formation rate gating by cosmological phase
+    const cosmoMult = this.universe.formationRateMultiplier();
+
     // Primordial formation: gas -> star/cluster over time
-    if (this.universe.canFormFromGas()) {
+    if (cosmoMult > 0 && this.universe.canFormFromGas()) {
       const angle = Math.random() * Math.PI * 2;
       const dist = (this.universe.boundaryRadius * 0.25) * (0.5 + Math.random() * 0.5);
       const G_UNIV = 4.5e-6;
@@ -629,13 +684,16 @@ export default class SimEngine {
     }
 
     // Cluster star formation: clusters create new stars as gas cools
-    this._updateClusterStarFormation(fullSimDt);
+    if (cosmoMult > 0) this._updateClusterStarFormation(fullSimDt, cosmoMult);
+
+    // Nebula-born star formation
+    if (cosmoMult > 0) this._updateNebulaBirthFormation(fullSimDt);
 
     // Planet formation: young stars can spawn protoplanetary disks → planets
     this._updatePlanetFormation(fullSimDt);
 
     // Rogue body formation: occasional star/planet formation outside clusters
-    this._updateRogueFormation(fullSimDt);
+    if (cosmoMult > 0) this._updateRogueFormation(fullSimDt);
 
     const now = performance.now();
     this.fps = 1000 / (now - this.lastFrameTime);
@@ -648,7 +706,7 @@ export default class SimEngine {
    * Clusters form new stars as gas cools over time.
    * Each cluster can spawn a new system + star every ~500 Myr if it has enough gas.
    */
-  _updateClusterStarFormation(dtYears) {
+  _updateClusterStarFormation(dtYears, cosmoMult = 1) {
     const formInterval = 5e8;
     for (const cluster of this.universe.clusters) {
       if (!cluster.alive) continue;
@@ -664,7 +722,7 @@ export default class SimEngine {
       if (h + he < 0.4) continue;
 
       const baseChance = 0.3 + systemCount * 0.05;
-      const chance = baseChance * (this._starFormRateMultiplier || 1);
+      const chance = baseChance * (this._starFormRateMultiplier || 1) * cosmoMult;
       if (Math.random() > chance) { cluster._lastStarFormTime = this.simulationTime; continue; }
 
       const presets = ['sun_like', 'red_dwarf', 'blue_giant', 'orange_dwarf'];
@@ -684,6 +742,74 @@ export default class SimEngine {
           title: 'New Star Born',
           body: `A new star (${star.name}) has formed from cooling gas in ${cluster.name}!`,
           color: '#ffcc66',
+        },
+      };
+      this.eventHistory.push(event);
+      this.pendingEvents.push(event);
+      if (this.onEvent) this.onEvent(event);
+    }
+  }
+
+  /**
+   * Nebulas can birth new stars from their edges over time.
+   * Each nebula has a birth rate (stars/Gyr) and depletes its gas mass.
+   */
+  _updateNebulaBirthFormation(dtYears) {
+    const STAR_PRESETS_NEBULA = ['red_dwarf', 'sun_like', 'orange_dwarf', 'blue_giant'];
+    for (const neb of this.universe.nebulas) {
+      if (!neb.alive || neb.gasMass < 0.05) continue;
+      if (this.simulationTime - neb.lastStarBirthTime < neb.birthCooldown) continue;
+      // Probability: birthRate stars/Gyr scaled by dt
+      const prob = neb.birthRate * (dtYears / 1e9);
+      if (Math.random() > prob) continue;
+
+      // Spawn a cluster at the nebula's edge in universe Mly space
+      const theta = Math.random() * Math.PI * 2;
+      const phi   = (Math.random() - 0.5) * Math.PI * 0.3;
+      const edgeDist = neb.radius * (0.7 + Math.random() * 0.3);
+      const cx = neb.position.x + edgeDist * Math.cos(theta) * Math.cos(phi);
+      const cy = neb.position.y + edgeDist * Math.sin(phi);
+      const cz = neb.position.z + edgeDist * Math.sin(theta) * Math.cos(phi);
+
+      const G_UNIV = 4.5e-6;
+      const totalMass = this.universe.clusters.filter(c => c.alive).length * 100 + 100;
+      const dist = Math.sqrt(cx * cx + cy * cy + cz * cz);
+      const vCirc = dist > 0.1 ? Math.sqrt(G_UNIV * totalMass / dist) : 0;
+      const tx = -cz / Math.max(dist, 0.01);
+      const tz =  cx / Math.max(dist, 0.01);
+
+      const cluster = this.createCluster({
+        name: `${neb.name} Star ${Math.floor(Math.random() * 1000)}`,
+        type: 'irregular',
+        isNebulaBorn: true,
+        color: neb.color,
+        position: { x: cx, y: cy, z: cz },
+        velocity: { x: tx * vCirc, y: 0, z: tz * vCirc },
+        size: 15 + Math.random() * 20,
+      });
+      const system = this.createStarSystem(cluster.id, {
+        name: `${cluster.name} System`,
+        position: { x: 0, y: 0, z: 0 },
+      });
+      const presetId = STAR_PRESETS_NEBULA[Math.floor(Math.random() * STAR_PRESETS_NEBULA.length)];
+      const star = this.createStar(presetId, {
+        name: `${neb.name} ${String.fromCharCode(65 + Math.floor(Math.random() * 26))}`,
+        systemId: system.id,
+      });
+
+      neb.gasMass = Math.max(0, neb.gasMass - 0.08);
+      neb.lastStarBirthTime = this.simulationTime;
+
+      const event = {
+        id: `nebulastar_${Date.now()}_${Math.random()}`,
+        name: 'Nebula Star Birth',
+        category: 'evolution',
+        targetBody: star,
+        time: this.simulationTime,
+        notification: {
+          title: 'Nebula Star Birth',
+          body: `${star.name} condensed from the edge of ${neb.name}!`,
+          color: neb.color || '#cc88ff',
         },
       };
       this.eventHistory.push(event);
@@ -1176,6 +1302,13 @@ export default class SimEngine {
       complexWorlds,
       intelligentWorlds,
       composition: this.universe.composition,
+      // Cosmology
+      omega: this.universe.omega,
+      scaleFactor: this.universe.scaleFactor,
+      hubbleParam: this.universe.hubbleParam,
+      cosmicTemperature: this.universe.cosmicTemperature,
+      nucleosynthesisPhase: this.universe.nucleosynthesisPhase,
+      nebulasCount: this.universe.nebulas.filter(n => n.alive).length,
       clusters: this.universe.clusters.map(c => ({
         id: c.id,
         name: c.name,

@@ -407,3 +407,27 @@
 .up-life-btn:hover {
   background: rgba(85, 216, 139, 0.22);
 }
+
+/* Cosmology section */
+.up-cosmo-header {
+  margin-top: 6px;
+}
+
+.up-section-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #7799dd;
+}
+
+.up-phase {
+  font-size: 9px;
+  color: #aaccff;
+  letter-spacing: 0.05em;
+}
+
+.up-omega-fate {
+  font-size: 9px;
+  color: #9988cc;
+}

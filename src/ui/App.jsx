@@ -392,6 +392,7 @@ const App = () => {
         bodiesToRender.length === 0
       ) ? [] : allBodies;
 
+      scene._universeNebulas = engine.universe.nebulas;
       scene.render(bodiesToRender, engine.universe.clusters, cleanupBodies);
 
       animFrameRef.current = requestAnimationFrame(animate);
@@ -625,6 +626,7 @@ const App = () => {
     // Apply universe parameters if provided
     if (universeParams) {
       if (universeParams.boundaryRadius) {
+        engine.universe._initialBoundaryRadius = universeParams.boundaryRadius;
         engine.universe.boundaryRadius = universeParams.boundaryRadius;
       }
       if (universeParams.gasH != null) {
@@ -638,6 +640,13 @@ const App = () => {
       }
       if (universeParams.lifeDifficulty != null) {
         engine._lifeDifficultyMultiplier = universeParams.lifeDifficulty;
+      }
+      // Cosmological parameters
+      if (universeParams.omega != null)          engine.universe.omega          = universeParams.omega;
+      if (universeParams.hubbleConstant != null) engine.universe.hubbleParam    = universeParams.hubbleConstant;
+      if (universeParams.initialTemperature != null) {
+        engine.universe._initialTemperature = universeParams.initialTemperature;
+        engine.universe.cosmicTemperature   = universeParams.initialTemperature;
       }
     }
 
@@ -711,6 +720,69 @@ const App = () => {
         name: `${extraCluster.name} Star`,
         systemId: extraSystem.id,
       });
+    }
+
+    // Seed initial nebulas
+    const numNebulas = universeParams?.initialNebulas ?? 2;
+    const nebulaColors = ['#cc88ff', '#88aaff', '#ff8866', '#66ffcc', '#ffdd66'];
+    const nebulaTypes  = ['emission', 'reflection', 'dark', 'planetary', 'emission'];
+    for (let i = 0; i < numNebulas; i++) {
+      const angle = (Math.PI * 2 * i) / Math.max(numNebulas, 1) + Math.random() * 0.8;
+      const dist  = (engine.universe.boundaryRadius || 50) * (0.2 + Math.random() * 0.55);
+      engine.universe.addNebula({
+        name: `Nebula ${String.fromCharCode(65 + i)}`,
+        type: nebulaTypes[i % nebulaTypes.length],
+        color: nebulaColors[i % nebulaColors.length],
+        position: {
+          x: dist * Math.cos(angle),
+          y: (Math.random() - 0.5) * (engine.universe.boundaryRadius || 50) * 0.15,
+          z: dist * Math.sin(angle),
+        },
+        velocity: { x: 0, y: 0, z: 0 },
+        radius: 4 + Math.random() * 10,
+        gasMass: 0.5 + Math.random() * 0.5,
+        birthRate: 0.2 + Math.random() * 0.4,
+        birthCooldown: 3e8 + Math.random() * 5e8,
+      });
+    }
+
+    // Seed initial rogue stars
+    const numRogues = universeParams?.initialRogueStars ?? 0;
+    const rogueBoundary = engine.universe.boundaryRadius || 50;
+    const roguePresets = ['red_dwarf', 'sun_like', 'orange_dwarf'];
+    const rogueSysCluster = engine.createCluster({
+      name: 'Rogue Cluster',
+      type: 'irregular',
+      isRogueFormation: true,
+      position: { x: 0, y: 0, z: 0 },
+    });
+    for (let i = 0; i < numRogues; i++) {
+      const rAngle = Math.random() * Math.PI * 2;
+      const rDist  = rogueBoundary * (0.05 + Math.random() * 0.4);
+      const rx = rDist * Math.cos(rAngle);
+      const rz = rDist * Math.sin(rAngle);
+      const rogueSystem = engine.createStarSystem(rogueSysCluster.id, {
+        name: `Rogue System ${i + 1}`,
+        position: { x: rx, y: 0, z: rz },
+      });
+      const roguePreset = roguePresets[Math.floor(Math.random() * roguePresets.length)];
+      const rogueStar = engine.createStar(roguePreset, {
+        name: `Rogue Star ${i + 1}`,
+        systemId: rogueSystem.id,
+      });
+      // Mark them as escaped so they drift through universe space
+      rogueStar.escapedSystem = true;
+      if (rogueStar.universePosition) {
+        rogueStar.universePosition.set(rx, 0, rz);
+      } else {
+        rogueStar.universePosition = { x: rx, y: 0, z: rz, length() { return Math.sqrt(this.x**2+this.y**2+this.z**2); }, addScaledVector(v,s) { this.x+=v.x*s; this.y+=v.y*s; this.z+=v.z*s; return this; } };
+      }
+      rogueStar.universeVelocity = { x: (Math.random() - 0.5) * 0.02, y: 0, z: (Math.random() - 0.5) * 0.02 };
+      engine._escapedBodies.push(rogueStar);
+    }
+    if (numRogues === 0) {
+      // Remove the placeholder rogue cluster if unused
+      rogueSysCluster.alive = false;
     }
 
     engine.start();

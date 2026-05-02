@@ -9,16 +9,40 @@ import Cluster from './Cluster.js';
 import StarSystem from './StarSystem.js';
 import { PRIMORDIAL_COMPOSITION } from '@data/elements';
 import { UNIVERSE_RADIUS_MLY } from '@utils/constants';
+import { generateId } from '@utils/helpers';
 
 export default class Universe {
   constructor(config = {}) {
     this.clusters = [];
     this.systems = [];
-    this.boundaryRadius = config.boundaryRadius || UNIVERSE_RADIUS_MLY;
+    this.nebulas = [];
+
+    this._initialBoundaryRadius = config.boundaryRadius || UNIVERSE_RADIUS_MLY;
+    this.boundaryRadius = this._initialBoundaryRadius;
     this.age = 0;
 
     this.composition = { ...PRIMORDIAL_COMPOSITION };
     this.totalMass = 0;
+
+    // ── Cosmological parameters ──────────────────────────────────────────────
+    // Omega (Ω): matter density relative to critical density.
+    //   < 1 → open (expands forever)   = 1 → flat   > 1 → closed (Big Crunch)
+    this.omega = config.omega ?? 1.0;
+    // Normalised Hubble parameter (Gyr⁻¹).  0.07 ≈ H₀ ≈ 70 km/s/Mpc converted.
+    this.hubbleParam = config.hubbleParam ?? 0.07;
+    // Scale factor a(t).  a = 1 at the start of the simulation.
+    this.scaleFactor = config.scaleFactor ?? 1.0;
+    // Cosmic background temperature (K).  Starts ~2.7 K (present-day CMB) unless
+    // the user starts in an earlier epoch via a higher initialTemperature.
+    this._initialTemperature = config.cosmicTemperature ?? 2.7;
+    this.cosmicTemperature = this._initialTemperature;
+    // Phase derived from temperature (updated each step by updateCosmology).
+    // 'plasma' → 'recombination' → 'stellarEra' → 'metalRich'
+    this.nucleosynthesisPhase = config.nucleosynthesisPhase ?? 'stellarEra';
+    // Set to true by updateCosmology when a closed universe re-collapses.
+    this._bigCrunch = false;
+    // Previous dadt sign — used to detect turnaround in closed universes.
+    this._prevDadt = 1;
 
     this.stats = {
       clusterCount: 0,
@@ -58,6 +82,109 @@ export default class Universe {
 
   getSystemsForCluster(clusterId) {
     return this.systems.filter(s => s.clusterId === clusterId);
+  }
+
+  // ── Nebula management ───────────────────────────────────────────────────────
+
+  addNebula(config = {}) {
+    const nebula = {
+      id: config.id || generateId(),
+      name: config.name || `Nebula ${this.nebulas.length + 1}`,
+      type: config.type || 'emission',          // emission | reflection | dark | planetary
+      position: config.position ? { ...config.position } : { x: 0, y: 0, z: 0 },
+      velocity: config.velocity ? { ...config.velocity } : { x: 0, y: 0, z: 0 },
+      radius: config.radius ?? (3 + Math.random() * 8),  // Mly
+      gasMass: config.gasMass ?? 1.0,           // 0–1, depletes as stars form
+      birthRate: config.birthRate ?? 0.3,       // stars per Gyr
+      birthCooldown: config.birthCooldown ?? 5e8, // years between births
+      lastStarBirthTime: config.lastStarBirthTime ?? 0,
+      color: config.color || '#cc88ff',
+      alive: true,
+    };
+    this.nebulas.push(nebula);
+    return nebula;
+  }
+
+  removeNebula(id) {
+    this.nebulas = this.nebulas.filter(n => n.id !== id);
+  }
+
+  /** Drift nebulas slowly and let them age */
+  updateNebulas(dtYears) {
+    const dtMly = dtYears / 1e6;
+    for (const neb of this.nebulas) {
+      if (!neb.alive) continue;
+      neb.position.x += neb.velocity.x * dtMly;
+      neb.position.y += neb.velocity.y * dtMly;
+      neb.position.z += neb.velocity.z * dtMly;
+      // Boundary check: remove exhausted or out-of-bounds nebulas
+      const dist = Math.sqrt(neb.position.x ** 2 + neb.position.y ** 2 + neb.position.z ** 2);
+      if (dist > this.boundaryRadius || neb.gasMass <= 0) {
+        neb.alive = false;
+      }
+    }
+    this.nebulas = this.nebulas.filter(n => n.alive);
+  }
+
+  // ── Cosmological model ───────────────────────────────────────────────────────
+
+  /**
+   * Advance the cosmological scale factor by dtYears.
+   * Uses a simplified Friedmann equation (matter-dominated):
+   *   da/dt = H₀ · sqrt( Ω/a + (1 − Ω) )
+   *
+   * Effects:
+   *  - boundaryRadius scales with a(t)
+   *  - cosmicTemperature ∝ 1/a
+   *  - nucleosynthesisPhase updated from T
+   *  - _bigCrunch flag set when Ω > 1 and universe re-collapses
+   */
+  updateCosmology(dtYears) {
+    const dtGyr = dtYears / 1e9;
+    if (dtGyr <= 0) return;
+
+    const a = this.scaleFactor;
+    const inner = this.omega / a + (1 - this.omega);
+    const dadt = this.hubbleParam * Math.sqrt(Math.max(0, inner));
+    const newA = Math.max(0.01, a + dadt * dtGyr);
+
+    this.scaleFactor = newA;
+    this.boundaryRadius = this._initialBoundaryRadius * newA;
+    // Temperature falls as universe expands (T ∝ 1/a)
+    this.cosmicTemperature = this._initialTemperature / newA;
+
+    // Nucleosynthesis phase from temperature
+    const T = this.cosmicTemperature;
+    if (T > 3000)          this.nucleosynthesisPhase = 'plasma';
+    else if (T > 300)      this.nucleosynthesisPhase = 'recombination';
+    else if (T > 10)       this.nucleosynthesisPhase = 'stellarEra';
+    else                   this.nucleosynthesisPhase = 'metalRich';
+
+    // Detect turnaround → Big Crunch for closed universes
+    if (this.omega > 1 && dadt <= 0 && this._prevDadt > 0) {
+      // Universe has started contracting
+    }
+    if (this.omega > 1 && newA <= 0.05 && dadt <= 0) {
+      this._bigCrunch = true;
+    }
+    this._prevDadt = dadt;
+  }
+
+  /**
+   * Star-formation multiplier based on cosmological phase.
+   *  plasma       → 0 (too hot, no stars possible)
+   *  recombination→ 0.1–0.5 (first stars possible, ramping up)
+   *  stellarEra   → 1.0 (full rate)
+   *  metalRich    → 1.5 (enhanced by metals)
+   */
+  formationRateMultiplier() {
+    switch (this.nucleosynthesisPhase) {
+      case 'plasma':        return 0;
+      case 'recombination': return 0.3;
+      case 'stellarEra':    return 1.0;
+      case 'metalRich':     return 1.5;
+      default:              return 1.0;
+    }
   }
 
   /**
@@ -174,6 +301,8 @@ export default class Universe {
    * SimEngine calls this and creates structure.
    */
   canFormFromGas() {
+    // Cosmological phase gate: no formation during plasma era
+    if (this.nucleosynthesisPhase === 'plasma') return false;
     const h = this.composition.H || 0;
     const he = this.composition.He || 0;
     const totalPrimordial = h + he;
@@ -209,14 +338,27 @@ export default class Universe {
     return {
       clusters: this.clusters.map(c => c.toJSON()),
       systems: this.systems.map(s => s.toJSON()),
-      boundaryRadius: this.boundaryRadius,
+      nebulas: this.nebulas.map(n => ({ ...n })),
+      boundaryRadius: this._initialBoundaryRadius,
       age: this.age,
       composition: { ...this.composition },
+      omega: this.omega,
+      hubbleParam: this.hubbleParam,
+      scaleFactor: this.scaleFactor,
+      cosmicTemperature: this.cosmicTemperature,
+      nucleosynthesisPhase: this.nucleosynthesisPhase,
     };
   }
 
   static fromJSON(data) {
-    const u = new Universe({ boundaryRadius: data.boundaryRadius });
+    const u = new Universe({
+      boundaryRadius: data.boundaryRadius,
+      omega: data.omega,
+      hubbleParam: data.hubbleParam,
+      scaleFactor: data.scaleFactor,
+      cosmicTemperature: data.cosmicTemperature,
+      nucleosynthesisPhase: data.nucleosynthesisPhase,
+    });
     u.age = data.age || 0;
     u.composition = data.composition || { ...PRIMORDIAL_COMPOSITION };
     if (data.clusters) {
@@ -224,6 +366,9 @@ export default class Universe {
     }
     if (data.systems) {
       u.systems = data.systems.map(s => StarSystem.fromJSON(s));
+    }
+    if (data.nebulas) {
+      u.nebulas = data.nebulas.map(n => ({ ...n }));
     }
     return u;
   }
