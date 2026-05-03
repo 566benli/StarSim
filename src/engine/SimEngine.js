@@ -1308,7 +1308,7 @@ export default class SimEngine {
       hubbleParam: this.universe.hubbleParam,
       cosmicTemperature: this.universe.cosmicTemperature,
       nucleosynthesisPhase: this.universe.nucleosynthesisPhase,
-      nebulasCount: this.universe.nebulas.filter(n => n.alive).length,
+      nebulasCount: (this.universe.nebulas || []).filter(n => n.alive).length,
       clusters: this.universe.clusters.map(c => ({
         id: c.id,
         name: c.name,
@@ -1385,6 +1385,9 @@ export default class SimEngine {
     if (data.universe) {
       this.universe = Universe.fromJSON(data.universe);
     }
+    if (this.universe?.ensureCosmologyDefaults) {
+      this.universe.ensureCosmologyDefaults();
+    }
 
     // Ensure every known system has a GravitySystem
     for (const sys of this.universe.systems) {
@@ -1406,6 +1409,7 @@ export default class SimEngine {
   reset() {
     this.gravitySystems.clear();
     this.universe = new Universe();
+    this.universe.ensureCosmologyDefaults();
     this.simulationTime = 0;
     this.timeScale = 1;
     this.paused = true;

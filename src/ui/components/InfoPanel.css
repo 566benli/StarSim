@@ -256,6 +256,30 @@
   margin-bottom: 8px;
 }
 
+.info-universe-fold {
+  margin-bottom: 12px;
+  border: 1px solid rgba(100, 140, 220, 0.2);
+  border-radius: 8px;
+  padding: 6px 10px 2px;
+  background: rgba(40, 50, 90, 0.15);
+}
+
+.info-universe-fold-summary {
+  cursor: pointer;
+  list-style: none;
+  margin-bottom: 4px;
+  font-size: 11px;
+  color: #99aadd;
+}
+
+.info-universe-fold-summary::-webkit-details-marker {
+  display: none;
+}
+
+.info-universe-fold[open] .info-universe-fold-summary {
+  margin-bottom: 8px;
+}
+
 .info-row {
   display: flex;
   justify-content: space-between;

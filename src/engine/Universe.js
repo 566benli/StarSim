@@ -84,6 +84,38 @@ export default class Universe {
     return this.systems.filter(s => s.clusterId === clusterId);
   }
 
+  /**
+   * Fill missing cosmology fields after load from legacy saves or partial JSON.
+   * Safe to call any time.
+   */
+  ensureCosmologyDefaults() {
+    if (typeof this.omega !== 'number' || Number.isNaN(this.omega)) this.omega = 1.0;
+    if (typeof this.hubbleParam !== 'number' || Number.isNaN(this.hubbleParam)) this.hubbleParam = 0.07;
+    if (typeof this.scaleFactor !== 'number' || Number.isNaN(this.scaleFactor) || this.scaleFactor <= 0) {
+      this.scaleFactor = 1.0;
+    }
+    if (typeof this.cosmicTemperature !== 'number' || Number.isNaN(this.cosmicTemperature)) {
+      this.cosmicTemperature = 2.7;
+    }
+    if (!this.nucleosynthesisPhase || typeof this.nucleosynthesisPhase !== 'string') {
+      this.nucleosynthesisPhase = 'stellarEra';
+    }
+    if (typeof this._initialBoundaryRadius !== 'number' || Number.isNaN(this._initialBoundaryRadius)) {
+      this._initialBoundaryRadius = typeof this.boundaryRadius === 'number' && !Number.isNaN(this.boundaryRadius)
+        ? this.boundaryRadius
+        : UNIVERSE_RADIUS_MLY;
+    }
+    if (typeof this.boundaryRadius !== 'number' || Number.isNaN(this.boundaryRadius)) {
+      this.boundaryRadius = this._initialBoundaryRadius * this.scaleFactor;
+    }
+    if (typeof this._initialTemperature !== 'number' || Number.isNaN(this._initialTemperature)) {
+      this._initialTemperature = Math.max(2.7, this.cosmicTemperature * this.scaleFactor);
+    }
+    if (!Array.isArray(this.nebulas)) this.nebulas = [];
+    if (this._bigCrunch === undefined) this._bigCrunch = false;
+    if (this._prevDadt === undefined || Number.isNaN(this._prevDadt)) this._prevDadt = 1;
+  }
+
   // ── Nebula management ───────────────────────────────────────────────────────
 
   addNebula(config = {}) {
@@ -370,6 +402,7 @@ export default class Universe {
     if (data.nebulas) {
       u.nebulas = data.nebulas.map(n => ({ ...n }));
     }
+    u.ensureCosmologyDefaults();
     return u;
   }
 }

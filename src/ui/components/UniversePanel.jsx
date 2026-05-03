@@ -249,46 +249,40 @@ const UniversePanel = ({
                 <span className="up-key">Boundary Radius</span>
                 <span className="up-val">{stats.boundaryRadius ? stats.boundaryRadius.toFixed(1) : 50} Mly</span>
               </div>
-              {/* Cosmology readout */}
-              {stats.scaleFactor != null && (
-                <>
-                  <div className="up-row up-cosmo-header">
-                    <span className="up-key up-section-label">Cosmology</span>
-                  </div>
-                  <div className="up-row">
-                    <span className="up-key">Scale Factor a(t)</span>
-                    <span className="up-val">{(stats.scaleFactor || 1).toFixed(3)}</span>
-                  </div>
-                  <div className="up-row">
-                    <span className="up-key">Cosmic Temperature</span>
-                    <span className="up-val">
-                      {(stats.cosmicTemperature || 2.7) < 100
-                        ? (stats.cosmicTemperature || 2.7).toFixed(2)
-                        : Math.round(stats.cosmicTemperature || 2.7)} K
-                    </span>
-                  </div>
-                  <div className="up-row">
-                    <span className="up-key">Phase</span>
-                    <span className="up-val up-phase">{stats.nucleosynthesisPhase || 'stellarEra'}</span>
-                  </div>
-                  <div className="up-row">
-                    <span className="up-key">Density (Ω)</span>
-                    <span className="up-val">
-                      {(stats.omega || 1).toFixed(2)}
-                      {' '}
-                      <span className="up-omega-fate">
-                        {(stats.omega || 1) < 0.95 ? '(Open)' : (stats.omega || 1) > 1.05 ? '(Closed)' : '(Flat)'}
-                      </span>
-                    </span>
-                  </div>
-                  {stats.nebulasCount > 0 && (
-                    <div className="up-row">
-                      <span className="up-key">Nebulas</span>
-                      <span className="up-val">{stats.nebulasCount}</span>
-                    </div>
-                  )}
-                </>
-              )}
+              {/* Cosmology readout (always shown; defaults apply for legacy saves / example starts) */}
+              <div className="up-row up-cosmo-header">
+                <span className="up-key up-section-label">Cosmology</span>
+              </div>
+              <div className="up-row">
+                <span className="up-key">Scale Factor a(t)</span>
+                <span className="up-val">{(stats.scaleFactor ?? 1).toFixed(3)}</span>
+              </div>
+              <div className="up-row">
+                <span className="up-key">Cosmic Temperature</span>
+                <span className="up-val">
+                  {(stats.cosmicTemperature ?? 2.7) < 100
+                    ? (stats.cosmicTemperature ?? 2.7).toFixed(2)
+                    : Math.round(stats.cosmicTemperature ?? 2.7)} K
+                </span>
+              </div>
+              <div className="up-row">
+                <span className="up-key">Phase</span>
+                <span className="up-val up-phase">{stats.nucleosynthesisPhase || 'stellarEra'}</span>
+              </div>
+              <div className="up-row">
+                <span className="up-key">Density (Ω)</span>
+                <span className="up-val">
+                  {(stats.omega ?? 1).toFixed(2)}
+                  {' '}
+                  <span className="up-omega-fate">
+                    {(stats.omega ?? 1) < 0.95 ? '(Open)' : (stats.omega ?? 1) > 1.05 ? '(Closed)' : '(Flat)'}
+                  </span>
+                </span>
+              </div>
+              <div className="up-row">
+                <span className="up-key">Nebulas</span>
+                <span className="up-val">{stats.nebulasCount ?? 0}</span>
+              </div>
             </div>
           </div>
         )}

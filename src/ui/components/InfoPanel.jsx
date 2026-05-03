@@ -62,7 +62,7 @@ const PHASE_INFO = {
   },
 };
 
-const InfoPanel = ({ onExplore, onClose, onFocusBody, getBodies, engine }) => {
+const InfoPanel = ({ onExplore, onClose, onFocusBody, getBodies, engine, universeStats = {} }) => {
   const { selectedBody, simulationTime } = useStore();
   const [showHRDiagram, setShowHRDiagram] = useState(false);
   const [showTechTree, setShowTechTree] = useState(false);
@@ -237,6 +237,29 @@ const InfoPanel = ({ onExplore, onClose, onFocusBody, getBodies, engine }) => {
         <div className="info-type">{props.type} — {props.subtype || props.phase}</div>
         <button className="info-close" onClick={onClose}>✕</button>
       </div>
+
+      {/* Same universe context as Universe panel — available in system & body views */}
+      <details className="info-section info-universe-fold">
+        <summary className="section-title info-universe-fold-summary">Universe parameters</summary>
+        <Row
+          label="Boundary radius"
+          value={`${(universeStats.boundaryRadius ?? 50).toFixed(1)} Mly`}
+        />
+        <Row label="Universe age" value={formatTime(universeStats.age ?? 0)} />
+        <Row label="Ω (density)" value={`${(universeStats.omega ?? 1).toFixed(2)}`} />
+        <Row label="Scale factor a(t)" value={(universeStats.scaleFactor ?? 1).toFixed(3)} />
+        <Row
+          label="Cosmic T"
+          value={`${
+            (universeStats.cosmicTemperature ?? 2.7) < 100
+              ? (universeStats.cosmicTemperature ?? 2.7).toFixed(2)
+              : String(Math.round(universeStats.cosmicTemperature ?? 2.7))
+          } K`}
+        />
+        <Row label="Phase" value={universeStats.nucleosynthesisPhase || 'stellarEra'} />
+        <Row label="Hubble H₀" value={`${(universeStats.hubbleParam ?? 0.07).toFixed(3)} Gyr⁻¹`} />
+        <Row label="Nebulas" value={String(universeStats.nebulasCount ?? 0)} />
+      </details>
 
       {/* Fun fact */}
       {selectedBody.funFact && (
