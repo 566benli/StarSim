@@ -228,6 +228,11 @@ export const PLANET_FRAGMENT_GLSL = /* glsl */`
   uniform float biosphereOpacity;
   uniform float oceanGlow;       // 0..1 add specular highlight on oceans
 
+  // Matcap texture used for rocky planets (planetType == 0).  When supplied,
+  // paintRocky samples it via view-space normal coordinates, giving the
+  // photoreal rubble-pile look from every camera angle.
+  uniform sampler2D rockyMatcap;
+
   ${NOISE_GLSL}
   ${PALETTE_GLSL}
 
@@ -240,77 +245,15 @@ export const PLANET_FRAGMENT_GLSL = /* glsl */`
 
   // ── Per-type painting routines ─────────────────────────────────────────────
 
-  // Photoreal rubble-pile rocky surface.  Layered warped cellular noise
-  // builds two boulder octaves (cobbles + small rubble) sitting in warm rust
-  // regolith, with crisp crater shadows, bright lit-face catchlights on
-  // boulder crowns, and scattered pale chalk patches.  Tuned to match the
-  // high-detail rocky-planet reference (much higher contrast and a warmer,
-  // more saturated palette than the previous painterly take).
+  // Rocky surface: matcap-style sampling of the photoreal reference texture.
+  // The view-space normal (already in vNormal because the planet vertex shader
+  // emits normalMatrix * normal) is projected onto the unit disc and used as
+  // a UV into the matcap texture.  This makes every rocky planet read with
+  // the exact rubble-pile surface look from any camera angle, with the
+  // texture's baked lighting / rim-light intact.
   vec3 paintRocky(vec3 P, vec3 wn){
-    vec3 W = warp(P * 1.6, 0.55, 1.05);
-
-    // Two boulder octaves: large primary cobbles + smaller rubble fragments.
-    // sqrt(vnoise) produces organic, non-grid clumps; smoothstep sharpens
-    // their edges so each boulder reads as a discrete body.
-    float bigBoulders = 1.0 - sqrt(vnoise(W * 4.2));
-    bigBoulders       = smoothstep(0.28, 0.92, bigBoulders);
-
-    float smallRubble = 1.0 - sqrt(vnoise(W * 10.5 + 3.7));
-    smallRubble       = smoothstep(0.32, 0.88, smallRubble);
-
-    float boulders = max(bigBoulders, smallRubble * 0.65);
-
-    // Crown vs. bowl side of each boulder for shading relief
-    float crown = pow(boulders, 1.6);
-    float bowl  = pow(1.0 - boulders, 1.4);
-
-    // Regolith dust grain (multi-octave) and ridged crater rims
-    float dust   = fbm(P * 8.0 + 4.7) * 0.5 + 0.5;
-    float fines  = fbm(P * 26.0 - 1.3) * 0.5 + 0.5;
-    float crater = smoothstep(0.48, 0.78, ridge(P * 5.0)) * 0.65;
-
-    // Bright chalk / pale-dust patches that punctuate the rust regolith
-    float chalkN    = fbm(P * 2.4 + 9.1);
-    float chalkMask = smoothstep(0.58, 0.92, chalkN);
-    chalkMask      *= 0.80 + 0.40 * smoothstep(0.45, 0.95, fines);
-
-    // ── Palette ─────────────────────────────────────────────────────────
-    vec3 rustHot   = mix(baseColor, vec3(0.85, 0.42, 0.14), 0.50);  // warm regolith
-    vec3 rustDark  = baseColor * 0.42;                              // shadowed dust
-    vec3 boulderDk = vec3(0.085, 0.090, 0.105);                     // near-black slate
-    vec3 boulderHi = vec3(0.58, 0.58, 0.62);                        // lit catchlight
-    vec3 chalkCol  = vec3(0.93, 0.88, 0.78);                        // pale chalk
-
-    // ── Composite ───────────────────────────────────────────────────────
-    // 1) Warm rust regolith base modulated by dust + fine grain
-    vec3 col = mix(rustDark, rustHot, 0.55 + dust * 0.45);
-    col      = mix(col, rustHot * 1.15, fines * 0.28);
-
-    // 2) Drop in boulders — dark bodies with bright lit-face catchlights
-    vec3 boulderCol = mix(boulderDk, boulderHi, crown * 0.65);
-    col = mix(col, boulderCol, smoothstep(0.18, 0.52, boulders));
-
-    // 3) Deep shadow inside boulder packs and crater rims
-    col = mix(col, boulderDk * 0.6, bowl * 0.35 * smoothstep(0.40, 0.80, boulders));
-    col = mix(col, boulderDk * 0.5, crater);
-
-    // 4) Bright chalk / pale dust patches in regolith gaps
-    float chalkAreas = chalkMask * (1.0 - smoothstep(0.30, 0.65, boulders));
-    col = mix(col, chalkCol, chalkAreas * 0.70);
-
-    // 5) Optional polar / lichen frost via the weathering uniform
-    if(weathering > 0.001){
-      float lat = abs(vPosition.y);
-      float frostMask = smoothstep(0.30, 0.85, lat) * pow(boulders, 2.0);
-      frostMask = max(frostMask, smoothstep(0.65, 0.95, fbm(P * 3.0)) * 0.55);
-      vec3  frostCol  = mix(vec3(0.94, 0.95, 0.98), accentColor, 0.30);
-      col = mix(col, frostCol, frostMask * weathering);
-    }
-
-    // 6) Micro-AO in the deepest crevices keeps shadows from looking flat
-    col *= 0.85 + 0.20 * smoothstep(0.0, 0.30, dust + boulders * 0.5);
-
-    return col;
+    vec2 muv = vNormal.xy * 0.5 + 0.5;
+    return texture2D(rockyMatcap, muv).rgb;
   }
 
   // Earth-like world with ocean depth grading, latitudinal biomes, polar caps,
@@ -521,6 +464,15 @@ export const PLANET_FRAGMENT_GLSL = /* glsl */`
           color = mix(color, civGold, bio.b * biosphereOpacity * 0.40);
         }
       }
+    }
+
+    // ── Rocky planets short-circuit lighting ───────────────────────────────
+    // The matcap already has lighting, limb darkening, and rim glow baked in.
+    // Multiplying by our scene diffuse / Fresnel pass would double-light the
+    // surface and wash out the reference look, so we emit the matcap directly.
+    if(planetType < 0.5){
+      gl_FragColor = vec4(color, 1.0);
+      return;
     }
 
     // ── Lighting ───────────────────────────────────────────────────────────

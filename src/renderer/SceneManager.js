@@ -30,6 +30,13 @@ export default class SceneManager {
     this.selectedBody = null;
     this.hoveredBody = null;
 
+    // Lazily-loaded matcap texture for rocky planets (planetType == 0).
+    // The loader returns a placeholder Texture immediately and fills in the
+    // image data when the file finishes downloading, so every rocky-planet
+    // material can share the same instance and pick up the photoreal look
+    // as soon as the asset is available.
+    this._rockyMatcap = null;
+
     // Visual orbit cap: at high time scales (fast-forward) the N-body integration
     // advances too many orbits per frame to visualise clearly.  We track a separate
     // visual angle per planet and advance it at a capped angular velocity so that
@@ -1751,6 +1758,26 @@ export default class SceneManager {
   }
 
   /**
+   * Lazy-load the rocky-planet matcap texture exactly once and reuse it for
+   * every rocky body's shader material.  The loader hands back a usable
+   * Texture immediately; the GPU bytes fill in once the image finishes
+   * downloading from `assets/textures/rocky_matcap.png`.
+   */
+  _getRockyMatcap() {
+    if (this._rockyMatcap) return this._rockyMatcap;
+    const tex = new THREE.TextureLoader().load('assets/textures/rocky_matcap.png');
+    tex.colorSpace      = THREE.SRGBColorSpace;
+    tex.wrapS           = THREE.ClampToEdgeWrapping;
+    tex.wrapT           = THREE.ClampToEdgeWrapping;
+    tex.minFilter       = THREE.LinearMipmapLinearFilter;
+    tex.magFilter       = THREE.LinearFilter;
+    tex.generateMipmaps = true;
+    tex.anisotropy      = this.renderer?.capabilities?.getMaxAnisotropy?.() || 4;
+    this._rockyMatcap = tex;
+    return tex;
+  }
+
+  /**
    * Pick reasonable secondary / accent palette colors for a planet body based
    * on its subtype.  Falls back to HSL-shifted variants of the primary color
    * for anything unrecognised.
@@ -1821,9 +1848,11 @@ export default class SceneManager {
 
     const planetType = this._planetTypeIndex(body.subtype);
 
-    // Solid surfaces (rocky / earth / desert / icy / lava) get displacement;
-    // gas / hot-jupiter / ice giant remain perfectly spherical.
-    const SOLID_TYPES = new Set([0, 1, 4, 6, 7]);
+    // Solid surfaces (earth / desert / icy / lava) get displacement; gas /
+    // hot-jupiter / ice giant remain perfectly spherical.  Rocky bodies
+    // (type 0) also stay smooth — the matcap texture already encodes the
+    // boulder relief, and any silhouette wobble would muddy the look.
+    const SOLID_TYPES = new Set([1, 4, 6, 7]);
     const displaceAmount = SOLID_TYPES.has(planetType)
       ? (planetType === 4 ? 0.012 : 0.025)
       : 0.0;
@@ -1857,6 +1886,7 @@ export default class SceneManager {
         biosphereMap:     { value: bioTex },
         biosphereOpacity: { value: 0.0 },
         oceanGlow:        { value: (body.subtype === 'earth_like' || body.subtype === 'ocean_world') ? 1.0 : 0.0 },
+        rockyMatcap:      { value: this._getRockyMatcap() },
       },
       vertexShader:   PLANET_VERTEX_GLSL,
       fragmentShader: PLANET_FRAGMENT_GLSL,
