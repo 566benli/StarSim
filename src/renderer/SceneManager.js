@@ -10,6 +10,16 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { CAMERA_NEAR, CAMERA_FAR, BLOOM_INTENSITY, ARENA_RADIUS_AU, VIEW_LEVEL, UNIVERSE_RADIUS_MLY } from '@utils/constants';
 import { temperatureToColor } from '@utils/math';
 import { encodeBiosphereToTexture } from '@engine/biosphereGrid.js';
+import {
+  PLANET_VERTEX_GLSL,
+  PLANET_FRAGMENT_GLSL,
+  STAR_VERTEX_GLSL,
+  STAR_FRAGMENT_GLSL,
+  ATMOSPHERE_VERTEX_GLSL,
+  ATMOSPHERE_FRAGMENT_GLSL,
+  PHASE_VALUES,
+  planetTypeIndex,
+} from './celestialShaders.js';
 
 export default class SceneManager {
   constructor(container) {
@@ -1398,6 +1408,34 @@ export default class SceneManager {
       uniforms.temperature.value = body.temperature;
       uniforms.flareActivity.value = body.flareActivity || 0.3;
 
+      // ── Smooth phase-value interpolation ─────────────────────────────────
+      // The star shader paints surfaces from a continuous phaseValue in
+      // [-0.5, 5].  When the simulation announces a phase change we ramp the
+      // shader uniform from the previous value to the new target across a few
+      // seconds of real time, plus run a separate phaseBlend overlay (1 → 0)
+      // to soften the moment of transition.
+      const targetPhaseValue = this._phaseToValue(body.phase);
+      const PHASE_VALUE_RATE = 0.5; // shader-units per real second
+      const cur = uniforms.phaseValue.value;
+      if (Math.abs(cur - targetPhaseValue) > 0.001) {
+        const dir = Math.sign(targetPhaseValue - cur);
+        const step = Math.min(Math.abs(targetPhaseValue - cur), PHASE_VALUE_RATE * this._frameDelta);
+        uniforms.phaseValue.value = cur + dir * step;
+      } else {
+        uniforms.phaseValue.value = targetPhaseValue;
+      }
+      group.userData.phaseValueTarget = targetPhaseValue;
+
+      if (typeof group.userData.phaseBlendTimeLeft === 'number'
+          && group.userData.phaseBlendTimeLeft > 0) {
+        const PHASE_BLEND_DURATION = group.userData.phaseBlendDuration || 4.0;
+        group.userData.phaseBlendTimeLeft = Math.max(0,
+          group.userData.phaseBlendTimeLeft - this._frameDelta);
+        uniforms.phaseBlend.value = group.userData.phaseBlendTimeLeft / PHASE_BLEND_DURATION;
+      } else {
+        uniforms.phaseBlend.value = 0;
+      }
+
       // Update corona glow color and opacity for evolved stars
       if (group.userData.glow) {
         group.userData.glow.material.color.copy(color);
@@ -1412,6 +1450,15 @@ export default class SceneManager {
         group.userData.pointLight.intensity = Math.min(body.luminosity * 2, 50);
         group.userData.pointLight.color.copy(color);
       }
+    }
+
+    // Mesh-type drift: a star → black_hole transition leaves us with a star
+    // mesh whose body is now type 'black_hole'.  Detect and rebuild.
+    if (group.userData.bodyType
+        && group.userData.bodyType !== body.type
+        && (body.type === 'black_hole' || body.type === 'star')) {
+      this._rebuildBodyMesh(body);
+      return this.bodyMeshes.get(body.id);
     }
 
     // Update visual scale based on radius (includes viewScale)
@@ -1575,173 +1622,40 @@ export default class SceneManager {
   }
 
   /**
-   * Create star visual with shader material
+   * Create star visual with phase-aware shader material.
+   *
+   * The shader smoothly blends between phase styles (main sequence → subgiant
+   * → red giant → supergiant → white dwarf → neutron star) via the continuous
+   * `phaseValue` uniform.  When SceneManager.handlePhaseChange runs, it ramps
+   * `phaseBlend` from 1 → 0 to overlay a brief warm flash on the surface.
    */
   createStarMesh(body, group) {
     const geometry = new THREE.SphereGeometry(1, 64, 64);
     const color = temperatureToColor(body.temperature);
     const hotColor = temperatureToColor(body.temperature * 1.3);
 
-    // Shader material for procedural stellar surface
     const material = new THREE.ShaderMaterial({
       uniforms: {
-        time: { value: 0 },
-        starColor: { value: color },
-        starColorHot: { value: hotColor },
-        temperature: { value: body.temperature },
-        luminosity: { value: body.luminosity },
-        turbulence: { value: 0.5 },
-        flareActivity: { value: body.flareActivity || 0.3 },
+        time:           { value: 0 },
+        starColor:      { value: color },
+        starColorHot:   { value: hotColor },
+        temperature:    { value: body.temperature },
+        luminosity:     { value: body.luminosity },
+        turbulence:     { value: 0.5 },
+        flareActivity:  { value: body.flareActivity ?? 0.3 },
+        phaseValue:     { value: this._phaseToValue(body.phase) },
+        phaseBlend:     { value: 0 },
       },
-      vertexShader: `
-        varying vec3 vNormal;
-        varying vec3 vPosition;
-        varying vec2 vUv;
-        uniform float time;
-        uniform float turbulence;
-
-        // Simplex noise
-        vec3 mod289(vec3 x){return x-floor(x*(1.0/289.0))*289.0;}
-        vec4 mod289(vec4 x){return x-floor(x*(1.0/289.0))*289.0;}
-        vec4 permute(vec4 x){return mod289(((x*34.0)+1.0)*x);}
-        vec4 taylorInvSqrt(vec4 r){return 1.79284291400159-0.85373472095314*r;}
-        float snoise(vec3 v){
-          const vec2 C=vec2(1.0/6.0,1.0/3.0);
-          const vec4 D=vec4(0.0,0.5,1.0,2.0);
-          vec3 i=floor(v+dot(v,C.yyy));
-          vec3 x0=v-i+dot(i,C.xxx);
-          vec3 g=step(x0.yzx,x0.xyz);
-          vec3 l=1.0-g;
-          vec3 i1=min(g.xyz,l.zxy);
-          vec3 i2=max(g.xyz,l.zxy);
-          vec3 x1=x0-i1+C.xxx;
-          vec3 x2=x0-i2+C.yyy;
-          vec3 x3=x0-D.yyy;
-          i=mod289(i);
-          vec4 p=permute(permute(permute(i.z+vec4(0.0,i1.z,i2.z,1.0))+i.y+vec4(0.0,i1.y,i2.y,1.0))+i.x+vec4(0.0,i1.x,i2.x,1.0));
-          float n_=0.142857142857;
-          vec3 ns=n_*D.wyz-D.xzx;
-          vec4 j=p-49.0*floor(p*ns.z*ns.z);
-          vec4 x_=floor(j*ns.z);
-          vec4 y_=floor(j-7.0*x_);
-          vec4 x=x_*ns.x+ns.yyyy;
-          vec4 y=y_*ns.x+ns.yyyy;
-          vec4 h=1.0-abs(x)-abs(y);
-          vec4 b0=vec4(x.xy,y.xy);
-          vec4 b1=vec4(x.zw,y.zw);
-          vec4 s0=floor(b0)*2.0+1.0;
-          vec4 s1=floor(b1)*2.0+1.0;
-          vec4 sh=-step(h,vec4(0.0));
-          vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy;
-          vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;
-          vec3 p0=vec3(a0.xy,h.x);
-          vec3 p1=vec3(a0.zw,h.y);
-          vec3 p2=vec3(a1.xy,h.z);
-          vec3 p3=vec3(a1.zw,h.w);
-          vec4 norm=taylorInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
-          p0*=norm.x;p1*=norm.y;p2*=norm.z;p3*=norm.w;
-          vec4 m=max(0.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.0);
-          m=m*m;
-          return 42.0*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
-        }
-        void main(){
-          vUv=uv;
-          vNormal=normalize(normalMatrix*normal);
-          vPosition=position;
-          float noise=snoise(position*3.0+time*0.5)*turbulence;
-          vec3 displaced=position+normal*noise*0.05;
-          gl_Position=projectionMatrix*modelViewMatrix*vec4(displaced,1.0);
-        }
-      `,
-      fragmentShader: `
-        precision highp float;
-        varying vec3 vNormal;
-        varying vec3 vPosition;
-        varying vec2 vUv;
-        uniform float time;
-        uniform vec3 starColor;
-        uniform vec3 starColorHot;
-        uniform float temperature;
-        uniform float luminosity;
-        uniform float turbulence;
-        uniform float flareActivity;
-
-        vec3 mod289(vec3 x){return x-floor(x*(1.0/289.0))*289.0;}
-        vec4 mod289(vec4 x){return x-floor(x*(1.0/289.0))*289.0;}
-        vec4 permute(vec4 x){return mod289(((x*34.0)+1.0)*x);}
-        vec4 taylorInvSqrt(vec4 r){return 1.79284291400159-0.85373472095314*r;}
-        float snoise(vec3 v){
-          const vec2 C=vec2(1.0/6.0,1.0/3.0);
-          const vec4 D=vec4(0.0,0.5,1.0,2.0);
-          vec3 i=floor(v+dot(v,C.yyy));
-          vec3 x0=v-i+dot(i,C.xxx);
-          vec3 g=step(x0.yzx,x0.xyz);
-          vec3 l=1.0-g;
-          vec3 i1=min(g.xyz,l.zxy);
-          vec3 i2=max(g.xyz,l.zxy);
-          vec3 x1=x0-i1+C.xxx;
-          vec3 x2=x0-i2+C.yyy;
-          vec3 x3=x0-D.yyy;
-          i=mod289(i);
-          vec4 p=permute(permute(permute(i.z+vec4(0.0,i1.z,i2.z,1.0))+i.y+vec4(0.0,i1.y,i2.y,1.0))+i.x+vec4(0.0,i1.x,i2.x,1.0));
-          float n_=0.142857142857;
-          vec3 ns=n_*D.wyz-D.xzx;
-          vec4 j=p-49.0*floor(p*ns.z*ns.z);
-          vec4 x_=floor(j*ns.z);
-          vec4 y_=floor(j-7.0*x_);
-          vec4 x=x_*ns.x+ns.yyyy;
-          vec4 y=y_*ns.x+ns.yyyy;
-          vec4 h=1.0-abs(x)-abs(y);
-          vec4 b0=vec4(x.xy,y.xy);
-          vec4 b1=vec4(x.zw,y.zw);
-          vec4 s0=floor(b0)*2.0+1.0;
-          vec4 s1=floor(b1)*2.0+1.0;
-          vec4 sh=-step(h,vec4(0.0));
-          vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy;
-          vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;
-          vec3 p0=vec3(a0.xy,h.x);
-          vec3 p1=vec3(a0.zw,h.y);
-          vec3 p2=vec3(a1.xy,h.z);
-          vec3 p3=vec3(a1.zw,h.w);
-          vec4 norm=taylorInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
-          p0*=norm.x;p1*=norm.y;p2*=norm.z;p3*=norm.w;
-          vec4 m=max(0.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.0);
-          m=m*m;
-          return 42.0*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
-        }
-        void main(){
-          vec3 viewDir=normalize(-vPosition);
-          float NdotV=dot(vNormal,viewDir);
-          float n1=snoise(vPosition*4.0+time*0.3)*0.5+0.5;
-          float n2=snoise(vPosition*8.0+time*0.5)*0.5+0.5;
-          float n3=snoise(vPosition*16.0+time*0.8)*0.5+0.5;
-          float granulation=n1*0.5+n2*0.3+n3*0.2;
-          granulation=pow(granulation,1.5)*turbulence;
-          vec3 surfaceColor=mix(starColor,starColorHot,granulation*0.4);
-          float spotNoise=snoise(vPosition*2.0+time*0.1);
-          float spots=smoothstep(0.6,0.8,spotNoise)*0.3;
-          surfaceColor*=(1.0-spots);
-          float limbDarkening=pow(max(NdotV,0.0),0.4);
-          surfaceColor*=limbDarkening;
-          float fresnel=pow(1.0-max(NdotV,0.0),3.0);
-          vec3 coronaColor=starColorHot*1.5;
-          surfaceColor+=coronaColor*fresnel*0.5;
-          if(flareActivity>0.0){
-            float flareNoise=snoise(vPosition*1.5+time*2.0);
-            float flare=smoothstep(0.7,1.0,flareNoise)*flareActivity;
-            surfaceColor+=starColorHot*flare*2.0;
-          }
-          float brightness=0.8+0.2*min(log(luminosity+1.0),5.0);
-          surfaceColor*=brightness;
-          gl_FragColor=vec4(surfaceColor,1.0);
-        }
-      `,
+      vertexShader:   STAR_VERTEX_GLSL,
+      fragmentShader: STAR_FRAGMENT_GLSL,
     });
 
     const mesh = new THREE.Mesh(geometry, material);
     group.add(mesh);
     group.userData.mainMesh = mesh;
     group.userData.material = material;
+    group.userData.bodyType = 'star';
+    group.userData.phaseValueTarget = material.uniforms.phaseValue.value;
 
     // Corona glow (additive sprite)
     const glowGeometry = new THREE.SphereGeometry(1.3, 32, 32);
@@ -1815,297 +1729,127 @@ export default class SceneManager {
   }
 
   /**
-   * Map planet subtype to shader planetType float
+   * Map planet subtype to shader planetType float.  Delegates to the
+   * centralized lookup in celestialShaders.js so all renderers stay in sync.
    */
   _planetTypeIndex(subtype) {
-    const map = {
-      rocky_small: 0, earth_like: 1, super_earth: 1,
-      gas_giant: 2, ice_giant: 3, lava_world: 4,
-      hot_jupiter: 5, rogue_planet: 0,
-    };
-    return map[subtype] ?? 0;
+    return planetTypeIndex(subtype);
   }
 
   /**
-   * Create planet visual with procedural 3D shader (biosphere overlay + rich terrain).
+   * Map a stellar evolution phase string to the continuous shader phaseValue.
+   * Unknown / pre-main-sequence phases fall through to MAIN_SEQUENCE.
+   */
+  _phaseToValue(phase) {
+    return PHASE_VALUES[phase] ?? PHASE_VALUES.main_sequence;
+  }
+
+  /**
+   * Pick reasonable secondary / accent palette colors for a planet body based
+   * on its subtype.  Falls back to HSL-shifted variants of the primary color
+   * for anything unrecognised.
+   */
+  _planetPalette(body) {
+    const base = new THREE.Color(body.color || '#4488cc');
+    let second, accent;
+    switch (body.subtype) {
+      case 'rocky_small':
+      case 'rogue_planet':
+      case 'asteroid':
+      case 'dwarf_planet':
+        second = new THREE.Color('#3c4046');         // slate
+        accent = new THREE.Color('#f3eee5');         // frost / pale lichen
+        break;
+      case 'desert_world':
+        second = new THREE.Color('#6b3a1f');         // rust outcrop
+        accent = new THREE.Color('#f4d99b');         // dust haze
+        break;
+      case 'earth_like':
+      case 'super_earth':
+      case 'ocean_world':
+        second = new THREE.Color('#1f3a6b');         // deep ocean
+        accent = new THREE.Color('#fff0c8');         // warm sunlight
+        break;
+      case 'gas_giant':
+        second = new THREE.Color(body.bandColors?.[1] || '#a8784a');
+        accent = new THREE.Color(body.bandColors?.[2] || '#f4c07a');
+        break;
+      case 'ice_giant':
+        second = new THREE.Color('#7eb6ff');
+        accent = new THREE.Color('#cfe9ff');
+        break;
+      case 'lava_world':
+        second = new THREE.Color('#1a0a06');
+        accent = new THREE.Color('#ffb070');
+        break;
+      case 'hot_jupiter':
+        second = new THREE.Color('#902a14');
+        accent = new THREE.Color('#ffd28a');
+        break;
+      case 'comet':
+        second = new THREE.Color('#5d6f80');
+        accent = new THREE.Color('#cfe6ff');
+        break;
+      default:
+        second = body.bandColors
+          ? new THREE.Color(body.bandColors[1] || body.color)
+          : base.clone().offsetHSL(0.05, -0.10, 0.10);
+        accent = base.clone().offsetHSL(-0.04, 0.10, 0.20);
+    }
+    return { base, second, accent };
+  }
+
+  /**
+   * Create planet visual with rich procedural shader.  See celestialShaders.js
+   * for the per-type painting routines.  This function focuses on assembling
+   * the three.js material/mesh and the auxiliary atmosphere / ring / locator
+   * meshes that surround it.
    */
   createPlanetMesh(body, group) {
-    const geometry = new THREE.SphereGeometry(1, 64, 64);
-    const baseColor = new THREE.Color(body.color || '#4488cc');
-    const secondColor = body.bandColors
-      ? new THREE.Color(body.bandColors[1] || body.color)
-      : baseColor.clone().offsetHSL(0.05, -0.1, 0.1);
+    const geometry = new THREE.SphereGeometry(1, 96, 96);
+    const { base: baseColor, second: secondColor, accent: accentColor } = this._planetPalette(body);
 
     const planetType = this._planetTypeIndex(body.subtype);
+
+    // Solid surfaces (rocky / earth / desert / icy / lava) get displacement;
+    // gas / hot-jupiter / ice giant remain perfectly spherical.
+    const SOLID_TYPES = new Set([0, 1, 4, 6, 7]);
+    const displaceAmount = SOLID_TYPES.has(planetType)
+      ? (planetType === 4 ? 0.012 : 0.025)
+      : 0.0;
 
     // Biosphere overlay DataTexture (32 lon × 16 lat, RGBA float)
     const bioData = new Float32Array(32 * 16 * 4);
     const bioTex = new THREE.DataTexture(bioData, 32, 16, THREE.RGBAFormat, THREE.FloatType);
     bioTex.needsUpdate = true;
 
+    // Roughness / weathering hints driven by body properties so the same shader
+    // gives perceptibly different results for similar planets.
+    const cold = (body.temperature ?? 288) < 230;
+    const weathering = body.subtype === 'rocky_small' || body.subtype === 'desert_world'
+      ? 0.55
+      : (cold ? 0.85 : 0.30);
+
     const material = new THREE.ShaderMaterial({
       uniforms: {
         time:             { value: 0 },
         baseColor:        { value: baseColor },
         secondColor:      { value: secondColor },
+        accentColor:      { value: accentColor },
         planetType:       { value: planetType },
         seed:             { value: body.surfaceSeed != null ? (body.surfaceSeed % 100) + Math.random() * 0.01 : Math.random() * 100 },
+        displaceAmount:   { value: displaceAmount },
         lightDir:         { value: new THREE.Vector3(1, 0.5, 0.5).normalize() },
         waterCoverage:    { value: body.waterCoverage ?? (body.hasWater ? 0.6 : 0.05) },
+        iceCoverage:      { value: cold ? 0.7 : 0.1 },
+        roughness:        { value: 0.55 },
+        weathering:       { value: weathering },
         biosphereMap:     { value: bioTex },
         biosphereOpacity: { value: 0.0 },
+        oceanGlow:        { value: (body.subtype === 'earth_like' || body.subtype === 'ocean_world') ? 1.0 : 0.0 },
       },
-      vertexShader: /* glsl */`
-        varying vec3 vNormal;
-        varying vec3 vPosition;
-        varying vec3 vWorldNormal;
-        varying vec2 vUv;
-
-        vec3 mod289(vec3 x){return x-floor(x*(1.0/289.0))*289.0;}
-        vec4 mod289(vec4 x){return x-floor(x*(1.0/289.0))*289.0;}
-        vec4 permute(vec4 x){return mod289(((x*34.0)+1.0)*x);}
-        vec4 taylorInvSqrt(vec4 r){return 1.79284291400159-0.85373472095314*r;}
-        float snoise(vec3 v){
-          const vec2 C=vec2(1.0/6.0,1.0/3.0);const vec4 D=vec4(0.0,0.5,1.0,2.0);
-          vec3 i=floor(v+dot(v,C.yyy));vec3 x0=v-i+dot(i,C.xxx);
-          vec3 g=step(x0.yzx,x0.xyz);vec3 l=1.0-g;
-          vec3 i1=min(g.xyz,l.zxy);vec3 i2=max(g.xyz,l.zxy);
-          vec3 x1=x0-i1+C.xxx;vec3 x2=x0-i2+C.yyy;vec3 x3=x0-D.yyy;
-          i=mod289(i);
-          vec4 p=permute(permute(permute(i.z+vec4(0.0,i1.z,i2.z,1.0))+i.y+vec4(0.0,i1.y,i2.y,1.0))+i.x+vec4(0.0,i1.x,i2.x,1.0));
-          float n_=0.142857142857;vec3 ns=n_*D.wyz-D.xzx;
-          vec4 j=p-49.0*floor(p*ns.z*ns.z);vec4 x_=floor(j*ns.z);vec4 y_=floor(j-7.0*x_);
-          vec4 x=x_*ns.x+ns.yyyy;vec4 y=y_*ns.x+ns.yyyy;vec4 h=1.0-abs(x)-abs(y);
-          vec4 b0=vec4(x.xy,y.xy);vec4 b1=vec4(x.zw,y.zw);
-          vec4 s0=floor(b0)*2.0+1.0;vec4 s1=floor(b1)*2.0+1.0;vec4 sh=-step(h,vec4(0.0));
-          vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy;vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;
-          vec3 p0=vec3(a0.xy,h.x);vec3 p1=vec3(a0.zw,h.y);vec3 p2=vec3(a1.xy,h.z);vec3 p3=vec3(a1.zw,h.w);
-          vec4 norm=taylorInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
-          p0*=norm.x;p1*=norm.y;p2*=norm.z;p3*=norm.w;
-          vec4 m=max(0.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.0);m=m*m;
-          return 42.0*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
-        }
-
-        uniform float planetType;
-        uniform float seed;
-
-        void main(){
-          vUv = uv;
-          vNormal = normalize(normalMatrix * normal);
-          vWorldNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
-          vPosition = position;
-
-          vec3 displaced = position;
-          if (planetType < 0.5 || (planetType > 0.5 && planetType < 1.5) || (planetType > 3.5 && planetType < 4.5)) {
-            float n = snoise(position * 6.0 + seed) * 0.015;
-            displaced = position + normal * n;
-          }
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
-        }
-      `,
-      fragmentShader: /* glsl */`
-        precision highp float;
-        varying vec3 vNormal;
-        varying vec3 vPosition;
-        varying vec3 vWorldNormal;
-        varying vec2 vUv;
-
-        uniform float time;
-        uniform vec3 baseColor;
-        uniform vec3 secondColor;
-        uniform float planetType;
-        uniform float seed;
-        uniform vec3 lightDir;
-        uniform float waterCoverage;
-        uniform sampler2D biosphereMap;
-        uniform float biosphereOpacity;
-
-        vec3 mod289(vec3 x){return x-floor(x*(1.0/289.0))*289.0;}
-        vec4 mod289(vec4 x){return x-floor(x*(1.0/289.0))*289.0;}
-        vec4 permute(vec4 x){return mod289(((x*34.0)+1.0)*x);}
-        vec4 taylorInvSqrt(vec4 r){return 1.79284291400159-0.85373472095314*r;}
-        float snoise(vec3 v){
-          const vec2 C=vec2(1.0/6.0,1.0/3.0);const vec4 D=vec4(0.0,0.5,1.0,2.0);
-          vec3 i=floor(v+dot(v,C.yyy));vec3 x0=v-i+dot(i,C.xxx);
-          vec3 g=step(x0.yzx,x0.xyz);vec3 l=1.0-g;
-          vec3 i1=min(g.xyz,l.zxy);vec3 i2=max(g.xyz,l.zxy);
-          vec3 x1=x0-i1+C.xxx;vec3 x2=x0-i2+C.yyy;vec3 x3=x0-D.yyy;
-          i=mod289(i);
-          vec4 p=permute(permute(permute(i.z+vec4(0.0,i1.z,i2.z,1.0))+i.y+vec4(0.0,i1.y,i2.y,1.0))+i.x+vec4(0.0,i1.x,i2.x,1.0));
-          float n_=0.142857142857;vec3 ns=n_*D.wyz-D.xzx;
-          vec4 j=p-49.0*floor(p*ns.z*ns.z);vec4 x_=floor(j*ns.z);vec4 y_=floor(j-7.0*x_);
-          vec4 x=x_*ns.x+ns.yyyy;vec4 y=y_*ns.x+ns.yyyy;vec4 h=1.0-abs(x)-abs(y);
-          vec4 b0=vec4(x.xy,y.xy);vec4 b1=vec4(x.zw,y.zw);
-          vec4 s0=floor(b0)*2.0+1.0;vec4 s1=floor(b1)*2.0+1.0;vec4 sh=-step(h,vec4(0.0));
-          vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy;vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;
-          vec3 p0=vec3(a0.xy,h.x);vec3 p1=vec3(a0.zw,h.y);vec3 p2=vec3(a1.xy,h.z);vec3 p3=vec3(a1.zw,h.w);
-          vec4 norm=taylorInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
-          p0*=norm.x;p1*=norm.y;p2*=norm.z;p3*=norm.w;
-          vec4 m=max(0.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.0);m=m*m;
-          return 42.0*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
-        }
-
-        // FBM helper (2 octaves)
-        float fbm2(vec3 p) {
-          return snoise(p) * 0.65 + snoise(p * 2.1 + 1.7) * 0.35;
-        }
-
-        // Hue to RGB (GLSL)
-        vec3 hue2rgb(float h) {
-          float hh = fract(h) * 6.0;
-          vec3 c;
-          c.r = abs(hh - 3.0) - 1.0;
-          c.g = 2.0 - abs(hh - 2.0);
-          c.b = 2.0 - abs(hh - 4.0);
-          return clamp(c, 0.0, 1.0);
-        }
-
-        void main(){
-          vec3 viewDir = normalize(-vPosition);
-          float NdotV = max(dot(vNormal, viewDir), 0.0);
-          float NdotL = max(dot(vWorldNormal, lightDir), 0.0);
-          vec3 P = vPosition + seed;
-          vec3 color;
-
-          if (planetType < 0.5) {
-            // Rocky world
-            float terrain = snoise(P * 4.0) * 0.5 + 0.5;
-            float detail  = snoise(P * 12.0) * 0.3;
-            float craters = smoothstep(0.65, 0.72, snoise(P * 9.0)) * 0.4;
-            color = mix(baseColor * 0.6, baseColor * 1.3, terrain + detail);
-            color -= vec3(craters);
-            color = max(color, vec3(0.02));
-
-          } else if (planetType < 1.5) {
-            // Earth-like: richer biome terrain driven by waterCoverage
-            float continent = fbm2(P * 3.0);
-            float detail    = snoise(P * 9.0) * 0.12;
-            float landBias  = mix(0.38, -0.32, waterCoverage);
-            float landMask  = smoothstep(landBias - 0.10, landBias + 0.10, continent + detail);
-
-            // Depth-graded ocean: shallow shelf lighter, deep darker
-            float shelfNoise = snoise(P * 5.5) * 0.5 + 0.5;
-            float shelfMask  = smoothstep(landBias - 0.28, landBias - 0.05, continent + detail);
-            vec3 deepOcean    = vec3(0.03, 0.09, 0.42);
-            vec3 shallowOcean = vec3(0.09, 0.28, 0.62);
-            vec3 ocean = mix(deepOcean, shallowOcean, shelfMask * (0.5 + shelfNoise * 0.5));
-
-            // Biome zones: equatorial forest, mid-lat grass/savanna, high-lat tundra
-            float absLat = abs(vPosition.y);
-            float forestMask  = smoothstep(0.35, 0.15, absLat) * smoothstep(0.0, 0.25, landMask);
-            float savannaMask = smoothstep(0.55, 0.35, absLat) * (1.0 - forestMask);
-            float tundraMask  = smoothstep(0.52, 0.68, absLat);
-            vec3 forestColor  = mix(vec3(0.12, 0.38, 0.10), vec3(0.20, 0.48, 0.16), snoise(P * 8.0) * 0.5 + 0.5);
-            vec3 savannaColor = mix(vec3(0.48, 0.44, 0.18), vec3(0.60, 0.52, 0.22), snoise(P * 6.0) * 0.5 + 0.5);
-            vec3 desertColor  = vec3(0.72, 0.60, 0.30);
-            float desertMask  = smoothstep(0.25, 0.50, continent + detail) * smoothstep(0.0, 0.3, landMask);
-            vec3 landColor    = forestColor;
-            landColor = mix(landColor, savannaColor, savannaMask * 0.7);
-            landColor = mix(landColor, desertColor,  desertMask * 0.5);
-            landColor = mix(landColor, vec3(0.55, 0.52, 0.44), tundraMask * 0.55);
-
-            color = mix(ocean, landColor, landMask);
-
-            // Polar ice caps
-            float polar = abs(vPosition.y);
-            float ice = smoothstep(0.62, 0.82, polar);
-            color = mix(color, vec3(0.92, 0.96, 1.0), ice);
-
-            // Cloud layer (two noise layers for patchiness)
-            float cloud1 = smoothstep(0.18, 0.52, snoise(P * 4.5 + time * 0.015));
-            float cloud2 = smoothstep(0.22, 0.60, snoise(P * 6.0 - time * 0.009));
-            float clouds = max(cloud1, cloud2 * 0.6) * (1.0 - ice * 0.7);
-            color = mix(color, vec3(1.0), clouds * 0.40);
-
-            // Ocean specular
-            float spec = pow(max(dot(reflect(-lightDir, vWorldNormal), viewDir), 0.0), 40.0);
-            color += vec3(0.35, 0.45, 0.65) * spec * (1.0 - landMask) * (1.0 - clouds) * 0.4;
-
-          } else if (planetType < 2.5) {
-            // Gas giant
-            float lat = vPosition.y;
-            float warp = snoise(P * 2.5 + time * 0.008) * 0.6;
-            float band = sin(lat * 14.0 + warp) * 0.5 + 0.5;
-            float turb = snoise(P * 5.0 + vec3(0, time * 0.01, 0)) * 0.25;
-            color = mix(baseColor, secondColor, clamp(band + turb, 0.0, 1.0));
-            float spot = length(vPosition.xz - vec2(0.4, 0.3));
-            float spotMask = smoothstep(0.25, 0.15, spot);
-            vec3 spotColor = baseColor * 1.4 + vec3(0.15, 0.05, 0.0);
-            color = mix(color, spotColor, spotMask * 0.6);
-            float fine = snoise(P * 12.0 + time * 0.02) * 0.08;
-            color += fine;
-
-          } else if (planetType < 3.5) {
-            // Ice giant
-            float lat = vPosition.y;
-            float warp = snoise(P * 2.0) * 0.3;
-            float band = sin(lat * 8.0 + warp) * 0.5 + 0.5;
-            color = mix(baseColor, secondColor, band * 0.4 + 0.3);
-            float wisps = snoise(P * 7.0 + time * 0.005) * 0.1;
-            color += wisps;
-
-          } else if (planetType < 4.5) {
-            // Lava world
-            float cracks = snoise(P * 6.0);
-            float ridge  = 1.0 - abs(cracks);
-            float glow   = pow(ridge, 4.0);
-            float fineGlow = pow(1.0 - abs(snoise(P * 14.0)), 6.0) * 0.5;
-            vec3 crust = vec3(0.08, 0.04, 0.02);
-            vec3 magma = vec3(1.0, 0.35, 0.0);
-            vec3 hotMagma = vec3(1.2, 0.7, 0.1);
-            color = mix(crust, magma, glow * 0.8);
-            color += hotMagma * fineGlow;
-
-          } else {
-            // Hot Jupiter
-            float lat = vPosition.y;
-            float warp = snoise(P * 3.0 + time * 0.02) * 1.2;
-            float band = sin(lat * 10.0 + warp) * 0.5 + 0.5;
-            color = mix(vec3(0.7, 0.2, 0.05), vec3(1.0, 0.55, 0.15), band);
-            float turb = snoise(P * 8.0 + time * 0.03) * 0.15;
-            color += turb;
-          }
-
-          // ── Biosphere overlay (applies to all rocky/earth-like worlds) ──────────
-          if (biosphereOpacity > 0.01 && planetType < 1.5) {
-            vec4 bio = texture2D(biosphereMap, vUv);
-            if (bio.a > 0.04) {
-              // Decode species hue into a vibrant tint
-              float hueAngle = bio.r * 6.28318530718;
-              vec3 speciesRgb = hue2rgb(bio.r);
-              // Desaturate toward terrain at low biomass; full tint at high biomass
-              vec3 bioTint = mix(color, speciesRgb * 0.78, bio.g * bio.a * biosphereOpacity * 0.50);
-              color = bioTint;
-              // Civilization influence: warm gold-orange overlay
-              if (bio.b > 0.05) {
-                vec3 civGold = vec3(1.0, 0.80, 0.22);
-                color = mix(color, civGold, bio.b * biosphereOpacity * 0.38);
-              }
-            }
-          }
-
-          // Diffuse lighting
-          float diffuse = NdotL * 0.6 + 0.4;
-          color *= diffuse;
-
-          // Limb darkening
-          float limbDark = pow(NdotV, 0.5);
-          color *= limbDark * 0.6 + 0.4;
-
-          // Fresnel rim
-          float fresnel = pow(1.0 - NdotV, 3.5);
-          color += vec3(0.15, 0.2, 0.35) * fresnel * 0.15;
-
-          // Lava emissive
-          if (planetType > 3.5 && planetType < 4.5) {
-            float cracks2 = snoise(P * 6.0);
-            float emissive = pow(1.0 - abs(cracks2), 4.0);
-            color += vec3(0.6, 0.15, 0.0) * emissive * (1.0 - limbDark);
-          }
-
-          gl_FragColor = vec4(color, 1.0);
-        }
-      `,
+      vertexShader:   PLANET_VERTEX_GLSL,
+      fragmentShader: PLANET_FRAGMENT_GLSL,
     });
 
     const mesh = new THREE.Mesh(geometry, material);
@@ -2113,83 +1857,48 @@ export default class SceneManager {
     group.userData.mainMesh = mesh;
     group.userData.material = material;
     group.userData.isPlanetShader = true;
+    group.userData.bodyType = 'planet';
     group.userData._bioData = bioData;
     group.userData._bioTex  = bioTex;
 
-    // Atmosphere glow: two-shell (thick outer + thin inner haze)
+    // Atmosphere glow: two-shell (outer Fresnel rim + inner haze).  Both shells
+    // use the shared celestialShaders atmosphere program.
     if (body.hasAtmosphere) {
       const atmoColor  = new THREE.Color(body.atmosphereColor || '#88aaff');
-      const atmoOpacity = Math.min(body.atmospherePressure * 0.10, 0.55);
+      const skyColor   = atmoColor.clone().offsetHSL(0.02, -0.20, 0.10);
+      const atmoOpacity = Math.min((body.atmospherePressure ?? 1.0) * 0.10, 0.55);
 
-      // Outer Fresnel shell
-      const atmoGeom = new THREE.SphereGeometry(1.08, 32, 32);
+      const atmoGeom = new THREE.SphereGeometry(1.10, 32, 32);
       const atmoMat = new THREE.ShaderMaterial({
         uniforms: {
-          atmoColor: { value: atmoColor },
-          opacity:   { value: atmoOpacity },
+          atmoColor:    { value: atmoColor },
+          atmoSkyColor: { value: skyColor },
+          opacity:      { value: atmoOpacity },
+          power:        { value: 2.2 },
         },
-        vertexShader: /* glsl */`
-          varying vec3 vNormal;
-          varying vec3 vPosition;
-          void main() {
-            vNormal = normalize(normalMatrix * normal);
-            vPosition = (modelViewMatrix * vec4(position, 1.0)).xyz;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-          }
-        `,
-        fragmentShader: /* glsl */`
-          precision highp float;
-          varying vec3 vNormal;
-          varying vec3 vPosition;
-          uniform vec3 atmoColor;
-          uniform float opacity;
-          void main() {
-            vec3 viewDir = normalize(-vPosition);
-            float rim = 1.0 - max(dot(vNormal, viewDir), 0.0);
-            float glow = pow(rim, 2.2);
-            gl_FragColor = vec4(atmoColor, glow * opacity);
-          }
-        `,
-        transparent: true,
-        side: THREE.BackSide,
-        depthWrite: false,
+        vertexShader:   ATMOSPHERE_VERTEX_GLSL,
+        fragmentShader: ATMOSPHERE_FRAGMENT_GLSL,
+        transparent:  true,
+        side:         THREE.BackSide,
+        depthWrite:   false,
       });
       const atmosphere = new THREE.Mesh(atmoGeom, atmoMat);
       group.add(atmosphere);
       group.userData.atmosphere = atmosphere;
 
-      // Inner haze shell (slightly inside, gentler falloff for bulk color)
-      const hazeGeom = new THREE.SphereGeometry(1.025, 32, 32);
+      const hazeGeom = new THREE.SphereGeometry(1.03, 32, 32);
       const hazeMat = new THREE.ShaderMaterial({
         uniforms: {
-          atmoColor: { value: atmoColor.clone() },
-          opacity:   { value: Math.min(atmoOpacity * 0.45, 0.18) },
+          atmoColor:    { value: atmoColor.clone().multiplyScalar(1.15) },
+          atmoSkyColor: { value: skyColor },
+          opacity:      { value: Math.min(atmoOpacity * 0.5, 0.20) },
+          power:        { value: 1.4 },
         },
-        vertexShader: /* glsl */`
-          varying vec3 vNormal;
-          varying vec3 vPosition;
-          void main() {
-            vNormal = normalize(normalMatrix * normal);
-            vPosition = (modelViewMatrix * vec4(position, 1.0)).xyz;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-          }
-        `,
-        fragmentShader: /* glsl */`
-          precision highp float;
-          varying vec3 vNormal;
-          varying vec3 vPosition;
-          uniform vec3 atmoColor;
-          uniform float opacity;
-          void main() {
-            vec3 viewDir = normalize(-vPosition);
-            float rim = 1.0 - max(dot(vNormal, viewDir), 0.0);
-            float haze = pow(rim, 1.4);
-            gl_FragColor = vec4(atmoColor * 1.15, haze * opacity);
-          }
-        `,
-        transparent: true,
-        side: THREE.BackSide,
-        depthWrite: false,
+        vertexShader:   ATMOSPHERE_VERTEX_GLSL,
+        fragmentShader: ATMOSPHERE_FRAGMENT_GLSL,
+        transparent:  true,
+        side:         THREE.BackSide,
+        depthWrite:   false,
       });
       const hazeShell = new THREE.Mesh(hazeGeom, hazeMat);
       group.add(hazeShell);
@@ -2281,6 +1990,7 @@ export default class SceneManager {
     const eventHorizon = new THREE.Mesh(ehGeom, ehMat);
     group.add(eventHorizon);
     group.userData.mainMesh = eventHorizon;
+    group.userData.bodyType = 'black_hole';
 
     // Photon sphere ring
     const photonGeom = new THREE.TorusGeometry(1.5, 0.02, 16, 100);
@@ -2382,6 +2092,7 @@ export default class SceneManager {
    * Create a default mesh for unknown body types
    */
   createDefaultMesh(body, group) {
+    group.userData.bodyType = body.type || 'unknown';
     const geometry = new THREE.SphereGeometry(1, 16, 16);
     const material = new THREE.MeshStandardMaterial({
       color: 0x888888,
@@ -2391,6 +2102,253 @@ export default class SceneManager {
     group.add(mesh);
     group.userData.mainMesh = mesh;
     return group;
+  }
+
+  // ── Stellar evolution VFX ────────────────────────────────────────────────
+
+  /**
+   * Dispose of an entire body group (geometries, materials, textures) so we
+   * can rebuild it cleanly when a body's type changes (e.g. star → black hole).
+   */
+  _disposeBodyGroup(group) {
+    if (!group) return;
+    group.traverse((obj) => {
+      if (obj.geometry) obj.geometry.dispose?.();
+      if (obj.material) {
+        const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+        for (const m of mats) {
+          if (m.map) m.map.dispose?.();
+          m.dispose?.();
+        }
+      }
+    });
+  }
+
+  /**
+   * Tear down the existing mesh for a body and rebuild it from scratch.  Used
+   * when a celestial body changes type at runtime (e.g. supernova collapses a
+   * star into a black hole).  Preserves selection and visual scale state.
+   */
+  _rebuildBodyMesh(body) {
+    const old = this.bodyMeshes.get(body.id);
+    if (old) {
+      const wasSelected = old.userData.selectionRing?.visible || false;
+      this.scene.remove(old);
+      this._disposeBodyGroup(old);
+      this.bodyMeshes.delete(body.id);
+      const fresh = this.createBodyMesh(body);
+      fresh.position.copy(body.position);
+      this.bodyMeshes.set(body.id, fresh);
+      this.scene.add(fresh);
+      if (fresh.userData.selectionRing) fresh.userData.selectionRing.visible = wasSelected;
+    }
+  }
+
+  /**
+   * Called by the simulation engine when a star transitions to a new
+   * evolutionary phase.  Triggers a smooth visual blend overlay and, if the
+   * body's type is changing (collapse to neutron star or black hole), spawns
+   * a brief implosion + flash animation before the mesh is rebuilt.
+   *
+   * @param {object} body - The body that just changed phase.
+   * @param {string} newPhase - The new phase identifier (matches PHASE_VALUES).
+   */
+  handlePhaseChange(body, newPhase) {
+    if (!body) return;
+    const group = this.bodyMeshes.get(body.id);
+    if (!group) return;
+
+    // Always run a 4-second phase-blend overlay so the transition reads
+    // visually even when the underlying physics changes were already smooth.
+    group.userData.phaseBlendDuration = 4.0;
+    group.userData.phaseBlendTimeLeft = 4.0;
+
+    // For collapse phases, spawn a short pre-collapse flash + shockwave.
+    const dramatic = newPhase === 'neutron_star'
+                  || newPhase === 'black_hole'
+                  || newPhase === 'white_dwarf';
+    if (dramatic) {
+      const visualScale = this.getVisualScale(body);
+      this._spawnTransitionFlash(group.position.clone(), visualScale, newPhase);
+    }
+
+    // For body-type changes the mesh-type drift detector in updateBodyVisual
+    // will rebuild the mesh on the next frame; nothing to do here.
+  }
+
+  /**
+   * Called by the simulation engine when a VFX event fires (supernova,
+   * shockwave, collision burst, …).  Dispatches to per-type renderers.
+   */
+  handleVfxEvent(event) {
+    if (!event || !event.type) return;
+    if (event.type === 'supernova_explosion') {
+      const pos = event.position
+        ? new THREE.Vector3(event.position.x ?? 0, event.position.y ?? 0, event.position.z ?? 0)
+        : null;
+      this._spawnSupernova(pos, event);
+    }
+  }
+
+  /**
+   * Spawn a short-lived expanding shell + bright flash sprite for a stellar
+   * transition collapse (white dwarf, neutron star, or pre-supernova
+   * implosion).  The mesh self-disposes once the animation completes.
+   */
+  _spawnTransitionFlash(position, baseScale, kind) {
+    const color = kind === 'neutron_star' ? 0xeaf3ff
+                : kind === 'black_hole'   ? 0xffd2a0
+                : 0xfff2c0;
+    const geom = new THREE.SphereGeometry(1, 32, 32);
+    const mat  = new THREE.MeshBasicMaterial({
+      color,
+      transparent:  true,
+      opacity:      0.85,
+      depthWrite:   false,
+      blending:     THREE.AdditiveBlending,
+      side:         THREE.BackSide,
+    });
+    const flash = new THREE.Mesh(geom, mat);
+    if (position) flash.position.copy(position);
+    flash.scale.setScalar(Math.max(baseScale, 0.05));
+    flash.renderOrder = 920;
+    this.scene.add(flash);
+
+    if (!this._activeVfx) this._activeVfx = [];
+    this._activeVfx.push({
+      kind: 'transitionFlash',
+      mesh: flash,
+      mat,
+      startScale: flash.scale.x,
+      endScale:   flash.scale.x * 4.5,
+      duration:   2.4,
+      elapsed:    0,
+    });
+  }
+
+  /**
+   * Spawn a full supernova: a brilliant central flash, expanding shockwave
+   * shell, and a slow-fading nebula remnant.  Animations run in updateVfx().
+   */
+  _spawnSupernova(position, event) {
+    if (!position) return;
+
+    // Bright additive core flash
+    const coreGeom = new THREE.SphereGeometry(1, 32, 32);
+    const coreMat  = new THREE.MeshBasicMaterial({
+      color:        0xfff4d0,
+      transparent:  true,
+      opacity:      1.0,
+      depthWrite:   false,
+      blending:     THREE.AdditiveBlending,
+    });
+    const core = new THREE.Mesh(coreGeom, coreMat);
+    core.position.copy(position);
+    core.scale.setScalar(0.05);
+    core.renderOrder = 930;
+    this.scene.add(core);
+
+    // Expanding shockwave shell (Fresnel-ish via BackSide additive sphere)
+    const shellGeom = new THREE.SphereGeometry(1, 48, 48);
+    const shellMat  = new THREE.MeshBasicMaterial({
+      color:        0xff9e55,
+      transparent:  true,
+      opacity:      0.85,
+      depthWrite:   false,
+      blending:     THREE.AdditiveBlending,
+      side:         THREE.BackSide,
+    });
+    const shell = new THREE.Mesh(shellGeom, shellMat);
+    shell.position.copy(position);
+    shell.scale.setScalar(0.05);
+    shell.renderOrder = 928;
+    this.scene.add(shell);
+
+    // Soft nebula remnant
+    const remGeom = new THREE.SphereGeometry(1, 24, 24);
+    const remMat  = new THREE.MeshBasicMaterial({
+      color:        0x8d5cff,
+      transparent:  true,
+      opacity:      0.20,
+      depthWrite:   false,
+      blending:     THREE.AdditiveBlending,
+      side:         THREE.BackSide,
+    });
+    const remnant = new THREE.Mesh(remGeom, remMat);
+    remnant.position.copy(position);
+    remnant.scale.setScalar(0.5);
+    remnant.renderOrder = 925;
+    this.scene.add(remnant);
+
+    if (!this._activeVfx) this._activeVfx = [];
+    this._activeVfx.push({
+      kind:        'supernovaCore',
+      mesh:        core,
+      mat:         coreMat,
+      startScale:  0.05,
+      endScale:    1.4,
+      duration:    1.2,
+      elapsed:     0,
+    });
+    this._activeVfx.push({
+      kind:        'supernovaShell',
+      mesh:        shell,
+      mat:         shellMat,
+      startScale:  0.05,
+      endScale:    Math.max(8.0, (event?.shockwaveRadius ?? 80) * 0.05),
+      duration:    Math.max(4.0, event?.duration ?? 8.0),
+      elapsed:     0,
+    });
+    this._activeVfx.push({
+      kind:        'supernovaRemnant',
+      mesh:        remnant,
+      mat:         remMat,
+      startScale:  0.5,
+      endScale:    Math.max(6.0, (event?.shockwaveRadius ?? 80) * 0.04),
+      duration:    Math.max(8.0, (event?.duration ?? 8.0) * 1.5),
+      elapsed:     0,
+    });
+  }
+
+  /**
+   * Tick all active stellar/transition VFX.  Called once per render frame.
+   */
+  _updateVfx(dt) {
+    if (!this._activeVfx || this._activeVfx.length === 0) return;
+    const remaining = [];
+    for (const fx of this._activeVfx) {
+      fx.elapsed += dt;
+      const t = Math.min(1.0, fx.elapsed / fx.duration);
+      const ease = 1 - Math.pow(1 - t, 2);
+      const scale = fx.startScale + (fx.endScale - fx.startScale) * ease;
+      fx.mesh.scale.setScalar(scale);
+
+      switch (fx.kind) {
+        case 'transitionFlash':
+          fx.mat.opacity = (1 - t) * 0.85;
+          break;
+        case 'supernovaCore':
+          fx.mat.opacity = Math.max(0, 1 - t * 1.4);
+          break;
+        case 'supernovaShell':
+          fx.mat.opacity = (1 - t) * 0.85;
+          break;
+        case 'supernovaRemnant':
+          fx.mat.opacity = (1 - t) * 0.20;
+          break;
+        default:
+          fx.mat.opacity = (1 - t) * 0.6;
+      }
+
+      if (t < 1.0) {
+        remaining.push(fx);
+      } else {
+        this.scene.remove(fx.mesh);
+        fx.mesh.geometry.dispose?.();
+        fx.mat.dispose?.();
+      }
+    }
+    this._activeVfx = remaining;
   }
 
   /**
@@ -3012,6 +2970,11 @@ export default class SceneManager {
     this.elapsedTime = this.clock.getElapsedTime();
     const frameDelta = Math.min(0.1, Math.max(0, this.clock.getDelta()));
     this._frameDelta = frameDelta; // make available to updateBodyVisual
+
+    // Tick stellar evolution VFX (supernova flashes, transition shells, …).
+    // Runs in every view level so explosions remain visible during a quick
+    // pan to universe view.
+    this._updateVfx(frameDelta);
 
     // Universe view: render clusters (but still keep body positions updated for smooth transitions)
     if (this._viewLevel === VIEW_LEVEL.UNIVERSE) {

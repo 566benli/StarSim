@@ -210,6 +210,17 @@ const App = () => {
       addEvent(event);
     };
 
+    // Forward stellar VFX (supernova flashes, shockwaves) and phase-change
+    // events to the renderer so it can play smooth visual transitions.
+    engine.onVfxEvent = (vfx) => {
+      try { sceneRef.current?.handleVfxEvent?.(vfx); }
+      catch (err) { console.warn('[GenesisError] VFX dispatch failed:', err); }
+    };
+    engine.onPhaseChange = (body, newPhase) => {
+      try { sceneRef.current?.handlePhaseChange?.(body, newPhase); }
+      catch (err) { console.warn('[GenesisError] phase-change dispatch failed:', err); }
+    };
+
     engine._boundaryHandler = (body, info) => {
       engine.markBodyEscaped(body, {
         systemId: body.systemId,
