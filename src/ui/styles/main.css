@@ -990,6 +990,59 @@ html, body, #root {
   display: block;
   border: 1px solid rgba(80, 110, 200, 0.25);
 }
+.body-surface-globe {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-height: 360px;
+  border-radius: 10px;
+  background:
+    radial-gradient(ellipse at 50% 35%, rgba(60, 90, 180, 0.10), rgba(2, 4, 18, 0.85) 75%),
+    #03061a;
+  border: 1px solid rgba(80, 110, 200, 0.28);
+  cursor: grab;
+  position: relative;
+  overflow: hidden;
+}
+.body-surface-globe:active {
+  cursor: grabbing;
+}
+.body-surface-globe canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+.body-surface-toolbar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.body-surface-mini {
+  border: 1px solid rgba(120, 140, 220, 0.35);
+  background: rgba(50, 70, 130, 0.30);
+  color: #ccd8ff;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.body-surface-mini.on {
+  background: rgba(80, 130, 255, 0.45);
+  border-color: rgba(140, 180, 255, 0.55);
+}
+.body-surface-mini:hover {
+  background: rgba(100, 140, 220, 0.45);
+}
+.body-surface-kind {
+  font-weight: 400;
+  font-size: 13px;
+  color: #8ea0d0;
+  margin-left: 4px;
+}
 .body-surface-hint {
   font-size: 11px;
   color: #5a6488;
