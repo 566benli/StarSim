@@ -112,11 +112,13 @@ export default class SceneManager {
     );
     this.composer.addPass(this.bloomPass);
 
-    // Starfield background
-    this.createStarfield();
-
-    // Grid helper (subtle)
-    this.createGridPlane();
+    // Background meshes (procedural starfield + orbital-plane grid helper) are
+    // intentionally NOT created here.  Per the latest art direction the scene
+    // should show only the planets, stars, and their immediate VFX against a
+    // clean dark backdrop — no 10k-point dust field, no axis grid.  The grid
+    // helper was already force-hidden in `_updateViewVisibility`; we now also
+    // skip the starfield so nothing competes with the celestial bodies for
+    // attention or bloom.
 
     // Raycaster for picking
     this.raycaster = new THREE.Raycaster();
@@ -1630,7 +1632,10 @@ export default class SceneManager {
    * `phaseBlend` from 1 → 0 to overlay a brief warm flash on the surface.
    */
   createStarMesh(body, group) {
-    const geometry = new THREE.SphereGeometry(1, 64, 64);
+    // High-resolution star photosphere: 128×128 segments keeps the silhouette
+    // perfectly round even at maximum zoom-in, where the previous 64×64 sphere
+    // showed visible polygon facets along the limb.
+    const geometry = new THREE.SphereGeometry(1, 128, 128);
     const color = temperatureToColor(body.temperature);
     const hotColor = temperatureToColor(body.temperature * 1.3);
 
@@ -1657,8 +1662,9 @@ export default class SceneManager {
     group.userData.bodyType = 'star';
     group.userData.phaseValueTarget = material.uniforms.phaseValue.value;
 
-    // Corona glow (additive sprite)
-    const glowGeometry = new THREE.SphereGeometry(1.3, 32, 32);
+    // Corona glow (additive sprite) — 64×64 keeps the back-side fresnel halo
+    // smooth when the camera moves close to a star.
+    const glowGeometry = new THREE.SphereGeometry(1.3, 64, 64);
     const glowMaterial = new THREE.MeshBasicMaterial({
       color: temperatureToColor(body.temperature),
       transparent: true,
@@ -1806,7 +1812,11 @@ export default class SceneManager {
    * meshes that surround it.
    */
   createPlanetMesh(body, group) {
-    const geometry = new THREE.SphereGeometry(1, 96, 96);
+    // High-resolution planet body: 128×128 segments give a perfectly smooth
+    // limb at any zoom and provide enough vertices for the displacement-based
+    // terrain (rocky/earth/desert/lava/icy types) to read as continuous
+    // landforms rather than faceted polygons.
+    const geometry = new THREE.SphereGeometry(1, 128, 128);
     const { base: baseColor, second: secondColor, accent: accentColor } = this._planetPalette(body);
 
     const planetType = this._planetTypeIndex(body.subtype);
@@ -1868,7 +1878,7 @@ export default class SceneManager {
       const skyColor   = atmoColor.clone().offsetHSL(0.02, -0.20, 0.10);
       const atmoOpacity = Math.min((body.atmospherePressure ?? 1.0) * 0.10, 0.55);
 
-      const atmoGeom = new THREE.SphereGeometry(1.10, 32, 32);
+      const atmoGeom = new THREE.SphereGeometry(1.10, 64, 64);
       const atmoMat = new THREE.ShaderMaterial({
         uniforms: {
           atmoColor:    { value: atmoColor },
@@ -1886,7 +1896,7 @@ export default class SceneManager {
       group.add(atmosphere);
       group.userData.atmosphere = atmosphere;
 
-      const hazeGeom = new THREE.SphereGeometry(1.03, 32, 32);
+      const hazeGeom = new THREE.SphereGeometry(1.03, 64, 64);
       const hazeMat = new THREE.ShaderMaterial({
         uniforms: {
           atmoColor:    { value: atmoColor.clone().multiplyScalar(1.15) },
@@ -1984,8 +1994,9 @@ export default class SceneManager {
    * Create black hole visual with accretion disk
    */
   createBlackHoleMesh(body, group) {
-    // Event horizon (pure black sphere)
-    const ehGeom = new THREE.SphereGeometry(1, 64, 64);
+    // Event horizon (pure black sphere) — 128×128 keeps the silhouette
+    // perfectly circular against the bright accretion disk at any zoom.
+    const ehGeom = new THREE.SphereGeometry(1, 128, 128);
     const ehMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
     const eventHorizon = new THREE.Mesh(ehGeom, ehMat);
     group.add(eventHorizon);
@@ -2064,7 +2075,7 @@ export default class SceneManager {
     }
 
     // Gravitational lensing distortion sphere (larger invisible sphere)
-    const lensGeom = new THREE.SphereGeometry(5, 32, 32);
+    const lensGeom = new THREE.SphereGeometry(5, 64, 64);
     const lensMat = new THREE.MeshBasicMaterial({
       color: 0x000000,
       transparent: true,
