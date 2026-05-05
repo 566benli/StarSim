@@ -240,49 +240,75 @@ export const PLANET_FRAGMENT_GLSL = /* glsl */`
 
   // ── Per-type painting routines ─────────────────────────────────────────────
 
-  // Layered "boulder field" rocky surface — matches reference rocky-planet art
-  // by stacking warped cellular noise (boulder bodies) on top of broad slate
-  // continents and rust dust between them.  Adds a frost/lichen weathering
-  // pass tinted toward accentColor when weathering > 0.
+  // Photoreal rubble-pile rocky surface.  Layered warped cellular noise
+  // builds two boulder octaves (cobbles + small rubble) sitting in warm rust
+  // regolith, with crisp crater shadows, bright lit-face catchlights on
+  // boulder crowns, and scattered pale chalk patches.  Tuned to match the
+  // high-detail rocky-planet reference (much higher contrast and a warmer,
+  // more saturated palette than the previous painterly take).
   vec3 paintRocky(vec3 P, vec3 wn){
-    vec3 W   = warp(P * 1.4, 0.45, 0.9);
-    float continent = fbm(W * 1.8) * 0.5 + 0.5;          // broad slate vs. rust
-    float boulders  = 1.0 - sqrt(vnoise(W * 5.0));        // boulder bodies
-    boulders = smoothstep(0.20, 0.85, boulders);
-    float dust      = fbm(P * 11.0 + 4.7) * 0.5 + 0.5;
-    float crater    = smoothstep(0.55, 0.75, ridge(P * 6.5)) * 0.45;
-    float fines     = fbm(P * 28.0 - 1.3) * 0.5 + 0.5;
+    vec3 W = warp(P * 1.6, 0.55, 1.05);
 
-    // Rust + slate + dark crevice colors
-    vec3 rust  = baseColor * 1.05;
-    vec3 slate = mix(secondColor, baseColor * 0.55, 0.30);
-    vec3 crevice = baseColor * 0.18;
+    // Two boulder octaves: large primary cobbles + smaller rubble fragments.
+    // sqrt(vnoise) produces organic, non-grid clumps; smoothstep sharpens
+    // their edges so each boulder reads as a discrete body.
+    float bigBoulders = 1.0 - sqrt(vnoise(W * 4.2));
+    bigBoulders       = smoothstep(0.28, 0.92, bigBoulders);
 
-    vec3 col = mix(rust * (0.65 + dust * 0.45),
-                   slate * (0.85 + fines * 0.25),
-                   smoothstep(0.35, 0.65, continent));
+    float smallRubble = 1.0 - sqrt(vnoise(W * 10.5 + 3.7));
+    smallRubble       = smoothstep(0.32, 0.88, smallRubble);
 
-    // Boulder relief: brighter highlight on rock crowns, darker base shadow.
-    float crown   = pow(boulders, 2.0);
-    float shadow  = pow(1.0 - boulders, 1.6) * (1.0 - dust * 0.4);
-    col = mix(col, slate * 1.25, crown * 0.55);
-    col = mix(col, crevice, shadow * 0.55);
+    float boulders = max(bigBoulders, smallRubble * 0.65);
 
-    // Crater shadows — sharper darkening rims drawn from ridged noise
-    col = mix(col, crevice, crater * 0.55);
+    // Crown vs. bowl side of each boulder for shading relief
+    float crown = pow(boulders, 1.6);
+    float bowl  = pow(1.0 - boulders, 1.4);
 
-    // Weathering: white frost / pale lichen sitting on rock crowns and along
-    // cool latitudes (roughly mid-y on the unit sphere).
+    // Regolith dust grain (multi-octave) and ridged crater rims
+    float dust   = fbm(P * 8.0 + 4.7) * 0.5 + 0.5;
+    float fines  = fbm(P * 26.0 - 1.3) * 0.5 + 0.5;
+    float crater = smoothstep(0.48, 0.78, ridge(P * 5.0)) * 0.65;
+
+    // Bright chalk / pale-dust patches that punctuate the rust regolith
+    float chalkN    = fbm(P * 2.4 + 9.1);
+    float chalkMask = smoothstep(0.58, 0.92, chalkN);
+    chalkMask      *= 0.80 + 0.40 * smoothstep(0.45, 0.95, fines);
+
+    // ── Palette ─────────────────────────────────────────────────────────
+    vec3 rustHot   = mix(baseColor, vec3(0.85, 0.42, 0.14), 0.50);  // warm regolith
+    vec3 rustDark  = baseColor * 0.42;                              // shadowed dust
+    vec3 boulderDk = vec3(0.085, 0.090, 0.105);                     // near-black slate
+    vec3 boulderHi = vec3(0.58, 0.58, 0.62);                        // lit catchlight
+    vec3 chalkCol  = vec3(0.93, 0.88, 0.78);                        // pale chalk
+
+    // ── Composite ───────────────────────────────────────────────────────
+    // 1) Warm rust regolith base modulated by dust + fine grain
+    vec3 col = mix(rustDark, rustHot, 0.55 + dust * 0.45);
+    col      = mix(col, rustHot * 1.15, fines * 0.28);
+
+    // 2) Drop in boulders — dark bodies with bright lit-face catchlights
+    vec3 boulderCol = mix(boulderDk, boulderHi, crown * 0.65);
+    col = mix(col, boulderCol, smoothstep(0.18, 0.52, boulders));
+
+    // 3) Deep shadow inside boulder packs and crater rims
+    col = mix(col, boulderDk * 0.6, bowl * 0.35 * smoothstep(0.40, 0.80, boulders));
+    col = mix(col, boulderDk * 0.5, crater);
+
+    // 4) Bright chalk / pale dust patches in regolith gaps
+    float chalkAreas = chalkMask * (1.0 - smoothstep(0.30, 0.65, boulders));
+    col = mix(col, chalkCol, chalkAreas * 0.70);
+
+    // 5) Optional polar / lichen frost via the weathering uniform
     if(weathering > 0.001){
       float lat = abs(vPosition.y);
-      float frostMask = smoothstep(0.10, 0.75, lat) * crown;
-      frostMask = max(frostMask, smoothstep(0.55, 0.95, fbm(P * 3.0)) * crown * 0.7);
-      vec3 frostCol = mix(vec3(0.92, 0.94, 0.97), accentColor, 0.35);
+      float frostMask = smoothstep(0.30, 0.85, lat) * pow(boulders, 2.0);
+      frostMask = max(frostMask, smoothstep(0.65, 0.95, fbm(P * 3.0)) * 0.55);
+      vec3  frostCol  = mix(vec3(0.94, 0.95, 0.98), accentColor, 0.30);
       col = mix(col, frostCol, frostMask * weathering);
     }
 
-    // Subtle blue-grey shadow tint in deepest crevices (matches references)
-    col *= mix(vec3(0.78, 0.84, 0.92), vec3(1.0), 0.55 + boulders * 0.45);
+    // 6) Micro-AO in the deepest crevices keeps shadows from looking flat
+    col *= 0.85 + 0.20 * smoothstep(0.0, 0.30, dust + boulders * 0.5);
 
     return col;
   }
