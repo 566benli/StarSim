@@ -62,7 +62,23 @@ const PHASE_INFO = {
   },
 };
 
-const InfoPanel = ({ onExplore, onClose, onFocusBody, getBodies, engine, universeStats = {} }) => {
+/**
+ * True when the user has opted-in to the developer / showcase VFX controls
+ * via a `?gallery=1` URL flag.  Read once at module load so toggling the
+ * flag requires a reload — this is intentional, the controls are only meant
+ * for art inspection and should not clutter normal play.
+ */
+const GALLERY_MODE = (() => {
+  try {
+    if (typeof window === 'undefined') return false;
+    const params = new URLSearchParams(window.location.search || '');
+    return params.get('gallery') === '1';
+  } catch (_) {
+    return false;
+  }
+})();
+
+const InfoPanel = ({ onExplore, onClose, onFocusBody, getBodies, engine, sceneManager, universeStats = {} }) => {
   const { selectedBody, simulationTime } = useStore();
   const [showHRDiagram, setShowHRDiagram] = useState(false);
   const [showTechTree, setShowTechTree] = useState(false);
@@ -398,6 +414,51 @@ const InfoPanel = ({ onExplore, onClose, onFocusBody, getBodies, engine, univers
             >
               💥 Trigger Supernova
             </button>
+          )}
+
+          {/* Gallery-only VFX demo controls.  Hidden behind `?gallery=1` so they
+              never appear during normal play — used by the Art Showcase preset
+              to inspect the smooth-transition flash and supernova VFX without
+              waiting for natural evolution. */}
+          {GALLERY_MODE && (
+            <div
+              className="vfx-demo-row"
+              style={{
+                display: 'flex',
+                gap: 6,
+                margin: '6px 0 2px',
+                flexWrap: 'wrap',
+              }}
+            >
+              <button
+                className="hr-diagram-btn"
+                style={{ flex: '1 1 48%', fontSize: 11, padding: '4px 6px' }}
+                title="Replay the warm phase-blend flash overlay on this body"
+                onClick={() => {
+                  const body = engine?.getBodies?.()?.find(b => b.id === selectedBody.id) ?? selectedBody;
+                  if (sceneManager && typeof sceneManager.handlePhaseChange === 'function') {
+                    sceneManager.handlePhaseChange(body, body.phase);
+                  }
+                }}
+              >
+                🎨 Replay Flash
+              </button>
+              {!['neutron_star', 'black_hole', 'supernova', 'white_dwarf'].includes(selectedBody.phase) && (
+                <button
+                  className="hr-diagram-btn supernova-trigger-btn"
+                  style={{ flex: '1 1 48%', fontSize: 11, padding: '4px 6px' }}
+                  title="Force a supernova on this star regardless of mass (gallery mode)"
+                  onClick={() => {
+                    const body = engine?.getBodies?.()?.find(b => b.id === selectedBody.id) ?? selectedBody;
+                    if (typeof body?.triggerSupernova === 'function') {
+                      body.triggerSupernova();
+                    }
+                  }}
+                >
+                  💥 Demo Supernova
+                </button>
+              )}
+            </div>
           )}
 
           {/* Phase badge + description card */}

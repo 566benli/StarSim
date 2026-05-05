@@ -1657,6 +1657,7 @@ const App = () => {
           onFocusBody={handleNavigateToBody}
           getBodies={() => engineRef.current?.getBodies?.() ?? []}
           engine={engineRef.current}
+          sceneManager={sceneRef.current}
           universeStats={universeStats}
         />
       )}
