@@ -1,0 +1,65 @@
+---
+description: Multi-agent cooperation workflow for Genesis Error — 4 specialized agents + mandatory per-agent report after every command
+alwaysApply: true
+---
+
+# Genesis Error: Multi-Agent Cooperation System
+
+For EVERY user command that changes the project, act as an **orchestrator** coordinating
+four specialized agents below. Each agent owns a domain. After the work is done, you MUST
+end your reply with the **Round Report** (one block per agent). This is mandatory and never skipped.
+
+## The Four Agents
+
+### 1. ARCHITECT — Core Script & Systems
+- **Owns:** `src/engine/`, `src/data/`, `src/services/` (non-AI), `src/utils/`, `electron/`, build scripts.
+- **Job:** Design/modify the major simulation script; add new stars, celestial bodies, tools,
+  systems (gravity, life, civ, catastrophe), data tables (`starTypes`, `planetTypes`, `techTree`), and APIs.
+- **Owns physics/logic correctness, performance, and clean architecture.**
+
+### 2. ARTISAN — Art, UI & Motion
+- **Owns:** `src/renderer/` (`SceneManager.js`, `celestialShaders.js`, `ExplorerCamera.js`),
+  `src/art/`, `src/ui/`, CSS, HTML.
+- **Job:** Visual design of planets/stars, shaders, UI/UX, planet orbital motion & animation,
+  and zoom-in/zoom-out / camera projection features.
+- **Owns visual quality, smoothness (FPS), and responsive controls.**
+
+### 3. CURATOR — Art Verification (external-AI capable)
+- **Owns:** review of every visual change Artisan makes before it ships.
+- **Job:** Verify the art design of planets and stars is physically plausible and visually
+  coherent (color vs. temperature, size, glow, accretion disks, surfaces). May link to
+  external AIs via `src/ai/AIAgent.js` / `src/services/apiService.js` for design critique
+  or to render reference images for comparison.
+- **Owns the visual sign-off; can request Artisan rework. Verdict: APPROVED / NEEDS-REWORK.**
+
+### 4. SENTINEL — GitHub & QA
+- **Owns:** git, GitHub sync, builds, and bug-gating (per the project's mandatory git/build rules).
+- **Job:** Pull latest before work; after changes run `npm run build:all` + `npm run check-sync`,
+  run lints/tests, re-verify after every change, then commit and push to GitHub.
+- **Owns the no-bugs guarantee. Verdict: PASS / FAIL — never push on FAIL.**
+
+## Workflow Per Command
+
+1. **Orchestrator** parses the command and assigns sub-tasks to the relevant agent(s).
+   Not every command needs all four — but every agent MUST appear in the report (mark `Idle` if unused).
+2. Agents do their work in dependency order: ARCHITECT and/or ARTISAN implement →
+   CURATOR verifies art → SENTINEL builds, verifies, commits, pushes.
+3. For larger commands, run agents as parallel `Task` subagents where useful; otherwise play the roles inline.
+4. Loop fix→verify until CURATOR = APPROVED and SENTINEL = PASS before declaring done.
+
+## Mandatory Round Report (always end your reply with this)
+
+```
+═══════════ ROUND REPORT ═══════════
+🛠️ ARCHITECT  — [what it did | Idle] | Problems: <none / details>
+🎨 ARTISAN    — [what it did | Idle] | Problems: <none / details>
+🔍 CURATOR    — [APPROVED / NEEDS-REWORK / Idle] | Problems: <none / details>
+🚀 SENTINEL   — [PASS / FAIL / Idle] (build ✓/✗, sync ✓/✗, push ✓/✗) | Problems: <none / details>
+────────────────────────────────────
+Overall: <Done / Blocked> — <one-line summary>
+```
+
+Rules for the report:
+- Be honest about problems; if anything is unresolved, set Overall = **Blocked** and explain the next step.
+- If SENTINEL could not push (auth/conflict) or build/sync failed, say so explicitly — do not claim completion.
+- Keep each agent line to one or two sentences.
