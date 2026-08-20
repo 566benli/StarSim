@@ -1767,8 +1767,10 @@ export default class SceneManager {
     if (this._rockyMatcap) return this._rockyMatcap;
     const tex = new THREE.TextureLoader().load('assets/textures/rocky_matcap.png');
     tex.colorSpace      = THREE.SRGBColorSpace;
-    tex.wrapS           = THREE.ClampToEdgeWrapping;
-    tex.wrapT           = THREE.ClampToEdgeWrapping;
+    // Repeat-wrap so triplanar projection can sample at any UV without
+    // edge-clamp seams on the back side of the sphere.
+    tex.wrapS           = THREE.RepeatWrapping;
+    tex.wrapT           = THREE.RepeatWrapping;
     tex.minFilter       = THREE.LinearMipmapLinearFilter;
     tex.magFilter       = THREE.LinearFilter;
     tex.generateMipmaps = true;
@@ -1848,13 +1850,13 @@ export default class SceneManager {
 
     const planetType = this._planetTypeIndex(body.subtype);
 
-    // Solid surfaces (earth / desert / icy / lava) get displacement; gas /
-    // hot-jupiter / ice giant remain perfectly spherical.  Rocky bodies
-    // (type 0) also stay smooth — the matcap texture already encodes the
-    // boulder relief, and any silhouette wobble would muddy the look.
-    const SOLID_TYPES = new Set([1, 4, 6, 7]);
+    // Solid surfaces (rocky / earth / desert / icy / lava) get displacement;
+    // gas / hot-jupiter / ice giant remain perfectly spherical.  Rocky bodies
+    // get a small displacement on top of the triplanar texture so the
+    // silhouette also reads as 3D when the user rotates the camera.
+    const SOLID_TYPES = new Set([0, 1, 4, 6, 7]);
     const displaceAmount = SOLID_TYPES.has(planetType)
-      ? (planetType === 4 ? 0.012 : 0.025)
+      ? (planetType === 4 ? 0.012 : (planetType === 0 ? 0.018 : 0.025))
       : 0.0;
 
     // Biosphere overlay DataTexture (32 lon × 16 lat, RGBA float)

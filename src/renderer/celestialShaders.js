@@ -228,9 +228,11 @@ export const PLANET_FRAGMENT_GLSL = /* glsl */`
   uniform float biosphereOpacity;
   uniform float oceanGlow;       // 0..1 add specular highlight on oceans
 
-  // Matcap texture used for rocky planets (planetType == 0).  When supplied,
-  // paintRocky samples it via view-space normal coordinates, giving the
-  // photoreal rubble-pile look from every camera angle.
+  // Photoreal rubble-pile texture used for rocky planets (planetType == 0).
+  // Sampled via triplanar projection so the surface wraps the entire sphere
+  // and rotating the camera reveals different terrain.  Detail offsets driven
+  // by the seed uniform make every rocky body pick a slightly different patch of the
+  // texture so they don't all look identical.
   uniform sampler2D rockyMatcap;
 
   ${NOISE_GLSL}
@@ -245,15 +247,42 @@ export const PLANET_FRAGMENT_GLSL = /* glsl */`
 
   // ── Per-type painting routines ─────────────────────────────────────────────
 
-  // Rocky surface: matcap-style sampling of the photoreal reference texture.
-  // The view-space normal (already in vNormal because the planet vertex shader
-  // emits normalMatrix * normal) is projected onto the unit disc and used as
-  // a UV into the matcap texture.  This makes every rocky planet read with
-  // the exact rubble-pile surface look from any camera angle, with the
-  // texture's baked lighting / rim-light intact.
+  // Rocky surface: triplanar projection of the photoreal rubble-pile texture
+  // wrapped onto the sphere in world space.  Sampling the same texture from
+  // three orthogonal planes and blending by abs(world-normal) avoids UV pole
+  // pinching and gives every face of the sphere distinct terrain — so when
+  // the user orbits the camera they see different boulders, not the same
+  // image rotating.
+  //
+  // We use a tile factor of TILE = 2.0 (texture repeats twice around each
+  // axis) and crop each tile to its central 80% so the dark border of the
+  // reference image never shows as a seam between tiles.  A small seed
+  // offset shifts the sampled patch per body so two rocky planets in the
+  // same scene aren't pixel-identical.
   vec3 paintRocky(vec3 P, vec3 wn){
-    vec2 muv = vNormal.xy * 0.5 + 0.5;
-    return texture2D(rockyMatcap, muv).rgb;
+    const float TILE = 2.0;
+    vec3 wp = vWorldNormal * TILE;
+    vec2 sd = vec2(sin(seed * 0.41), cos(seed * 0.37)) * 0.31;
+
+    vec3 blend = pow(abs(wn), vec3(4.0));
+    blend /= max(blend.x + blend.y + blend.z, 1e-4);
+
+    vec2 uvX = fract(wp.zy + sd) * 0.80 + 0.10;
+    vec2 uvY = fract(wp.zx + sd.yx) * 0.80 + 0.10;
+    vec2 uvZ = fract(wp.xy + sd) * 0.80 + 0.10;
+
+    vec3 colX = texture2D(rockyMatcap, uvX).rgb;
+    vec3 colY = texture2D(rockyMatcap, uvY).rgb;
+    vec3 colZ = texture2D(rockyMatcap, uvZ).rgb;
+
+    vec3 col = colX * blend.x + colY * blend.y + colZ * blend.z;
+
+    // Subtle warm modulation from regolith noise so the tile boundaries
+    // are masked and the surface doesn't read as a perfect repeat.
+    float dust = fbm(P * 6.0 + 3.1) * 0.5 + 0.5;
+    col *= mix(0.85, 1.10, dust);
+
+    return col;
   }
 
   // Earth-like world with ocean depth grading, latitudinal biomes, polar caps,
@@ -466,20 +495,22 @@ export const PLANET_FRAGMENT_GLSL = /* glsl */`
       }
     }
 
-    // ── Rocky planets short-circuit lighting ───────────────────────────────
-    // The matcap already has lighting, limb darkening, and rim glow baked in.
-    // Multiplying by our scene diffuse / Fresnel pass would double-light the
-    // surface and wash out the reference look, so we emit the matcap directly.
-    if(planetType < 0.5){
-      gl_FragColor = vec4(color, 1.0);
-      return;
-    }
-
     // ── Lighting ───────────────────────────────────────────────────────────
     float diffuse = wrapLambert(wn, lightDir, 0.18);
     // Cool ambient sky tint on the night side keeps shadows from going pure black
     vec3 ambient = mix(vec3(0.06, 0.08, 0.12), vec3(0.16, 0.18, 0.22), 0.5);
-    color = color * (diffuse * 0.85 + 0.15) + ambient * (1.0 - diffuse) * 0.35;
+
+    if(planetType < 0.5){
+      // Rocky bodies use a triplanar texture that already carries some baked
+      // lighting/rim-glow.  Apply a gentler dynamic light pass so the planet
+      // still has a real day/night terminator the user can rotate around,
+      // without washing out the reference look.
+      float lightWrap = wrapLambert(wn, lightDir, 0.35);
+      color = color * (lightWrap * 0.55 + 0.45)
+            + ambient * (1.0 - lightWrap) * 0.18;
+    } else {
+      color = color * (diffuse * 0.85 + 0.15) + ambient * (1.0 - diffuse) * 0.35;
+    }
 
     // Limb darkening (camera-space normal)
     float NdotV = max(dot(vNormal, normalize(-vPosition)), 0.0);
