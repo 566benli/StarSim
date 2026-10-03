@@ -1,38 +1,34 @@
 # Genesis Error Portable Release Workflow
 
-This project now auto-generates a portable package that you can send directly to other users.
+Send one zip. After unzip, the other person can run the desktop app and read the essential source. Dependencies, git history, and the duplicate Electron folder are not included.
 
 ## What to send
 
-- `releases/GenesisError-Portable-latest.zip` (stable latest package)
-- Optional versioned archive: `releases/GenesisError-Portable-<BUILD_ID>.zip`
+- `releases/GenesisError-Portable-latest.zip`
 
-## Guaranteed sync behavior
+That archive is the file to share. A versioned copy with the same contents is written beside it: `releases/GenesisError-Portable-<BUILD_ID>.zip`.
 
-`npm run build:all` now performs all of the following in order:
+## Package contents
 
-1. installs dependencies
-2. rebuilds web (`dist/`)
-3. rebuilds desktop executable (`dist-electron/`)
-4. verifies sync (`npm run check-sync`)
-5. creates a fresh portable package in `releases/`
+- `Start-GenesisError.bat` launches the app
+- `START-HERE.txt` explains the layout
+- `app/` desktop executable and the Electron runtime it needs
+- `web/` synchronized web build
+- `source/` essential code: `src/`, `electron/`, `assets/`, `docs/`, `build/`, `scripts/`, `package.json`, `package-lock.json`, `webpack.config.js`
+- `release-manifest.json` build metadata
 
-That means **every code change + build:all run updates portable artifacts in sync**.
+Left out on purpose: `node_modules/`, `.git/`, `dist-electron/win-unpacked/` (a second copy of the app), server secrets, and previous release archives.
 
-## Manual packaging command
+To rebuild, unzip, install Node.js, then from `source/` run `npm install` and `npm run build:all`.
 
-If you already built and only want to regenerate package archives:
+## How it is produced
+
+`npm run build:all` installs dependencies, rebuilds the web app and the desktop exe, checks that their build IDs match, then refreshes this zip.
+
+If those builds already exist and only the archive needs to be regenerated:
 
 ```bash
 npm run portable:pack
 ```
 
-## Package contents
-
-Each package contains:
-
-- `app/` portable desktop executable and runtime files
-- `web/` synchronized web build
-- `Start-GenesisError.bat` quick launcher
-- `release-manifest.json` build metadata
-- `docs/PORTABLE-README.txt` usage notes
+The packager writes the zip and deletes its temporary folder. Older runs also left an unpacked folder of about 1 GB next to each zip; those folders are not required once the zip exists.
