@@ -57,6 +57,9 @@ export const VIEW_LEVEL = {
   BODY: 'body',
 };
 
+/** Max retained cosmic events in the on-screen event log (toasts still auto-dismiss). */
+export const MAX_EVENT_LOG = 99;
+
 // === Rendering Constants ===
 export const STAR_RENDER_SCALE = 0.05;    // Visual scale for stars (AU)
 export const PLANET_RENDER_SCALE = 0.01;  // Visual scale for planets

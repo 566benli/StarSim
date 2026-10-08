@@ -3,7 +3,7 @@
  * Single source of truth for UI and simulation state
  */
 import { create } from 'zustand';
-import { VIEW_LEVEL } from '@utils/constants';
+import { MAX_EVENT_LOG, VIEW_LEVEL } from '@utils/constants';
 
 export const useStore = create((set, get) => ({
   // === Simulation State ===
@@ -106,7 +106,11 @@ export const useStore = create((set, get) => ({
   showObjectPalette: true,
   toggleInfoPanel: () => set((s) => ({ showInfoPanel: !s.showInfoPanel })),
   toggleAIChat: () => set((s) => ({ showAIChat: !s.showAIChat })),
-  toggleEventLog: () => set((s) => ({ showEventLog: !s.showEventLog })),
+  toggleEventLog: () => set((s) => ({
+    showEventLog: !s.showEventLog,
+    unreadEventCount: !s.showEventLog ? 0 : s.unreadEventCount,
+  })),
+  openEventLog: () => set({ showEventLog: true, unreadEventCount: 0 }),
   toggleSettings: () => set((s) => ({ showSettings: !s.showSettings })),
   toggleUniversePanel: () => set((s) => ({ showUniversePanel: !s.showUniversePanel })),
   toggleObjectPalette: () => set((s) => ({ showObjectPalette: !s.showObjectPalette })),
@@ -124,10 +128,25 @@ export const useStore = create((set, get) => ({
   // === Events ===
   activeEvents: [],
   eventHistory: [],
-  addEvent: (event) => set((state) => ({
-    activeEvents: [...state.activeEvents, event].slice(-5),
-    eventHistory: [...state.eventHistory, event].slice(-100),
-  })),
+  unreadEventCount: 0,
+  addEvent: (event) => set((state) => {
+    const nextEvent = {
+      ...event,
+      logSeq: event.logSeq ?? (state.eventHistory[state.eventHistory.length - 1]?.logSeq || 0) + 1,
+    };
+    return {
+      activeEvents: [...state.activeEvents, nextEvent].slice(-5),
+      eventHistory: [...state.eventHistory, nextEvent].slice(-MAX_EVENT_LOG),
+      unreadEventCount: state.showEventLog
+        ? 0
+        : Math.min(MAX_EVENT_LOG, (state.unreadEventCount || 0) + 1),
+    };
+  }),
+  setEventHistory: (events) => set({
+    eventHistory: (events || []).slice(-MAX_EVENT_LOG),
+    unreadEventCount: 0,
+    activeEvents: [],
+  }),
   dismissEvent: (id) => set((state) => ({
     activeEvents: state.activeEvents.filter(e => e.id !== id),
   })),

@@ -27,7 +27,7 @@ import { getApplicableEvents } from '@data/events';
 import { STAR_PRESETS } from '@data/starTypes';
 import { PLANET_PRESETS } from '@data/planetTypes';
 import { getDefaultComposition } from '@data/elements';
-import { ARENA_RADIUS_AU, MLY_TO_AU, SIM_TIME_SCALE, UNIVERSE_RADIUS_MLY, VIEW_LEVEL } from '@utils/constants';
+import { ARENA_RADIUS_AU, MAX_EVENT_LOG, MLY_TO_AU, SIM_TIME_SCALE, UNIVERSE_RADIUS_MLY, VIEW_LEVEL } from '@utils/constants';
 
 export const SIM_STATE = {
   SETUP: 'setup',
@@ -52,6 +52,7 @@ export default class SimEngine {
 
     this.pendingEvents = [];
     this.eventHistory = [];
+    this.eventSeq = 0;
     this.eventCheckInterval = 1.0;
     this.lastEventCheck = 0;
 
@@ -118,6 +119,25 @@ export default class SimEngine {
     const events = [...this.pendingVfxEvents];
     this.pendingVfxEvents = [];
     return events;
+  }
+
+  /**
+   * Record a player-visible game event (toast + persistent log, capped at MAX_EVENT_LOG).
+   */
+  emitGameEvent(event) {
+    if (!event.id) {
+      event.id = `event_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    }
+    if (event.time == null) event.time = this.simulationTime;
+    this.eventSeq = (this.eventSeq || 0) + 1;
+    event.logSeq = this.eventSeq;
+    this.eventHistory.push(event);
+    if (this.eventHistory.length > MAX_EVENT_LOG) {
+      this.eventHistory.splice(0, this.eventHistory.length - MAX_EVENT_LOG);
+    }
+    this.pendingEvents.push(event);
+    if (this.onEvent) this.onEvent(event);
+    return event;
   }
 
   getMaxPhysicsTimeScale() {
@@ -289,9 +309,7 @@ export default class SimEngine {
             color: '#554466',
           },
         };
-        this.eventHistory.push(event);
-        this.pendingEvents.push(event);
-        if (this.onEvent) this.onEvent(event);
+        this.emitGameEvent(event);
         body.destroy();
       }
     }
@@ -600,18 +618,14 @@ export default class SimEngine {
       const civEvents = this.civilizationSystem.consumePendingEvents();
       const empEvents = this.empireSystem.consumePendingEvents();
       for (const event of [...civEvents, ...empEvents]) {
-        this.eventHistory.push(event);
-        this.pendingEvents.push(event);
-        if (this.onEvent) this.onEvent(event);
+        this.emitGameEvent(event);
       }
     }
 
     this.simulationTime = nextSimulationTime;
     const lifeEvents = this.lifeEvolutionSystem.consumePendingEvents();
     for (const event of lifeEvents) {
-      this.eventHistory.push(event);
-      this.pendingEvents.push(event);
-      if (this.onEvent) this.onEvent(event);
+      this.emitGameEvent(event);
     }
 
     this.checkPhaseChanges();
@@ -648,9 +662,7 @@ export default class SimEngine {
           color: '#ff3300',
         },
       };
-      this.eventHistory.push(crunchEvent);
-      this.pendingEvents.push(crunchEvent);
-      if (this.onEvent) this.onEvent(crunchEvent);
+      this.emitGameEvent(crunchEvent);
       this.paused = true;
     }
 
@@ -744,9 +756,7 @@ export default class SimEngine {
           color: '#ffcc66',
         },
       };
-      this.eventHistory.push(event);
-      this.pendingEvents.push(event);
-      if (this.onEvent) this.onEvent(event);
+      this.emitGameEvent(event);
     }
   }
 
@@ -812,9 +822,7 @@ export default class SimEngine {
           color: neb.color || '#cc88ff',
         },
       };
-      this.eventHistory.push(event);
-      this.pendingEvents.push(event);
-      if (this.onEvent) this.onEvent(event);
+      this.emitGameEvent(event);
     }
   }
 
@@ -868,9 +876,7 @@ export default class SimEngine {
           color: '#66bbff',
         },
       };
-      this.eventHistory.push(event);
-      this.pendingEvents.push(event);
-      if (this.onEvent) this.onEvent(event);
+      this.emitGameEvent(event);
     }
   }
 
@@ -932,9 +938,7 @@ export default class SimEngine {
         color: '#aaccff',
       },
     };
-    this.eventHistory.push(event);
-    this.pendingEvents.push(event);
-    if (this.onEvent) this.onEvent(event);
+    this.emitGameEvent(event);
   }
 
   checkPhaseChanges() {
@@ -976,9 +980,7 @@ export default class SimEngine {
           effects: {},
         };
 
-        this.eventHistory.push(event);
-        this.pendingEvents.push(event);
-        if (this.onEvent) this.onEvent(event);
+        this.emitGameEvent(event);
         if (this.onPhaseChange) this.onPhaseChange(body, change.newPhase);
       }
 
@@ -1000,9 +1002,7 @@ export default class SimEngine {
           },
           effects: {},
         };
-        this.eventHistory.push(warnEvent);
-        this.pendingEvents.push(warnEvent);
-        if (this.onEvent) this.onEvent(warnEvent);
+        this.emitGameEvent(warnEvent);
       }
 
       // ── Process supernova / explosion payloads ─────────────────────────────
@@ -1035,9 +1035,7 @@ export default class SimEngine {
           },
           effects: { radiationBurst: true, shockwave: true },
         };
-        this.eventHistory.push(gameEvent);
-        this.pendingEvents.push(gameEvent);
-        if (this.onEvent) this.onEvent(gameEvent);
+        this.emitGameEvent(gameEvent);
 
         // Propagate catastrophe to nearby bodies in the same system
         const gs = body.systemId ? this.gravitySystems.get(body.systemId) : null;
@@ -1115,8 +1113,7 @@ export default class SimEngine {
           },
           effects: {},
         };
-        this.pendingEvents.push(gameEvent);
-        if (this.onEvent) this.onEvent(gameEvent);
+        this.emitGameEvent(gameEvent);
       }
       gs.collisionSystem.pendingCatastrophes = [];
     }
@@ -1188,9 +1185,7 @@ export default class SimEngine {
       ),
     });
 
-    this.eventHistory.push(event);
-    this.pendingEvents.push(event);
-    if (this.onEvent) this.onEvent(event);
+    this.emitGameEvent(event);
     return event;
   }
 
@@ -1330,11 +1325,12 @@ export default class SimEngine {
   }
 
   toJSON() {
-    const events = this.eventHistory.slice(-50).map((e) => ({
+    const events = this.eventHistory.slice(-MAX_EVENT_LOG).map((e) => ({
       id: e.id,
       name: e.name,
       category: e.category,
       time: e.time,
+      logSeq: e.logSeq,
       notification: e.notification,
       effects: e.effects,
       targetBody: e.targetBody ? { id: e.targetBody.id, name: e.targetBody.name } : null,
@@ -1402,7 +1398,10 @@ export default class SimEngine {
     if (data.simulationTime != null) this.simulationTime = data.simulationTime;
     if (data.timeScale != null) this.setTimeScale(data.timeScale);
     if (data.state != null) this.state = data.state;
-    if (data.eventHistory?.length) this.eventHistory = data.eventHistory;
+    if (data.eventHistory?.length) {
+      this.eventHistory = data.eventHistory.slice(-MAX_EVENT_LOG);
+      this.eventSeq = this.eventHistory.reduce((max, e) => Math.max(max, e.logSeq || 0), 0);
+    }
     this.paused = true;
   }
 
@@ -1416,6 +1415,7 @@ export default class SimEngine {
     this.state = SIM_STATE.SETUP;
     this.pendingEvents = [];
     this.eventHistory = [];
+    this.eventSeq = 0;
     this.lastEventCheck = 0;
     this._lastLifeUpdate = 0;
     this._lastCivUpdate  = 0;

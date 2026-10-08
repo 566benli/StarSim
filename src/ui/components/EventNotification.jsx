@@ -6,7 +6,7 @@ import { useStore } from '../store';
 import './EventNotification.css';
 
 const EventNotification = () => {
-  const { activeEvents, dismissEvent } = useStore();
+  const { activeEvents, dismissEvent, openEventLog } = useStore();
 
   // Show only the most recent 3 notifications
   const visibleEvents = activeEvents.slice(-3);
@@ -18,6 +18,10 @@ const EventNotification = () => {
           key={event.id}
           event={event}
           onDismiss={() => dismissEvent(event.id)}
+          onOpenLog={() => {
+            openEventLog();
+            dismissEvent(event.id);
+          }}
         />
       ))}
     </div>
@@ -31,7 +35,7 @@ const DISMISS_DELAY = {
   historic:      9000,
   catastrophic: 14000,
   major:         7000,
-  notable:       6000,
+  notable:       10000,
 };
 
 const SEVERITY_ICON = {
@@ -42,21 +46,24 @@ const SEVERITY_ICON = {
   major:        '⭐',
 };
 
-const EventToast = ({ event, onDismiss }) => {
+const EventToast = ({ event, onDismiss, onOpenLog }) => {
   const [visible, setVisible] = useState(false);
   const [exiting, setExiting] = useState(false);
 
   const notification = event.notification || {};
   const severity = notification.severity || 'notable';
-  const delay = DISMISS_DELAY[severity] ?? 6000;
+  const delay = DISMISS_DELAY[severity] ?? 9000;
 
   useEffect(() => {
-    setTimeout(() => setVisible(true), 50);
-    const timer = setTimeout(() => {
-      setExiting(true);
-      setTimeout(onDismiss, 500);
-    }, delay);
-    return () => clearTimeout(timer);
+    const showTimer = setTimeout(() => setVisible(true), 50);
+    const hideTimer = setTimeout(() => setExiting(true), delay);
+    const dismissTimer = setTimeout(onDismiss, delay + 500);
+    return () => {
+      clearTimeout(showTimer);
+      clearTimeout(hideTimer);
+      clearTimeout(dismissTimer);
+    };
+    // Toast lifetime is fixed at mount; onDismiss is the dismisser for this event id.
   }, []);
 
   const isEvolution    = event.category === 'evolution';
@@ -87,7 +94,8 @@ const EventToast = ({ event, onDismiss }) => {
     <div
       className={classes}
       style={{ borderLeftColor: borderColor }}
-      onClick={() => { setExiting(true); setTimeout(onDismiss, 500); }}
+      onClick={() => { setExiting(true); setTimeout(onOpenLog || onDismiss, 200); }}
+      title="Open event log"
     >
       <div className="toast-title">
         {SEVERITY_ICON[severity] && <span className="toast-severity-icon">{SEVERITY_ICON[severity]} </span>}
@@ -96,6 +104,7 @@ const EventToast = ({ event, onDismiss }) => {
       <div className="toast-body">
         {notification.body?.replace(/\{(\w+)\}/g, event.targetBody?.name || '???') || event.description}
       </div>
+      <div className="toast-log-hint">Saved in Events →</div>
       {severity !== 'notable' && (
         <div className={`toast-severity-badge sev-${severity}`}>{severity}</div>
       )}

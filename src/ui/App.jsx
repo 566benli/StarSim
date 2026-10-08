@@ -74,8 +74,8 @@ const App = () => {
     setBodies, setSelectedBody, clearSelection,
     selectedBody, selectedBodyId,
     setStats, setFps,
-    addEvent, setExplorerInfo,
-    showAIChat, toggleAIChat,
+    addEvent, setEventHistory, setExplorerInfo,
+    showAIChat, toggleAIChat, toggleEventLog,
     showInfoPanel, toggleInfoPanel,
     viewLevel, setViewLevel, navigateTo,
     focusedClusterId, focusedSystemId, focusedBodyId,
@@ -229,7 +229,7 @@ const App = () => {
       // Remove from local GravitySystem so it stops being integrated as a bound body
       const escGS = engine.getSystemGravity?.(body.systemId);
       if (escGS) escGS.removeBody(body);
-      addEvent({
+      engine.emitGameEvent({
         id: `boundary_${Date.now()}`,
         name: 'System Escape',
         category: 'system',
@@ -483,6 +483,7 @@ const App = () => {
         engine.reset();
         scene.clearSimulationVisuals({ clearClusters: true });
         clearSelection();
+        setEventHistory([]);
 
         const cluster = engine.createCluster({
           name: config.clusterName || 'Debug Cluster',
@@ -617,6 +618,7 @@ const App = () => {
     handleUpdateLifeTuning,
     navigateTo,
     setBodies,
+    setEventHistory,
     setSimState,
     syncRuntimePanels,
   ]);
@@ -823,6 +825,7 @@ const App = () => {
 
     engine.reset();
     scene.clearSimulationVisuals({ clearClusters: true });
+    setEventHistory([]);
     const ids = seedFn(engine);
     useStore.getState().clearCreatedBodies();
     setTimeScale(engine.timeScale);
@@ -841,7 +844,7 @@ const App = () => {
       const bodies = sysId ? engine.getSystemBodies(sysId).filter(alive) : engine.getBodies().filter(alive);
       scene.transitionToSystem(bodies.length ? bodies : engine.getBodies().filter(alive));
     }, 100);
-  }, [navigateTo, setSimState, setTimeScale]);
+  }, [navigateTo, setSimState, setTimeScale, setEventHistory]);
 
   const handleLaunchExample = useCallback((seedFn) => {
     const engine = engineRef.current;
@@ -851,6 +854,7 @@ const App = () => {
     engine.reset();
     scene.clearSimulationVisuals({ clearClusters: true });
     clearSelection();
+    setEventHistory([]);
     const ids = seedFn(engine);
     useStore.getState().clearCreatedBodies();
     setTimeScale(engine.timeScale);
@@ -869,7 +873,7 @@ const App = () => {
       const bodies = sysId ? engine.getSystemBodies(sysId).filter(alive) : engine.getBodies().filter(alive);
       scene.transitionToSystem(bodies.length ? bodies : engine.getBodies().filter(alive));
     }, 100);
-  }, [clearSelection, navigateTo, setSimState, setTimeScale]);
+  }, [clearSelection, navigateTo, setSimState, setTimeScale, setEventHistory]);
 
   const handleReplayWelcome = useCallback(() => {
     try {
@@ -1282,6 +1286,7 @@ const App = () => {
           engine.reset();
           scene.clearSimulationVisuals({ clearClusters: true });
           engine.fromJSON(savedData);
+          setEventHistory(engine.eventHistory || []);
           setTimeScale(engine.timeScale);
           setSimState('paused');
           handleDeselectBody();
@@ -1303,7 +1308,7 @@ const App = () => {
       console.error('Failed to load simulation:', error);
     }
     return false;
-  }, [setSimState, handleDeselectBody]);
+  }, [setSimState, handleDeselectBody, setEventHistory]);
 
   const handleGetSaveSlots = useCallback(() => getSaveSlots(), []);
   const handleDeleteSlot = useCallback(async (slotId) => deleteSlot(slotId), []);
@@ -1333,13 +1338,14 @@ const App = () => {
     if (engine && scene) {
       engine.reset();
       scene.clearSimulationVisuals({ clearClusters: true });
+      setEventHistory([]);
       setSimState('setup');
       handleDeselectBody();
       setShowNewSimDialog(false);
       setShowReturnToMenuDialog(false);
       navigateTo(VIEW_LEVEL.UNIVERSE);
     }
-  }, [setSimState, handleDeselectBody]);
+  }, [setSimState, handleDeselectBody, setEventHistory]);
 
   const handleReturnToMenuRequest = useCallback(() => {
     setShowReturnToMenuDialog(true);
@@ -1384,8 +1390,13 @@ const App = () => {
             }
           }
           break;
+        case 'KeyL':
+          if (simState !== 'setup') toggleEventLog();
+          break;
         case 'Escape':
-          if (clusterPopup) {
+          if (useStore.getState().showEventLog) {
+            toggleEventLog();
+          } else if (clusterPopup) {
             setClusterPopup(null);
           } else if (simState === 'explorer') {
             handleExitExplorer();
@@ -1438,7 +1449,7 @@ const App = () => {
   }, [
     simState, viewLevel, clusterPopup, handleExitExplorer, handleNavigateToCluster,
     handleNavigateToUniverse, showSaveDialogHandler, setSimState, toggleAIChat,
-    toggleInfoPanel, getBodiesForView,
+    toggleEventLog, toggleInfoPanel, getBodiesForView,
   ]);
 
   const isElectron = !!window.electronAPI;
@@ -1689,7 +1700,7 @@ const App = () => {
 
       {/* Universe Chronicle (WorldBox-style log book) */}
       {simState !== 'setup' && (
-        <EventChronicle engine={engineRef.current} />
+        <EventChronicle />
       )}
 
       {/* AI Chat */}
